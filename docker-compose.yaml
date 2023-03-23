@@ -1,0 +1,23 @@
+version: '3.9'
+services:
+  rabbit:
+    image: rabbitmq:3.11-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbit
+      - RABBITMQ_DEFAULT_PASS=rabbit
+      - RABBITMQ_DEFAULT_VHOST=email
+    ports:
+      - 15672:15672/tcp
+      - 5672:5672/tcp
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - 9000:9000/tcp
+      - 9001:9001/tcp
+    volumes:
+      - minio:/data
+volumes:
+  minio: {}
+
+
