@@ -11,7 +11,7 @@ import (
 
 type remetente struct {
 	nome, email, senha, host string
-	porta              int
+	porta                    int
 }
 
 type configuracoes struct {
@@ -31,7 +31,7 @@ func pegarConfiguracoes() (*configuracoes, error) {
 
 	config := &configuracoes{
 		remetente: remetente{
-      nome: os.Getenv("SMTP_USERNAME"),
+			nome:  os.Getenv("SMTP_USERNAME"),
 			email: os.Getenv("SMTP_USER"),
 			senha: os.Getenv("SMTP_PASSWORD"),
 			host:  os.Getenv("SMTP_HOST"),
@@ -47,7 +47,7 @@ type email struct {
 	caminhoAnexos                     []string
 }
 
-func enviarEmail(remetente remetente, email email) error {
+func enviarEmails(remetente remetente, emails []email) error {
 	opcoesCliente := []mail.Option{
 		mail.WithPort(remetente.porta),
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
@@ -61,21 +61,26 @@ func enviarEmail(remetente remetente, email email) error {
 		return err
 	}
 
-	mensagem := mail.NewMsg()
-	err = mensagem.EnvelopeFromFormat(remetente.nome, remetente.email)
-	if err != nil {
-		return err
+	mensagens := []*mail.Msg{}
+	for _, email := range emails {
+		mensagem := mail.NewMsg()
+		err = mensagem.EnvelopeFromFormat(remetente.nome, remetente.email)
+		if err != nil {
+			return err
+		}
+
+		err = mensagem.AddTo(email.destinatario)
+		if err != nil {
+			return err
+		}
+
+		mensagem.Subject(email.descricao)
+		mensagem.SetBodyString(mail.TypeTextPlain, email.mensagem)
+
+		mensagens = append(mensagens, mensagem)
 	}
 
-	err = mensagem.AddTo(email.destinatario)
-	if err != nil {
-		return err
-	}
-
-	mensagem.Subject(email.descricao)
-	mensagem.SetBodyString(mail.TypeTextPlain, email.mensagem)
-
-	return cliente.DialAndSend(mensagem)
+	return cliente.DialAndSend(mensagens...)
 }
 
 func main() {
@@ -84,17 +89,22 @@ func main() {
 		log.Fatalf("Erro ao ler as configurações: %v", err)
 	}
 
-	email := email{
+	emails := []email{{
 		destinatario:  os.Getenv("EMAIL_TEST"),
 		descricao:     "Testando o serviço de email",
 		mensagem:      "Uma mensagem bem bonita",
 		caminhoAnexos: []string{},
-	}
+	}, {
+		destinatario:  os.Getenv("EMAIL_TEST"),
+		descricao:     "Testando o serviço de email 2",
+		mensagem:      "Uma mensagem bem bonita 2",
+		caminhoAnexos: []string{},
+	}}
 
-	err = enviarEmail(config.remetente, email)
+	err = enviarEmails(config.remetente, emails)
 	if err != nil {
-		log.Fatalf("Erro ao enviar o email: %v", err)
+		log.Fatalf("Erro ao enviar os emails: %v", err)
 	}
 
-  log.Println("Email enviado com sucesso")
+	log.Println("Emails enviados com sucesso")
 }
