@@ -1,12 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 
 	"github.com/joho/godotenv"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/wneessen/go-mail"
+)
+
+const (
+	tamanhoFilaDeEmail = 1000
 )
 
 type remetente struct {
@@ -14,8 +20,13 @@ type remetente struct {
 	porta                    int
 }
 
+type rabbit struct {
+	user, senha, host, porta, vhost, fila string
+}
+
 type configuracoes struct {
 	remetente
+	rabbit
 }
 
 func pegarConfiguracoes() (*configuracoes, error) {
@@ -36,6 +47,14 @@ func pegarConfiguracoes() (*configuracoes, error) {
 			senha: os.Getenv("SMTP_PASSWORD"),
 			host:  os.Getenv("SMTP_HOST"),
 			porta: porta,
+		},
+		rabbit: rabbit{
+			user:  os.Getenv("RABBIT_USER"),
+			senha: os.Getenv("RABBIT_PASSWORD"),
+			host:  os.Getenv("RABBIT_HOST"),
+			porta: os.Getenv("RABBIT_PORT"),
+			vhost: os.Getenv("RABBIT_VHOST"),
+			fila:  os.Getenv("RABBIT_QUEUE"),
 		},
 	}
 
@@ -84,27 +103,54 @@ func enviarEmails(remetente remetente, emails []email) error {
 }
 
 func main() {
-	config, err := pegarConfiguracoes()
+	configuracoes, err := pegarConfiguracoes()
 	if err != nil {
 		log.Fatalf("Erro ao ler as configurações: %v", err)
 	}
 
-	emails := []email{{
-		destinatario:  os.Getenv("EMAIL_TEST"),
-		descricao:     "Testando o serviço de email",
-		mensagem:      "Uma mensagem bem bonita",
-		caminhoAnexos: []string{},
-	}, {
-		destinatario:  os.Getenv("EMAIL_TEST"),
-		descricao:     "Testando o serviço de email 2",
-		mensagem:      "Uma mensagem bem bonita 2",
-		caminhoAnexos: []string{},
-	}}
+	rabbitURL := fmt.Sprintf(
+		"amqp://%s:%s@%s:%s/%s",
+		configuracoes.rabbit.user,
+		configuracoes.rabbit.senha,
+		configuracoes.rabbit.host,
+		configuracoes.rabbit.porta,
+		configuracoes.rabbit.vhost,
+	)
 
-	err = enviarEmails(config.remetente, emails)
+	rabbit, err := amqp.Dial(rabbitURL)
 	if err != nil {
-		log.Fatalf("Erro ao enviar os emails: %v", err)
+		log.Fatalf("Erro ao conenectar com o Rabbit: %s", err)
+	}
+	defer rabbit.Close()
+
+	fila, err := rabbit.Channel()
+	if err != nil {
+		log.Fatalf("Erro ao abrir o canal do Rabbit: %s", err)
+	}
+	defer fila.Close()
+
+	err = fila.Qos(tamanhoFilaDeEmail, 0, false)
+	if err != nil {
+		log.Fatalf("Erro ao configurar o tamanho da fila do consumidor: %s", err)
 	}
 
-	log.Println("Emails enviados com sucesso")
+	mensagens, err := fila.Consume(configuracoes.rabbit.fila, "", false, false, false, false, nil)
+	if err != nil {
+		log.Fatalf("Erro ao registrar o consumidor: %s", err)
+	}
+
+	var esperar chan struct{}
+
+	go func() {
+		for mensagem := range mensagens {
+			log.Printf("Mensagem recebida: %s", mensagem.Body)
+			err := mensagem.Ack(false)
+			if err != nil {
+				log.Printf("Erro ao enviar sinal Ack para o rabbit: %s", err)
+			}
+		}
+	}()
+
+	log.Printf(" [*] Esperando por mensagens. Para sair aperte CTRL+C")
+	<-esperar
 }
