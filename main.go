@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -12,7 +13,8 @@ import (
 )
 
 const (
-	tamanhoFilaDeEmail = 1000
+	tamanhoBuffer  = 1000
+	duracaoTimeout = 2 * time.Second
 )
 
 type remetente struct {
@@ -102,6 +104,14 @@ func enviarEmails(remetente remetente, emails []email) error {
 	return cliente.DialAndSend(mensagens...)
 }
 
+func enviarEmailsFalso(fila []amqp.Delivery) []email {
+	log.Printf("Enviando %d", len(fila))
+	for _, mensagem := range fila {
+		mensagem.Ack(false)
+	}
+	return []email{}
+}
+
 func main() {
 	configuracoes, err := pegarConfiguracoes()
 	if err != nil {
@@ -129,7 +139,7 @@ func main() {
 	}
 	defer fila.Close()
 
-	err = fila.Qos(tamanhoFilaDeEmail, 0, false)
+	err = fila.Qos(tamanhoBuffer, 0, false)
 	if err != nil {
 		log.Fatalf("Erro ao configurar o tamanho da fila do consumidor: %s", err)
 	}
@@ -142,11 +152,25 @@ func main() {
 	var esperar chan struct{}
 
 	go func() {
-		for mensagem := range mensagens {
-			log.Printf("Mensagem recebida: %s", mensagem.Body)
-			err := mensagem.Ack(false)
-			if err != nil {
-				log.Printf("Erro ao enviar sinal Ack para o rabbit: %s", err)
+		filaDeMensagens := []amqp.Delivery{}
+		timeout := time.NewTicker(duracaoTimeout)
+
+		for {
+			select {
+			case mensagen := <-mensagens:
+				filaDeMensagens = append(filaDeMensagens, mensagen)
+				timeout.Reset(duracaoTimeout)
+
+				if len(filaDeMensagens) >= tamanhoBuffer {
+					enviarEmailsFalso(filaDeMensagens)
+					filaDeMensagens = filaDeMensagens[:0]
+				}
+
+			case <-timeout.C:
+				if len(filaDeMensagens) > 0 {
+					enviarEmailsFalso(filaDeMensagens)
+					filaDeMensagens = filaDeMensagens[:0]
+				}
 			}
 		}
 	}()
