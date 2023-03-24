@@ -117,6 +117,31 @@ func main() {
 			}
 		}
 
-    time.Sleep(5 * time.Second)
+		log.Printf(
+			"[INFO] - Foram enviados %d mensagens para a fila '%s'",
+			quantidadeDeMensagens,
+			fila.Name,
+		)
+
+		time.Sleep(1 * time.Second)
+
+		status, err := canal.QueueDeclarePassive(
+			configs.rabbit.fila,
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Printf("[ERROR] - Erro ao pegar o status da fila: %s", err)
+		}
+
+		log.Printf(
+			"[INFO] - A fila '%s' tem %d mensagens e %d consumidores",
+			status.Name,
+			status.Messages,
+			status.Consumers,
+		)
 	}
 }
