@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -63,9 +64,14 @@ func pegarConfiguracoes() (*configuracoes, error) {
 	return config, nil
 }
 
+type destinatario struct {
+	Nome, Email string
+}
+
 type email struct {
-	destinatario, descricao, mensagem string
-	caminhoAnexos                     []string
+	Destinatario                destinatario
+	Assunto, Mensagem, Template string
+	Anexos                      []string
 }
 
 func enviarEmails(remetente remetente, emails []email) error {
@@ -90,13 +96,13 @@ func enviarEmails(remetente remetente, emails []email) error {
 			return err
 		}
 
-		err = mensagem.AddTo(email.destinatario)
+		err = mensagem.AddToFormat(email.Destinatario.Nome, email.Destinatario.Email)
 		if err != nil {
 			return err
 		}
 
-		mensagem.Subject(email.descricao)
-		mensagem.SetBodyString(mail.TypeTextPlain, email.mensagem)
+		mensagem.Subject(email.Assunto)
+		mensagem.SetBodyString(mail.TypeTextPlain, email.Mensagem)
 
 		mensagens = append(mensagens, mensagem)
 	}
@@ -104,12 +110,32 @@ func enviarEmails(remetente remetente, emails []email) error {
 	return cliente.DialAndSend(mensagens...)
 }
 
-func enviarEmailsFalso(fila []amqp.Delivery) []email {
-	log.Printf("Enviando %d", len(fila))
+func converterMensagemParaEmail(fila []amqp.Delivery) []email {
+  emails := []email{}
+  
 	for _, mensagem := range fila {
-		mensagem.Ack(false)
+		email := email{}
+		err := json.Unmarshal(mensagem.Body, &email)
+		if err != nil {
+			log.Printf("Erro ao desserializar o email: %s", err)
+			err = mensagem.Nack(false, true)
+			if err != nil {
+				log.Printf("Erro ao enviar sinal de finalização para o Rabbit: %s", err)
+			}
+
+			continue
+		}
+
+    emails = append(emails, email)
+
+		err = mensagem.Ack(false)
+		if err != nil {
+			log.Printf("Erro ao enviar sinal de finalização para o Rabbit: %s", err)
+		}
 	}
-	return []email{}
+	log.Printf("Enviando %d mensagens", len(fila))
+
+  return emails
 }
 
 func main() {
@@ -162,13 +188,15 @@ func main() {
 				timeout.Reset(duracaoTimeout)
 
 				if len(filaDeMensagens) >= tamanhoBuffer {
-					enviarEmailsFalso(filaDeMensagens)
+          emails := converterMensagemParaEmail(filaDeMensagens)
+          log.Println(emails)
 					filaDeMensagens = filaDeMensagens[:0]
 				}
 
 			case <-timeout.C:
 				if len(filaDeMensagens) > 0 {
-					enviarEmailsFalso(filaDeMensagens)
+          emails := converterMensagemParaEmail(filaDeMensagens)
+          log.Println(emails)
 					filaDeMensagens = filaDeMensagens[:0]
 				}
 			}
