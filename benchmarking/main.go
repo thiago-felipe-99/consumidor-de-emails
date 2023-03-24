@@ -21,6 +21,7 @@ type configuracoes struct {
 	rabbit
 	bench           []int
 	esperarConsumir bool
+  contentType, body string
 }
 
 func pegarConfiguracoes() (*configuracoes, error) {
@@ -53,6 +54,8 @@ func pegarConfiguracoes() (*configuracoes, error) {
 		},
 		bench:           bench,
 		esperarConsumir: os.Getenv("EXPECT_CONSUME") == "true",
+    contentType: os.Getenv("CONTENT_TYPE"),
+    body: os.Getenv("BODY"),
 	}
 
 	return config, nil
@@ -122,11 +125,9 @@ func main() {
 		fila.Consumers,
 	)
 
-	body := "teste"
-
 	mensagem := amqp.Publishing{
-		ContentType: "text/plain",
-		Body:        []byte(body),
+		ContentType: configs.contentType,
+		Body:        []byte(configs.body),
 	}
 
 	for _, quantidadeDeMensagens := range configs.bench {
