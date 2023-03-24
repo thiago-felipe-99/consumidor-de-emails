@@ -19,7 +19,8 @@ type rabbit struct {
 
 type configuracoes struct {
 	rabbit
-	bench []int
+	bench           []int
+	esperarConsumir bool
 }
 
 func pegarConfiguracoes() (*configuracoes, error) {
@@ -50,10 +51,36 @@ func pegarConfiguracoes() (*configuracoes, error) {
 			vhost: os.Getenv("RABBIT_VHOST"),
 			fila:  os.Getenv("RABBIT_QUEUE"),
 		},
-		bench: bench,
+		bench:           bench,
+		esperarConsumir: os.Getenv("EXPECT_CONSUME") == "true",
 	}
 
 	return config, nil
+}
+
+func logStatus(fila string, canal *amqp.Channel) (int, error) {
+	status, err := canal.QueueDeclarePassive(
+		fila,
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Printf("[ERROR] - Erro ao pegar o status da fila: %s", err)
+
+		return 0, err
+	}
+
+	log.Printf(
+		"[INFO] - A fila '%s' tem %d mensagens e %d consumidores",
+		status.Name,
+		status.Messages,
+		status.Consumers,
+	)
+
+	return status.Messages, nil
 }
 
 func main() {
@@ -125,23 +152,12 @@ func main() {
 
 		time.Sleep(1 * time.Second)
 
-		status, err := canal.QueueDeclarePassive(
-			configs.rabbit.fila,
-			false,
-			false,
-			false,
-			false,
-			nil,
-		)
-		if err != nil {
-			log.Printf("[ERROR] - Erro ao pegar o status da fila: %s", err)
+		qtMensagens, err := logStatus(configs.rabbit.fila, canal)
+		if configs.esperarConsumir {
+			for err != nil || qtMensagens > 0 {
+        time.Sleep(1 * time.Second)
+				qtMensagens, err = logStatus(configs.rabbit.fila, canal)
+			}
 		}
-
-		log.Printf(
-			"[INFO] - A fila '%s' tem %d mensagens e %d consumidores",
-			status.Name,
-			status.Messages,
-			status.Consumers,
-		)
 	}
 }
