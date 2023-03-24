@@ -214,18 +214,18 @@ func main() {
 	}
 	defer rabbit.Close()
 
-	fila, err := rabbit.Channel()
+	canal, err := rabbit.Channel()
 	if err != nil {
 		log.Fatalf("[ERRO] - Erro ao abrir o canal do Rabbit: %s", err)
 	}
-	defer fila.Close()
+	defer canal.Close()
 
-	err = fila.Qos(configs.buffer.tamanho*configs.buffer.quantidade, 0, false)
+	err = canal.Qos(configs.buffer.tamanho*configs.buffer.quantidade, 0, false)
 	if err != nil {
 		log.Fatalf("[ERRO] - Erro ao configurar o tamanho da fila do consumidor: %s", err)
 	}
 
-	mensagens, err := fila.Consume(configs.rabbit.fila, "", false, false, false, false, nil)
+	fila, err := canal.Consume(configs.rabbit.fila, "", false, false, false, false, nil)
 	if err != nil {
 		log.Fatalf("[ERRO] - Erro ao registrar o consumidor: %s", err)
 	}
@@ -233,30 +233,30 @@ func main() {
 	var esperar chan struct{}
 
 	go func() {
-		filaDeMensagens := []amqp.Delivery{}
+		bufferFila := []amqp.Delivery{}
 		timeout := time.NewTicker(configs.timeoutSegundos)
 
 		for {
 			select {
-			case mensagen := <-mensagens:
-				filaDeMensagens = append(filaDeMensagens, mensagen)
+			case mensagen := <-fila:
+				bufferFila = append(bufferFila, mensagen)
 				timeout.Reset(configs.timeoutSegundos)
 
-				if len(filaDeMensagens) >= configs.buffer.tamanho {
-					buffer := make([]amqp.Delivery, len(filaDeMensagens))
-					copy(buffer, filaDeMensagens)
+				if len(bufferFila) >= configs.buffer.tamanho {
+					buffer := make([]amqp.Delivery, len(bufferFila))
+					copy(buffer, bufferFila)
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
 					go enviarEmails(configs.remetente, buffer)
-					filaDeMensagens = filaDeMensagens[:0]
+					bufferFila = bufferFila[:0]
 				}
 
 			case <-timeout.C:
-				if len(filaDeMensagens) > 0 {
-					buffer := make([]amqp.Delivery, len(filaDeMensagens))
-					copy(buffer, filaDeMensagens)
+				if len(bufferFila) > 0 {
+					buffer := make([]amqp.Delivery, len(bufferFila))
+					copy(buffer, bufferFila)
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
 					go enviarEmails(configs.remetente, buffer)
-					filaDeMensagens = filaDeMensagens[:0]
+					bufferFila = bufferFila[:0]
 				}
 			}
 		}

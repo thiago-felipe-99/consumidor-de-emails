@@ -21,6 +21,11 @@ services:
       - 9001:9001/tcp
     volumes:
       - minio:/data
+  benchmarking:
+    build: .
+    volumes:
+      - .env.benchmarking:/.env
+    entrypoint: /benchmarking
 volumes:
   minio: {}
 

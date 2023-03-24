@@ -15,6 +15,7 @@ O objetivo desse projeto é ler a partir de uma fila do RabbitMQ as informaçõe
   - [ ] Quantidade de emails enviados
   - [ ] Quantidade de emails reenviados para a fila
   - [ ] Quantidade de emails em processamento
+  - [ ] Tempo de envio por lote de emails
   - [ ] Tamanho do payload mas mensagens recebidas
   - [ ] Tamanho do email enviado
   - [ ] Tamanho do anexo enviados
