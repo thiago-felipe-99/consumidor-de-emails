@@ -13,12 +13,6 @@ import (
 	"github.com/wneessen/go-mail"
 )
 
-const (
-	enviosParalelos = 10
-	tamanhoBuffer   = 10
-	duracaoTimeout  = 2 * time.Second
-)
-
 type remetente struct {
 	nome, email, senha, host string
 	porta                    int
@@ -28,9 +22,15 @@ type rabbit struct {
 	user, senha, host, porta, vhost, fila string
 }
 
+type buffer struct {
+	tamanho, quantidade int
+}
+
 type configuracoes struct {
 	remetente
 	rabbit
+	buffer
+  timeoutSegundos time.Duration
 }
 
 func pegarConfiguracoes() (*configuracoes, error) {
@@ -43,6 +43,21 @@ func pegarConfiguracoes() (*configuracoes, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	bufferSize, err := strconv.Atoi(os.Getenv("BUFFER_SIZE"))
+	if err != nil {
+		return nil, err
+	}
+
+	bufferQT, err := strconv.Atoi(os.Getenv("BUFFER_QT"))
+	if err != nil {
+		return nil, err
+	}
+
+  timeoutSegundos, err := strconv.Atoi(os.Getenv(("TIMEOUT_SECONDS")))
+  if err != nil {
+    return nil, err
+  }
 
 	config := &configuracoes{
 		remetente: remetente{
@@ -60,6 +75,11 @@ func pegarConfiguracoes() (*configuracoes, error) {
 			vhost: os.Getenv("RABBIT_VHOST"),
 			fila:  os.Getenv("RABBIT_QUEUE"),
 		},
+		buffer: buffer{
+			tamanho:    bufferSize,
+			quantidade: bufferQT,
+		},
+    timeoutSegundos: time.Duration(timeoutSegundos) * time.Second,
 	}
 
 	return config, nil
@@ -174,18 +194,18 @@ func enviarEmails(remetente remetente, fila []amqp.Delivery) {
 }
 
 func main() {
-	configuracoes, err := pegarConfiguracoes()
+	configs, err := pegarConfiguracoes()
 	if err != nil {
 		log.Fatalf("[ERRO] - Erro ao ler as configurações: %v", err)
 	}
 
 	rabbitURL := fmt.Sprintf(
 		"amqp://%s:%s@%s:%s/%s",
-		configuracoes.rabbit.user,
-		configuracoes.rabbit.senha,
-		configuracoes.rabbit.host,
-		configuracoes.rabbit.porta,
-		configuracoes.rabbit.vhost,
+		configs.rabbit.user,
+		configs.rabbit.senha,
+		configs.rabbit.host,
+		configs.rabbit.porta,
+		configs.rabbit.vhost,
 	)
 
 	rabbit, err := amqp.Dial(rabbitURL)
@@ -200,12 +220,12 @@ func main() {
 	}
 	defer fila.Close()
 
-	err = fila.Qos(tamanhoBuffer*enviosParalelos, 0, false)
+	err = fila.Qos(configs.buffer.tamanho*configs.buffer.quantidade, 0, false)
 	if err != nil {
 		log.Fatalf("[ERRO] - Erro ao configurar o tamanho da fila do consumidor: %s", err)
 	}
 
-	mensagens, err := fila.Consume(configuracoes.rabbit.fila, "", false, false, false, false, nil)
+	mensagens, err := fila.Consume(configs.rabbit.fila, "", false, false, false, false, nil)
 	if err != nil {
 		log.Fatalf("[ERRO] - Erro ao registrar o consumidor: %s", err)
 	}
@@ -214,19 +234,19 @@ func main() {
 
 	go func() {
 		filaDeMensagens := []amqp.Delivery{}
-		timeout := time.NewTicker(duracaoTimeout)
+		timeout := time.NewTicker(configs.timeoutSegundos)
 
 		for {
 			select {
 			case mensagen := <-mensagens:
 				filaDeMensagens = append(filaDeMensagens, mensagen)
-				timeout.Reset(duracaoTimeout)
+				timeout.Reset(configs.timeoutSegundos)
 
-				if len(filaDeMensagens) >= tamanhoBuffer {
+				if len(filaDeMensagens) >= configs.buffer.tamanho {
 					buffer := make([]amqp.Delivery, len(filaDeMensagens))
 					copy(buffer, filaDeMensagens)
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
-					go enviarEmails(configuracoes.remetente, buffer)
+					go enviarEmails(configs.remetente, buffer)
 					filaDeMensagens = filaDeMensagens[:0]
 				}
 
@@ -235,7 +255,7 @@ func main() {
 					buffer := make([]amqp.Delivery, len(filaDeMensagens))
 					copy(buffer, filaDeMensagens)
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
-					go enviarEmails(configuracoes.remetente, buffer)
+					go enviarEmails(configs.remetente, buffer)
 					filaDeMensagens = filaDeMensagens[:0]
 				}
 			}
