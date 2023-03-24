@@ -1,5 +1,9 @@
 version: '3.9'
 services:
+  consumidor-de-emails:
+    build: .
+    volumes: 
+      - .env:/.env
   rabbit:
     image: rabbitmq:3.11-management
     environment:
