@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	tamanhoBuffer  = 1000
-	duracaoTimeout = 2 * time.Second
+	enviosParalelos = 10
+	tamanhoBuffer   = 10
+	duracaoTimeout  = 2 * time.Second
 )
 
 type remetente struct {
@@ -64,6 +65,28 @@ func pegarConfiguracoes() (*configuracoes, error) {
 	return config, nil
 }
 
+func reenviarEmailsParaFila(descricao string, err error, emails []email) {
+	log.Printf("[ERROR] - Erro ao processar um lote de emails, reenviando eles para a fila")
+	log.Printf("[ERROR] - %s: %s", descricao, err)
+
+	for _, email := range emails {
+		err = email.mensagem.Nack(false, true)
+		if err != nil {
+			log.Printf("[ERROR] Erro ao reenviar mensagem para fila: %s", err)
+		}
+	}
+}
+
+func reenviarMensagemParaFila(descricao string, err error, mensagem amqp.Delivery) {
+	log.Printf("[ERROR] - Erro ao processar a mensagem, reenviando ela para a fila")
+	log.Printf("[ERROR] - %s: %s", descricao, err)
+
+	err = mensagem.Nack(false, true)
+	if err != nil {
+		log.Printf("[ERROR] Erro ao reenviar mensagem para fila: %s", err)
+	}
+}
+
 type destinatario struct {
 	Nome, Email string
 }
@@ -72,9 +95,24 @@ type email struct {
 	Destinatario                destinatario
 	Assunto, Mensagem, Template string
 	Anexos                      []string
+	mensagem                    amqp.Delivery
 }
 
-func enviarEmails(remetente remetente, emails []email) error {
+func enviarEmails(remetente remetente, fila []amqp.Delivery) {
+	emails := []email{}
+
+	for _, mensagem := range fila {
+		email := email{}
+		err := json.Unmarshal(mensagem.Body, &email)
+		if err != nil {
+			descricao := "Erro ao converter a mensagem para um email"
+			reenviarMensagemParaFila(descricao, err, mensagem)
+		} else {
+			email.mensagem = mensagem
+			emails = append(emails, email)
+		}
+	}
+
 	opcoesCliente := []mail.Option{
 		mail.WithPort(remetente.porta),
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
@@ -85,63 +123,60 @@ func enviarEmails(remetente remetente, emails []email) error {
 
 	cliente, err := mail.NewClient(remetente.host, opcoesCliente...)
 	if err != nil {
-		return err
+		descricao := "Erro ao criar um cliente de email"
+		reenviarEmailsParaFila(descricao, err, emails)
+		return
 	}
 
 	mensagens := []*mail.Msg{}
+	emailsProcessados := []email{}
 	for _, email := range emails {
 		mensagem := mail.NewMsg()
 		err = mensagem.EnvelopeFromFormat(remetente.nome, remetente.email)
 		if err != nil {
-			return err
+			descricao := "Erro ao colocar remetente no email"
+			reenviarMensagemParaFila(descricao, err, email.mensagem)
+			continue
 		}
 
 		err = mensagem.AddToFormat(email.Destinatario.Nome, email.Destinatario.Email)
 		if err != nil {
-			return err
+			descricao := "Erro ao colocar destinatario no email"
+			reenviarMensagemParaFila(descricao, err, email.mensagem)
+			continue
 		}
 
 		mensagem.Subject(email.Assunto)
 		mensagem.SetBodyString(mail.TypeTextPlain, email.Mensagem)
 
 		mensagens = append(mensagens, mensagem)
+		emailsProcessados = append(emailsProcessados, email)
 	}
 
-	return cliente.DialAndSend(mensagens...)
-}
+	err = cliente.DialAndSend(mensagens...)
+	if err != nil {
+		descricao := "Erro ao enviar os emails"
+		reenviarEmailsParaFila(descricao, err, emailsProcessados)
+		return
+	}
 
-func converterMensagemParaEmail(fila []amqp.Delivery) []email {
-  emails := []email{}
-  
-	for _, mensagem := range fila {
-		email := email{}
-		err := json.Unmarshal(mensagem.Body, &email)
+	quantidadeEnviados := 0
+	for _, email := range emailsProcessados {
+		err := email.mensagem.Ack(false)
 		if err != nil {
-			log.Printf("Erro ao desserializar o email: %s", err)
-			err = mensagem.Nack(false, true)
-			if err != nil {
-				log.Printf("Erro ao enviar sinal de finalização para o Rabbit: %s", err)
-			}
-
-			continue
-		}
-
-    emails = append(emails, email)
-
-		err = mensagem.Ack(false)
-		if err != nil {
-			log.Printf("Erro ao enviar sinal de finalização para o Rabbit: %s", err)
+			log.Printf("[ERRO] - Erro ao enviar mensagem de finalização para o rabbit: %s", err)
+		} else {
+			quantidadeEnviados += 1
 		}
 	}
-	log.Printf("Enviando %d mensagens", len(fila))
 
-  return emails
+	log.Printf("[INFO] - Foram enviado %d emails", quantidadeEnviados)
 }
 
 func main() {
 	configuracoes, err := pegarConfiguracoes()
 	if err != nil {
-		log.Fatalf("Erro ao ler as configurações: %v", err)
+		log.Fatalf("[ERRO] - Erro ao ler as configurações: %v", err)
 	}
 
 	rabbitURL := fmt.Sprintf(
@@ -155,24 +190,24 @@ func main() {
 
 	rabbit, err := amqp.Dial(rabbitURL)
 	if err != nil {
-		log.Fatalf("Erro ao conenectar com o Rabbit: %s", err)
+		log.Fatalf("[ERRO] - Erro ao conectar com o Rabbit: %s", err)
 	}
 	defer rabbit.Close()
 
 	fila, err := rabbit.Channel()
 	if err != nil {
-		log.Fatalf("Erro ao abrir o canal do Rabbit: %s", err)
+		log.Fatalf("[ERRO] - Erro ao abrir o canal do Rabbit: %s", err)
 	}
 	defer fila.Close()
 
-	err = fila.Qos(tamanhoBuffer, 0, false)
+	err = fila.Qos(tamanhoBuffer*enviosParalelos, 0, false)
 	if err != nil {
-		log.Fatalf("Erro ao configurar o tamanho da fila do consumidor: %s", err)
+		log.Fatalf("[ERRO] - Erro ao configurar o tamanho da fila do consumidor: %s", err)
 	}
 
 	mensagens, err := fila.Consume(configuracoes.rabbit.fila, "", false, false, false, false, nil)
 	if err != nil {
-		log.Fatalf("Erro ao registrar o consumidor: %s", err)
+		log.Fatalf("[ERRO] - Erro ao registrar o consumidor: %s", err)
 	}
 
 	var esperar chan struct{}
@@ -188,21 +223,25 @@ func main() {
 				timeout.Reset(duracaoTimeout)
 
 				if len(filaDeMensagens) >= tamanhoBuffer {
-          emails := converterMensagemParaEmail(filaDeMensagens)
-          log.Println(emails)
+					buffer := make([]amqp.Delivery, len(filaDeMensagens))
+					copy(buffer, filaDeMensagens)
+					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
+					go enviarEmails(configuracoes.remetente, buffer)
 					filaDeMensagens = filaDeMensagens[:0]
 				}
 
 			case <-timeout.C:
 				if len(filaDeMensagens) > 0 {
-          emails := converterMensagemParaEmail(filaDeMensagens)
-          log.Println(emails)
+					buffer := make([]amqp.Delivery, len(filaDeMensagens))
+					copy(buffer, filaDeMensagens)
+					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
+					go enviarEmails(configuracoes.remetente, buffer)
 					filaDeMensagens = filaDeMensagens[:0]
 				}
 			}
 		}
 	}()
 
-	log.Printf(" [*] Esperando por mensagens. Para sair aperte CTRL+C")
+	log.Printf("[INFO] - Servidor inicializado com sucesso")
 	<-esperar
 }
