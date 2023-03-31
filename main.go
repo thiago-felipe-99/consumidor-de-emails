@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/wneessen/go-mail"
@@ -120,11 +122,72 @@ type email struct {
 	mensagem                    amqp.Delivery
 }
 
-type metricas struct{}
+type metricas struct {
+	emailsRecebidos            prometheus.Counter
+	emailsRecebidosBytes       prometheus.Counter
+	emailsEnviados             prometheus.Counter
+	emailsEnviadosBytes        prometheus.Counter
+	emailsAnexosEnviados       prometheus.Counter
+	emailsAnexosEnviadosBytes  prometheus.Counter
+	emailsEnviadosComAnexo     prometheus.Counter
+	emailsReenviados           prometheus.Counter
+	emailsTempoDeEnvioSegundos prometheus.Histogram
+	emailsCacheAnexos          prometheus.Gauge
+	emailsCacheAnexosBytes     prometheus.Gauge
+}
+
+func criarMetricas() *metricas {
+	return &metricas{
+		emailsRecebidos: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_recebidos",
+			Help: "A quantidade de emails recebidos pela fila do rabbit",
+		}),
+		emailsRecebidosBytes: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_recebidos_bytes",
+			Help: "A quantidade em bytes de emails recebidos pela fila do rebbit",
+		}),
+		emailsEnviados: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_enviados",
+			Help: "A quantidade de emails enviados com sucesso",
+		}),
+		emailsEnviadosBytes: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_enviados_bytes",
+			Help: "A quantidade em bytes de emails enviados com sucesso",
+		}),
+		emailsAnexosEnviados: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_anexos_enviados",
+			Help: "A quantidade de anexos enviados",
+		}),
+		emailsAnexosEnviadosBytes: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_anexos_enviados_bytes",
+			Help: "A quantidade em bytes de anexos enviados com sucesso",
+		}),
+		emailsEnviadosComAnexo: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_enviados_com_anexo",
+			Help: "A quantidade de emails enviados com sucesso e com anexo",
+		}),
+		emailsReenviados: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_reenviados",
+			Help: "A quantidade de emails reeenviados para a fila do rabbit",
+		}),
+		emailsTempoDeEnvioSegundos: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name: "emails_tempo_de_envio_segundos",
+			Help: "O tempo de envio de lotes de emails em segundos",
+		}),
+		emailsCacheAnexos: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "emails_cache_anexo",
+			Help: "A quantidade de anexos no cache",
+		}),
+		emailsCacheAnexosBytes: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "emails_cache_anexo_bytes",
+			Help: "A quantidade em bytes de anexos no cache",
+		}),
+	}
+}
 
 type enviar struct {
 	remetente
-	metricas
+	*metricas
 }
 
 func (enviar *enviar) emails(fila []amqp.Delivery) {
@@ -241,8 +304,29 @@ func main() {
 
 	var esperar chan struct{}
 
+	metricas := criarMetricas()
+	registryMetricas := prometheus.NewRegistry()
+
+	registryMetricas.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		metricas.emailsRecebidos,
+		metricas.emailsRecebidosBytes,
+		metricas.emailsEnviados,
+		metricas.emailsEnviadosBytes,
+		metricas.emailsAnexosEnviados,
+		metricas.emailsAnexosEnviadosBytes,
+		metricas.emailsEnviadosComAnexo,
+		metricas.emailsReenviados,
+		metricas.emailsTempoDeEnvioSegundos,
+		metricas.emailsCacheAnexos,
+		metricas.emailsCacheAnexosBytes,
+	)
+
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
+		http.Handle("/metrics", promhttp.HandlerFor(registryMetricas, promhttp.HandlerOpts{
+			EnableOpenMetrics: true,
+		}))
 		err := http.ListenAndServe(":8001", nil)
 		if err != nil {
 			log.Fatalf("[ERRO] - Erro ao inicializar servidor de metricas")
@@ -256,7 +340,7 @@ func main() {
 
 		enviar := enviar{
 			remetente: configs.remetente,
-			metricas:  metricas{},
+			metricas:  metricas,
 		}
 
 		for {

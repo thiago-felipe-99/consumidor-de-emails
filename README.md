@@ -11,10 +11,10 @@ O objetivo desse projeto é ler a partir de uma fila do RabbitMQ as informaçõe
 ## Metricas
 - [ ] Expor as metricas do servidor na porta `8001`
 - [ ] Pegar as seguintes metricas:
-  - [ ] Quantidade de emails recebidos
-  - [ ] Quantidade de emails enviados
+  - [ ] Quantidade de emails recebidos da fila do rabbit
+  - [ ] Quantidade de emails enviados com sucesso
   - [ ] Quantidade de emails reenviados para a fila
-  - [ ] Quantidade de emails em processamento
+  - [x] ~~Quantidade de emails em processamento~~(Não precisa pois é uma conta fácil de se obter, emails_recebidos-emails_enviados-emails_reenviados=emails_em_processamento)
   - [ ] Tempo de envio por lote de emails
   - [ ] Tamanho do payload mas mensagens recebidas
   - [ ] Tamanho do email enviado
