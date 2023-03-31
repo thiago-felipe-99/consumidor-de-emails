@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/wneessen/go-mail"
 )
@@ -30,7 +32,7 @@ type configuracoes struct {
 	remetente
 	rabbit
 	buffer
-  timeoutSegundos time.Duration
+	timeoutSegundos time.Duration
 }
 
 func pegarConfiguracoes() (*configuracoes, error) {
@@ -54,10 +56,10 @@ func pegarConfiguracoes() (*configuracoes, error) {
 		return nil, err
 	}
 
-  timeoutSegundos, err := strconv.Atoi(os.Getenv(("TIMEOUT_SECONDS")))
-  if err != nil {
-    return nil, err
-  }
+	timeoutSegundos, err := strconv.Atoi(os.Getenv(("TIMEOUT_SECONDS")))
+	if err != nil {
+		return nil, err
+	}
 
 	config := &configuracoes{
 		remetente: remetente{
@@ -79,31 +81,31 @@ func pegarConfiguracoes() (*configuracoes, error) {
 			tamanho:    bufferSize,
 			quantidade: bufferQT,
 		},
-    timeoutSegundos: time.Duration(timeoutSegundos) * time.Second,
+		timeoutSegundos: time.Duration(timeoutSegundos) * time.Second,
 	}
 
 	return config, nil
 }
 
 func reenviarEmailsParaFila(descricao string, err error, emails []email) {
-	log.Printf("[ERROR] - Erro ao processar um lote de emails, reenviando eles para a fila")
-	log.Printf("[ERROR] - %s: %s", descricao, err)
+	log.Printf("[ERRO] - Erro ao processar um lote de emails, reenviando eles para a fila")
+	log.Printf("[ERRO] - %s: %s", descricao, err)
 
 	for _, email := range emails {
 		err = email.mensagem.Nack(false, true)
 		if err != nil {
-			log.Printf("[ERROR] Erro ao reenviar mensagem para fila: %s", err)
+			log.Printf("[ERRO] Erro ao reenviar mensagem para fila: %s", err)
 		}
 	}
 }
 
 func reenviarMensagemParaFila(descricao string, err error, mensagem amqp.Delivery) {
-	log.Printf("[ERROR] - Erro ao processar a mensagem, reenviando ela para a fila")
-	log.Printf("[ERROR] - %s: %s", descricao, err)
+	log.Printf("[ERRO] - Erro ao processar a mensagem, reenviando ela para a fila")
+	log.Printf("[ERRO] - %s: %s", descricao, err)
 
 	err = mensagem.Nack(false, true)
 	if err != nil {
-		log.Printf("[ERROR] Erro ao reenviar mensagem para fila: %s", err)
+		log.Printf("[ERRO] Erro ao reenviar mensagem para fila: %s", err)
 	}
 }
 
@@ -260,6 +262,16 @@ func main() {
 				}
 			}
 		}
+	}()
+
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(":8001", nil)
+		if err != nil {
+			log.Printf("[ERRO] - Erro ao inicializar servidor de metricas")
+      esperar <- struct{}{}
+		}
+		log.Printf("[INFO] - Servidor de metricas inicializado com sucesso")
 	}()
 
 	log.Printf("[INFO] - Servidor inicializado com sucesso")
