@@ -120,7 +120,14 @@ type email struct {
 	mensagem                    amqp.Delivery
 }
 
-func enviarEmails(remetente remetente, fila []amqp.Delivery) {
+type metricas struct{}
+
+type enviar struct {
+	remetente
+	metricas
+}
+
+func (enviar *enviar) emails(fila []amqp.Delivery) {
 	emails := []email{}
 
 	for _, mensagem := range fila {
@@ -136,14 +143,14 @@ func enviarEmails(remetente remetente, fila []amqp.Delivery) {
 	}
 
 	opcoesCliente := []mail.Option{
-		mail.WithPort(remetente.porta),
+		mail.WithPort(enviar.remetente.porta),
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
-		mail.WithUsername(remetente.email),
-		mail.WithPassword(remetente.senha),
+		mail.WithUsername(enviar.remetente.email),
+		mail.WithPassword(enviar.remetente.senha),
 		mail.WithTLSPolicy(mail.TLSMandatory),
 	}
 
-	cliente, err := mail.NewClient(remetente.host, opcoesCliente...)
+	cliente, err := mail.NewClient(enviar.remetente.host, opcoesCliente...)
 	if err != nil {
 		descricao := "Erro ao criar um cliente de email"
 		reenviarEmailsParaFila(descricao, err, emails)
@@ -154,7 +161,7 @@ func enviarEmails(remetente remetente, fila []amqp.Delivery) {
 	emailsProcessados := []email{}
 	for _, email := range emails {
 		mensagem := mail.NewMsg()
-		err = mensagem.EnvelopeFromFormat(remetente.nome, remetente.email)
+		err = mensagem.EnvelopeFromFormat(enviar.remetente.nome, enviar.remetente.email)
 		if err != nil {
 			descricao := "Erro ao colocar remetente no email"
 			reenviarMensagemParaFila(descricao, err, email.mensagem)
@@ -235,8 +242,22 @@ func main() {
 	var esperar chan struct{}
 
 	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(":8001", nil)
+		if err != nil {
+			log.Fatalf("[ERRO] - Erro ao inicializar servidor de metricas")
+		}
+		log.Printf("[INFO] - Servidor de metricas inicializado com sucesso")
+	}()
+
+	go func() {
 		bufferFila := []amqp.Delivery{}
 		timeout := time.NewTicker(configs.timeoutSegundos)
+
+		enviar := enviar{
+			remetente: configs.remetente,
+			metricas:  metricas{},
+		}
 
 		for {
 			select {
@@ -248,7 +269,7 @@ func main() {
 					buffer := make([]amqp.Delivery, len(bufferFila))
 					copy(buffer, bufferFila)
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
-					go enviarEmails(configs.remetente, buffer)
+					go enviar.emails(buffer)
 					bufferFila = bufferFila[:0]
 				}
 
@@ -257,21 +278,11 @@ func main() {
 					buffer := make([]amqp.Delivery, len(bufferFila))
 					copy(buffer, bufferFila)
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
-					go enviarEmails(configs.remetente, buffer)
+					go enviar.emails(buffer)
 					bufferFila = bufferFila[:0]
 				}
 			}
 		}
-	}()
-
-	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		err := http.ListenAndServe(":8001", nil)
-		if err != nil {
-			log.Printf("[ERRO] - Erro ao inicializar servidor de metricas")
-      esperar <- struct{}{}
-		}
-		log.Printf("[INFO] - Servidor de metricas inicializado com sucesso")
 	}()
 
 	log.Printf("[INFO] - Servidor inicializado com sucesso")
