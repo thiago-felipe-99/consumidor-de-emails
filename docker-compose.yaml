@@ -7,7 +7,7 @@ services:
   benchmarking:
     build: .
     volumes:
-      - .env.benchmarking:/.env
+      - .benchmarking.env:/.env
     entrypoint: /benchmarking
   rabbit:
     image: rabbitmq:3.11-management

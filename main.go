@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"unsafe"
 
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus"
@@ -94,12 +95,11 @@ type destinatario struct {
 }
 
 type email struct {
-	Destinatario                destinatario
-	Assunto, Mensagem, Template string
-	Anexos                      []string
-	mensagem                    amqp.Delivery
-	tamanho                     int
-	tipo                        mail.ContentType
+	Destinatario      destinatario
+	Assunto, Mensagem string
+	Tipo              mail.ContentType
+	Anexos            []string
+	mensagemRabbit    amqp.Delivery
 }
 
 type metricas struct {
@@ -177,7 +177,7 @@ func (enviar *enviar) emailsParaFila(descricao string, err error, emails []email
 	log.Printf("[ERRO] - %s: %s", descricao, err)
 
 	for _, email := range emails {
-		err = email.mensagem.Nack(false, true)
+		err = email.mensagemRabbit.Nack(false, true)
 		if err != nil {
 			log.Printf("[ERRO] Erro ao reenviar mensagem para fila: %s", err)
 		}
@@ -204,20 +204,16 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	bytesRecebidos := 0
 
 	for _, mensagem := range fila {
-		tamanho := len(mensagem.Body)
-		email := email{}
+    bytesRecebidos += len(mensagem.Body)
 
-		bytesRecebidos += tamanho
+		email := email{}
 
 		err := json.Unmarshal(mensagem.Body, &email)
 		if err != nil {
 			descricao := "Erro ao converter a mensagem para um email"
 			enviar.mensagemParaFila(descricao, err, mensagem)
 		} else {
-			email.mensagem = mensagem
-			email.tamanho = tamanho
-			email.tipo = mail.TypeTextPlain
-
+			email.mensagemRabbit = mensagem
 			emails = append(emails, email)
 		}
 	}
@@ -247,19 +243,19 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		err = mensagem.EnvelopeFromFormat(enviar.remetente.nome, enviar.remetente.email)
 		if err != nil {
 			descricao := "Erro ao colocar remetente no email"
-			enviar.mensagemParaFila(descricao, err, email.mensagem)
+			enviar.mensagemParaFila(descricao, err, email.mensagemRabbit)
 			continue
 		}
 
 		err = mensagem.AddToFormat(email.Destinatario.Nome, email.Destinatario.Email)
 		if err != nil {
 			descricao := "Erro ao colocar destinatario no email"
-			enviar.mensagemParaFila(descricao, err, email.mensagem)
+			enviar.mensagemParaFila(descricao, err, email.mensagemRabbit)
 			continue
 		}
 
 		mensagem.Subject(email.Assunto)
-		mensagem.SetBodyString(email.tipo, email.Mensagem)
+		mensagem.SetBodyString(email.Tipo, email.Mensagem)
 
 		mensagens = append(mensagens, mensagem)
 		emailsProcessados = append(emailsProcessados, email)
@@ -276,12 +272,12 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	bytesEnviados := 0
 
 	for _, email := range emailsProcessados {
-		err := email.mensagem.Ack(false)
+		err := email.mensagemRabbit.Ack(false)
 		if err != nil {
 			log.Printf("[ERRO] - Erro ao enviar mensagem de finalização para o rabbit: %s", err)
 		} else {
 			emailsEnviados += 1
-			bytesEnviados += email.tamanho
+			bytesEnviados += int(unsafe.Sizeof(email.Mensagem))
 		}
 	}
 
