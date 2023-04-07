@@ -98,6 +98,7 @@ type email struct {
 	Assunto, Mensagem, Template string
 	Anexos                      []string
 	mensagem                    amqp.Delivery
+	tamanho                int
 }
 
 type metricas struct {
@@ -195,22 +196,31 @@ func (enviar *enviar) mensagemParaFila(descricao string, err error, mensagem amq
 }
 
 func (enviar *enviar) emails(fila []amqp.Delivery) {
-	enviar.metricas.emailsRecebidos.Add(float64(len(fila)))
 	tempoInicial := time.Now()
+	enviar.metricas.emailsRecebidos.Add(float64(len(fila)))
 
 	emails := []email{}
+	bytesRecebidos := 0
 
 	for _, mensagem := range fila {
+		tamanho := len(mensagem.Body)
 		email := email{}
+
+		bytesRecebidos += tamanho
+
 		err := json.Unmarshal(mensagem.Body, &email)
 		if err != nil {
 			descricao := "Erro ao converter a mensagem para um email"
 			enviar.mensagemParaFila(descricao, err, mensagem)
 		} else {
 			email.mensagem = mensagem
+			email.tamanho = tamanho
+
 			emails = append(emails, email)
 		}
 	}
+
+	enviar.metricas.emailsRecebidosBytes.Add(float64(bytesRecebidos))
 
 	opcoesCliente := []mail.Option{
 		mail.WithPort(enviar.remetente.porta),
@@ -229,6 +239,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 
 	mensagens := []*mail.Msg{}
 	emailsProcessados := []email{}
+
 	for _, email := range emails {
 		mensagem := mail.NewMsg()
 		err = mensagem.EnvelopeFromFormat(enviar.remetente.nome, enviar.remetente.email)
@@ -259,22 +270,26 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		return
 	}
 
-	quantidadeEnviados := 0
+	emailsEnviados := 0
+	bytesEnviados := 0
+
 	for _, email := range emailsProcessados {
 		err := email.mensagem.Ack(false)
 		if err != nil {
 			log.Printf("[ERRO] - Erro ao enviar mensagem de finalização para o rabbit: %s", err)
 		} else {
-			quantidadeEnviados += 1
+			emailsEnviados += 1
+			bytesEnviados += email.tamanho
 		}
 	}
 
 	tempoDecorrido := time.Since(tempoInicial).Seconds()
 
-	enviar.metricas.emailsEnviados.Add(float64(quantidadeEnviados))
-  enviar.metricas.emailsTempoDeEnvioSegundos.Observe(tempoDecorrido)
+	enviar.metricas.emailsEnviados.Add(float64(emailsEnviados))
+	enviar.metricas.emailsTempoDeEnvioSegundos.Observe(tempoDecorrido)
+	enviar.metricas.emailsEnviadosBytes.Add(float64(bytesEnviados))
 
-	log.Printf("[INFO] - Foram enviado %d emails", quantidadeEnviados)
+	log.Printf("[INFO] - Foram enviado %d emails", emailsEnviados)
 }
 
 func main() {
