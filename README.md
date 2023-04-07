@@ -8,16 +8,16 @@ O objetivo desse projeto é ler a partir de uma fila do RabbitMQ as informaçõe
 - [ ] Ler anexo do Minio
 - [ ] Criar cache do Minio
 
-## Metricas
-- [x] Expor as metricas do servidor na porta `8001`
-- [ ] Pegar as seguintes metricas:
-  - [x] Quantidade de emails recebidos da fila do rabbit
-  - [x] Quantidade de emails enviados com sucesso
-  - [x] Quantidade de emails reenviados para a fila
-  - [x] ~~Quantidade de emails em processamento~~(Não precisa pois é uma conta fácil de se obter, emails_recebidos - emails_enviados - emails_reenviados = emails_em_processamento)
-  - [x] Tempo de envio por lote de emails
-  - [x] Tamanho do payload mas mensagens recebidas
-  - [x] Tamanho do email enviado
-  - [ ] Tamanho do anexo enviados
+## Métricas
+- [x] Expor as métricas do servidor na porta `8001`
+- [ ] Pegar as seguintes métricas:
+  - [x] Quantidade de e-mails recebidos da fila do RabbitMQ
+  - [x] Quantidade de bytes recebidos da fila do RabbitMQ
+  - [x] Quantidade de e-mails enviados com sucesso
+  - [x] Quantidade de bytes enviados no corpo do email
+  - [x] Quantidade de e-mails reenviados para a fila
+  - [x] Tempo de envio por lote de e-mails
+  - [ ] Quantidade de e-mails enviados com anexo
   - [ ] Quantidade de anexos enviados 
+  - [ ] Quantidade de bytes enviados no anexo
   - [ ] Tamanho do cache local do minio
