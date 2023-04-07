@@ -98,7 +98,8 @@ type email struct {
 	Assunto, Mensagem, Template string
 	Anexos                      []string
 	mensagem                    amqp.Delivery
-	tamanho                int
+	tamanho                     int
+	tipo                        mail.ContentType
 }
 
 type metricas struct {
@@ -215,6 +216,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		} else {
 			email.mensagem = mensagem
 			email.tamanho = tamanho
+			email.tipo = mail.TypeTextPlain
 
 			emails = append(emails, email)
 		}
@@ -257,7 +259,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		}
 
 		mensagem.Subject(email.Assunto)
-		mensagem.SetBodyString(mail.TypeTextPlain, email.Mensagem)
+		mensagem.SetBodyString(email.tipo, email.Mensagem)
 
 		mensagens = append(mensagens, mensagem)
 		emailsProcessados = append(emailsProcessados, email)
