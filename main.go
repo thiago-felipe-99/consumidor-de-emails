@@ -277,7 +277,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 			log.Printf("[ERRO] - Erro ao enviar mensagem de finalização para o rabbit: %s", err)
 		} else {
 			emailsEnviados += 1
-			bytesEnviados += int(unsafe.Sizeof(email.Mensagem))
+			bytesEnviados += len(email.Mensagem)
 		}
 	}
 
