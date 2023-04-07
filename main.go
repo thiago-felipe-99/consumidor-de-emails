@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"unsafe"
 
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus"
@@ -204,7 +203,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	bytesRecebidos := 0
 
 	for _, mensagem := range fila {
-    bytesRecebidos += len(mensagem.Body)
+		bytesRecebidos += len(mensagem.Body)
 
 		email := email{}
 
