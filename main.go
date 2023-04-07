@@ -89,28 +89,6 @@ func pegarConfiguracoes() (*configuracoes, error) {
 	return config, nil
 }
 
-func reenviarEmailsParaFila(descricao string, err error, emails []email) {
-	log.Printf("[ERRO] - Erro ao processar um lote de emails, reenviando eles para a fila")
-	log.Printf("[ERRO] - %s: %s", descricao, err)
-
-	for _, email := range emails {
-		err = email.mensagem.Nack(false, true)
-		if err != nil {
-			log.Printf("[ERRO] Erro ao reenviar mensagem para fila: %s", err)
-		}
-	}
-}
-
-func reenviarMensagemParaFila(descricao string, err error, mensagem amqp.Delivery) {
-	log.Printf("[ERRO] - Erro ao processar a mensagem, reenviando ela para a fila")
-	log.Printf("[ERRO] - %s: %s", descricao, err)
-
-	err = mensagem.Nack(false, true)
-	if err != nil {
-		log.Printf("[ERRO] Erro ao reenviar mensagem para fila: %s", err)
-	}
-}
-
 type destinatario struct {
 	Nome, Email string
 }
@@ -190,7 +168,36 @@ type enviar struct {
 	*metricas
 }
 
+func (enviar *enviar) emailsParaFila(descricao string, err error, emails []email) {
+	enviar.metricas.emailsReenviados.Add(float64(len(emails)))
+
+	log.Printf("[ERRO] - Erro ao processar um lote de emails, reenviando eles para a fila")
+	log.Printf("[ERRO] - %s: %s", descricao, err)
+
+	for _, email := range emails {
+		err = email.mensagem.Nack(false, true)
+		if err != nil {
+			log.Printf("[ERRO] Erro ao reenviar mensagem para fila: %s", err)
+		}
+	}
+}
+
+func (enviar *enviar) mensagemParaFila(descricao string, err error, mensagem amqp.Delivery) {
+	enviar.metricas.emailsReenviados.Inc()
+
+	log.Printf("[ERRO] - Erro ao processar a mensagem, reenviando ela para a fila")
+	log.Printf("[ERRO] - %s: %s", descricao, err)
+
+	err = mensagem.Nack(false, true)
+	if err != nil {
+		log.Printf("[ERRO] Erro ao reenviar mensagem para fila: %s", err)
+	}
+}
+
 func (enviar *enviar) emails(fila []amqp.Delivery) {
+	enviar.metricas.emailsRecebidos.Add(float64(len(fila)))
+	// tempoInicial := time.Now()
+
 	emails := []email{}
 
 	for _, mensagem := range fila {
@@ -198,7 +205,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		err := json.Unmarshal(mensagem.Body, &email)
 		if err != nil {
 			descricao := "Erro ao converter a mensagem para um email"
-			reenviarMensagemParaFila(descricao, err, mensagem)
+			enviar.mensagemParaFila(descricao, err, mensagem)
 		} else {
 			email.mensagem = mensagem
 			emails = append(emails, email)
@@ -216,7 +223,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	cliente, err := mail.NewClient(enviar.remetente.host, opcoesCliente...)
 	if err != nil {
 		descricao := "Erro ao criar um cliente de email"
-		reenviarEmailsParaFila(descricao, err, emails)
+		enviar.emailsParaFila(descricao, err, emails)
 		return
 	}
 
@@ -227,14 +234,14 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		err = mensagem.EnvelopeFromFormat(enviar.remetente.nome, enviar.remetente.email)
 		if err != nil {
 			descricao := "Erro ao colocar remetente no email"
-			reenviarMensagemParaFila(descricao, err, email.mensagem)
+			enviar.mensagemParaFila(descricao, err, email.mensagem)
 			continue
 		}
 
 		err = mensagem.AddToFormat(email.Destinatario.Nome, email.Destinatario.Email)
 		if err != nil {
 			descricao := "Erro ao colocar destinatario no email"
-			reenviarMensagemParaFila(descricao, err, email.mensagem)
+			enviar.mensagemParaFila(descricao, err, email.mensagem)
 			continue
 		}
 
@@ -248,7 +255,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	err = cliente.DialAndSend(mensagens...)
 	if err != nil {
 		descricao := "Erro ao enviar os emails"
-		reenviarEmailsParaFila(descricao, err, emailsProcessados)
+		enviar.emailsParaFila(descricao, err, emailsProcessados)
 		return
 	}
 
@@ -261,6 +268,10 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 			quantidadeEnviados += 1
 		}
 	}
+
+	// tempoDecorrido := time.Since(tempoInicial).Seconds()
+
+	enviar.metricas.emailsEnviados.Add(float64(quantidadeEnviados))
 
 	log.Printf("[INFO] - Foram enviado %d emails", quantidadeEnviados)
 }
@@ -327,10 +338,12 @@ func main() {
 		http.Handle("/metrics", promhttp.HandlerFor(registryMetricas, promhttp.HandlerOpts{
 			EnableOpenMetrics: true,
 		}))
+
 		err := http.ListenAndServe(":8001", nil)
 		if err != nil {
 			log.Fatalf("[ERRO] - Erro ao inicializar servidor de metricas")
 		}
+
 		log.Printf("[INFO] - Servidor de metricas inicializado com sucesso")
 	}()
 

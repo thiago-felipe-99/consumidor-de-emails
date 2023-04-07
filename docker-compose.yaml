@@ -4,6 +4,11 @@ services:
     build: .
     volumes: 
       - .env:/.env
+  benchmarking:
+    build: .
+    volumes:
+      - .env.benchmarking:/.env
+    entrypoint: /benchmarking
   rabbit:
     image: rabbitmq:3.11-management
     environment:
@@ -21,12 +26,18 @@ services:
       - 9001:9001/tcp
     volumes:
       - minio:/data
-  benchmarking:
-    build: .
+  prometheus:
+    image: prom/prometheus
     volumes:
-      - .env.benchmarking:/.env
-    entrypoint: /benchmarking
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+      - prometheus:/prometheus
+  grafana:
+    image: grafana/grafana-oss
+    volumes:
+      - grafana:/var/lib/grafana
+    ports:
+      - 3000:3000
 volumes:
   minio: {}
-
-
+  prometheus: {}
+  grafana: {}
