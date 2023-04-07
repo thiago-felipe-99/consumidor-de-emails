@@ -1,12 +1,11 @@
 global:
-  scrape_interval:     15s
-  evaluation_interval: 15s
+  scrape_interval:     500ms
+  evaluation_interval: 500ms
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
     - targets: ['127.0.0.1:9090']
 
   - job_name: 'consumidor-de-emails'
-    scrape_interval: 1s
     static_configs:
       - targets: ['consumidor-de-emails:8001']

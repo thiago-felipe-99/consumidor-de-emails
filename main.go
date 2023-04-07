@@ -196,7 +196,7 @@ func (enviar *enviar) mensagemParaFila(descricao string, err error, mensagem amq
 
 func (enviar *enviar) emails(fila []amqp.Delivery) {
 	enviar.metricas.emailsRecebidos.Add(float64(len(fila)))
-	// tempoInicial := time.Now()
+	tempoInicial := time.Now()
 
 	emails := []email{}
 
@@ -269,9 +269,10 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		}
 	}
 
-	// tempoDecorrido := time.Since(tempoInicial).Seconds()
+	tempoDecorrido := time.Since(tempoInicial).Seconds()
 
 	enviar.metricas.emailsEnviados.Add(float64(quantidadeEnviados))
+  enviar.metricas.emailsTempoDeEnvioSegundos.Observe(tempoDecorrido)
 
 	log.Printf("[INFO] - Foram enviado %d emails", quantidadeEnviados)
 }
