@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,13 +11,64 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/allegro/bigcache/v3"
 	"github.com/joho/godotenv"
+	"github.com/minio/minio-go/v7"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/wneessen/go-mail"
 )
+
+type cache struct {
+	data   *bigcache.BigCache
+	bucket string
+	minio  *minio.Client
+}
+
+func novoCache() (*cache, error) {
+	return nil, nil
+}
+
+func (cache *cache) salvarArquivo(nome string) ([]byte, error) {
+	objeto, err := cache.minio.GetObject(
+		context.Background(),
+		cache.bucket,
+		nome,
+		minio.GetObjectOptions{},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	objetoInfo, err := objeto.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	arquivo := make([]byte, objetoInfo.Size)
+
+	_, err = objeto.Read(arquivo)
+	if err != nil {
+		return nil, err
+	}
+
+	return arquivo, cache.data.Set(nome, arquivo)
+}
+
+func (cache *cache) pegarArqivo(nome string) ([]byte, error) {
+	arquivo, err := cache.data.Get(nome)
+	if err != nil {
+		if errors.Is(err, bigcache.ErrEntryNotFound) {
+			return cache.salvarArquivo(nome)
+		}
+
+		return nil, err
+	}
+
+	return arquivo, nil
+}
 
 type remetente struct {
 	nome, email, senha, host string
@@ -165,8 +218,17 @@ func criarMetricas() *metricas {
 }
 
 type enviar struct {
-	remetente
+	*cache
+	*remetente
 	*metricas
+}
+
+func novoEnviar(cache *cache, remetente *remetente, metricas *metricas) *enviar {
+	return &enviar{
+		cache:     cache,
+		remetente: remetente,
+		metricas:  metricas,
+	}
 }
 
 func (enviar *enviar) emailsParaFila(descricao string, err error, emails []email) {
@@ -292,7 +354,12 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 func main() {
 	configs, err := pegarConfiguracoes()
 	if err != nil {
-		log.Fatalf("[ERRO] - Erro ao ler as configurações: %v", err)
+		log.Fatalf("[ERRO] - Erro ao ler as configurações: %s", err)
+	}
+
+	cache, err := novoCache()
+	if err != nil {
+		log.Fatalf("[ERRO] - Erro ao criar o cache de arquivos: %s", err)
 	}
 
 	rabbitURL := fmt.Sprintf(
@@ -363,11 +430,7 @@ func main() {
 	go func() {
 		bufferFila := []amqp.Delivery{}
 		timeout := time.NewTicker(configs.timeoutSegundos)
-
-		enviar := enviar{
-			remetente: configs.remetente,
-			metricas:  metricas,
-		}
+		enviar := novoEnviar(cache, &configs.remetente, metricas)
 
 		for {
 			select {
