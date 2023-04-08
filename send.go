@@ -164,3 +164,14 @@ func (send *send) emails(queue []amqp.Delivery) {
 
 	log.Printf("[INFO] - Foram enviado %d emails", emailsSent)
 }
+
+func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {
+	buffer := make([]amqp.Delivery, len(queue))
+	copy(buffer, queue)
+
+	log.Printf("[INFO] - Sending %d emails", len(buffer))
+
+	go send.emails(buffer)
+
+	return queue[:0]
+}

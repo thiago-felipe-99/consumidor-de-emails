@@ -59,37 +59,23 @@ func processQueue(
 	timeout time.Duration,
 	bufferSize int,
 ) {
-	bufferQueue := []amqp.Delivery{}
+	buffer := []amqp.Delivery{}
 	ticker := time.NewTicker(timeout)
 
 	for {
 		select {
 		case message := <-queue:
-			bufferQueue = append(bufferQueue, message)
+			buffer = append(buffer, message)
 
 			ticker.Reset(timeout)
 
-			if len(bufferQueue) >= bufferSize {
-				buffer := make([]amqp.Delivery, len(bufferQueue))
-				copy(buffer, bufferQueue)
-
-				log.Printf("[INFO] - Sending %d emails", len(buffer))
-
-				go send.emails(buffer)
-
-				bufferQueue = bufferQueue[:0]
+			if len(buffer) >= bufferSize {
+				buffer = send.copyQueueAndSendEmails(buffer)
 			}
 
 		case <-ticker.C:
-			if len(bufferQueue) > 0 {
-				buffer := make([]amqp.Delivery, len(bufferQueue))
-				copy(buffer, bufferQueue)
-
-				log.Printf("[INFO] - Sending %d emails", len(buffer))
-
-				go send.emails(buffer)
-
-				bufferQueue = bufferQueue[:0]
+			if len(buffer) > 0 {
+				buffer = send.copyQueueAndSendEmails(buffer)
 			}
 		}
 	}
