@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/dotenv"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
@@ -13,59 +14,59 @@ import (
 )
 
 type sender struct {
-	Name  string `config:"name"`
-	Email string `config:"email"`
+	Name  string `config:"name"  validate:"required"`
+	Email string `config:"email" validate:"required"`
 }
 
 type smtp struct {
-	User     string `config:"user"`
-	Password string `config:"password"`
-	Host     string `config:"host"`
-	Port     int    `config:"port"`
+	User     string `config:"user"     validate:"required"`
+	Password string `config:"password" validate:"required"`
+	Host     string `config:"host"     validate:"required"`
+	Port     int    `config:"port"     validate:"required"`
 }
 
 type rabbit struct {
-	User     string `config:"user"`
-	Password string `config:"password"`
-	Host     string `config:"host"`
-	Port     int    `config:"port"`
-	Vhost    string `config:"vhost"`
-	Queue    string `config:"queue"`
+	User     string `config:"user"     validate:"required"`
+	Password string `config:"password" validate:"required"`
+	Host     string `config:"host"     validate:"required"`
+	Port     int    `config:"port"     validate:"required"`
+	Vhost    string `config:"vhost"    validate:"required"`
+	Queue    string `config:"queue"    validate:"required"`
 }
 
 type buffer struct {
-	Size     int `config:"size"`
-	Quantity int `config:"quantity"`
+	Size     int `config:"size"     validate:"required"`
+	Quantity int `config:"quantity" validate:"required"`
 }
 
 type cacheConfig struct {
-	Shards       int  `config:"shards"`
-	LifeWindow   int  `config:"life_window"`
-	CleanWindow  int  `config:"clean_window"`
-	AvgEntries   int  `config:"avg_entries"`
-	AvgEntrySize int  `config:"avg_entry_size"`
-	MaxSize      int  `config:"maxsize"`
+	Shards       int  `config:"shards"         validate:"required"`
+	LifeWindow   int  `config:"life_window"    validate:"required"`
+	CleanWindow  int  `config:"clean_window"   validate:"required"`
+	AvgEntries   int  `config:"avg_entries"    validate:"required"`
+	AvgEntrySize int  `config:"avg_entry_size" validate:"required"`
+	MaxSize      int  `config:"maxsize"        validate:"required"`
 	Statics      bool `config:"statics"`
 	Verbose      bool `config:"verbose"`
 }
 
 type minioConfig struct {
-	Host       string `config:"host"`
-	Port       int    `config:"port"`
-	Bucket     string `config:"bucket"`
-	AccessKey  string `config:"access_key"`
-	SecrectKey string `config:"secrect_key"`
-	Secure     bool   `config:"secure"`
+	Host      string `config:"host"       validate:"required"`
+	Port      int    `config:"port"       validate:"required"`
+	Bucket    string `config:"bucket"     validate:"required"`
+	AccessKey string `config:"access_key" validate:"required"`
+	SecretKey string `config:"secret_key" validate:"required"`
+	Secure    bool   `config:"secure"`
 }
 
 type configuracoes struct {
-	Sender  sender      `config:"sender"`
-	SMTP    smtp        `config:"smtp"`
-	Rabbit  rabbit      `config:"rabbit"`
-	Buffer  buffer      `config:"buffer"`
-	Timeout int         `config:"timeout"`
-	Cache   cacheConfig `config:"cache"`
-	Minio   minioConfig `config:"minio"`
+	Sender  sender      `config:"sender"  validate:"required"`
+	SMTP    smtp        `config:"smtp"    validate:"required"`
+	Rabbit  rabbit      `config:"rabbit"  validate:"required"`
+	Buffer  buffer      `config:"buffer"  validate:"required"`
+	Timeout int         `config:"timeout" validate:"required"`
+	Cache   cacheConfig `config:"cache"   validate:"required"`
+	Minio   minioConfig `config:"minio"   validate:"required"`
 }
 
 //nolint:gomnd
@@ -151,5 +152,7 @@ func pegarConfiguracoes() (*configuracoes, error) {
 		return nil, err
 	}
 
-	return config, nil
+	validate := validator.New()
+
+	return config, validate.Struct(config)
 }

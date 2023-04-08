@@ -38,7 +38,7 @@ func novoCache(configuracoes *configuracoes) (*cache, error) {
 	minioOptions := &minio.Options{
 		Creds: credentials.NewStaticV4(
 			configuracoes.Minio.AccessKey,
-			configuracoes.Minio.SecrectKey,
+			configuracoes.Minio.SecretKey,
 			"",
 		),
 	}
