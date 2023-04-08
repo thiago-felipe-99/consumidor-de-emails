@@ -125,6 +125,18 @@ func processQueue(
 	}
 }
 
+func logSendMessages(send *send) {
+	for {
+		select {
+		case message := <-send.infos:
+			log.Printf("[INFO] - %s", message)
+
+		case message := <-send.errors:
+			log.Printf("[ERROR] - %s", message)
+		}
+	}
+}
+
 func main() {
 	configs, err := getConfigurations()
 	if err != nil {
@@ -163,6 +175,8 @@ func main() {
 	go serverMetrics(metrics)
 
 	go processQueue(queue, send, timeout, configs.Buffer.Size)
+
+	go logSendMessages(send)
 
 	log.Printf("[INFO] - Server started successfully")
 	<-wait
