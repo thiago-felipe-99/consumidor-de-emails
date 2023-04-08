@@ -27,10 +27,10 @@ type send struct {
 	*cache
 	*sender
 	*smtp
-	metrics *metricas
+	metrics *metrics
 }
 
-func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metricas) *send {
+func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) *send {
 	return &send{
 		cache:   cache,
 		sender:  sender,
@@ -114,7 +114,7 @@ func (send *send) emails(queue []amqp.Delivery) {
 
 		err = message.EnvelopeFromFormat(send.sender.Name, send.sender.Email)
 		if err != nil {
-      description := "Error adding email sender"
+			description := "Error adding email sender"
 			send.messageToQueue(description, err, email.messageRabbit)
 
 			continue
@@ -122,7 +122,7 @@ func (send *send) emails(queue []amqp.Delivery) {
 
 		err = message.AddToFormat(email.Receiver.Name, email.Receiver.Email)
 		if err != nil {
-      description := "Error adding email receiver"
+			description := "Error adding email receiver"
 			send.messageToQueue(description, err, email.messageRabbit)
 
 			continue
@@ -137,7 +137,7 @@ func (send *send) emails(queue []amqp.Delivery) {
 
 	err = client.DialAndSend(messages...)
 	if err != nil {
-    description := "Error seding emails"
+		description := "Error seding emails"
 		send.emailsToQueue(description, err, emailsReady)
 
 		return

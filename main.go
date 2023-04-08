@@ -49,51 +49,51 @@ func main() {
 	}
 	defer rabbit.Close()
 
-	canal, err := rabbit.Channel()
+	channel, err := rabbit.Channel()
 	if err != nil {
 		log.Printf("[ERRO] - Erro ao abrir o canal do Rabbit: %s", err)
 
 		return
 	}
-	defer canal.Close()
+	defer channel.Close()
 
-	err = canal.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
+	err = channel.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
 	if err != nil {
 		log.Printf("[ERRO] - Erro ao configurar o tamanho da fila do consumidor: %s", err)
 
 		return
 	}
 
-	fila, err := canal.Consume(configs.Rabbit.Queue, "", false, false, false, false, nil)
+	queue, err := channel.Consume(configs.Rabbit.Queue, "", false, false, false, false, nil)
 	if err != nil {
 		log.Printf("[ERRO] - Erro ao registrar o consumidor: %s", err)
 
 		return
 	}
 
-	var esperar chan struct{}
+	var wait chan struct{}
 
-	metricas := newMetrics()
-	registryMetricas := prometheus.NewRegistry()
+	metrics := newMetrics()
+	registryMetrics := prometheus.NewRegistry()
 
-	registryMetricas.MustRegister(
+	registryMetrics.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		metricas.emailsReceived,
-		metricas.emailsReceivedBytes,
-		metricas.emailsSent,
-		metricas.emailsSentBytes,
-		metricas.emailsSentAttachment,
-		metricas.emailsSentAttachmentBytes,
-		metricas.emailsSentWithAttachment,
-		metricas.emailsResent,
-		metricas.emailsSentTimeSeconds,
-		metricas.emailsCacheAttachment,
-		metricas.emailsCacheAttachmentBytes,
+		metrics.emailsReceived,
+		metrics.emailsReceivedBytes,
+		metrics.emailsSent,
+		metrics.emailsSentBytes,
+		metrics.emailsSentAttachment,
+		metrics.emailsSentAttachmentBytes,
+		metrics.emailsSentWithAttachment,
+		metrics.emailsResent,
+		metrics.emailsSentTimeSeconds,
+		metrics.emailsCacheAttachment,
+		metrics.emailsCacheAttachmentBytes,
 	)
 
 	go func() {
-		http.Handle("/metrics", promhttp.HandlerFor(registryMetricas, promhttp.HandlerOpts{
+		http.Handle("/metrics", promhttp.HandlerFor(registryMetrics, promhttp.HandlerOpts{
 			EnableOpenMetrics: true,
 		}))
 
@@ -104,50 +104,50 @@ func main() {
 
 		err := server.ListenAndServe()
 		if err != nil {
-			log.Fatalf("[ERRO] - Erro ao inicializar servidor de metricas")
+			log.Fatalf("[ERRO] - Erro ao inicializar servidor de metrics")
 		}
 
-		log.Printf("[INFO] - Servidor de metricas inicializado com sucesso")
+		log.Printf("[INFO] - Servidor de metrics inicializado com sucesso")
 	}()
 
 	go func() {
-		bufferFila := []amqp.Delivery{}
+		bufferQueue := []amqp.Delivery{}
 		timeout := time.NewTicker(time.Duration(configs.Timeout) * time.Second)
-		enviar := newSend(cache, &configs.Sender, &configs.SMTP, metricas)
+		send := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
 
 		for {
 			select {
-			case mensagen := <-fila:
-				bufferFila = append(bufferFila, mensagen)
+			case message := <-queue:
+				bufferQueue = append(bufferQueue, message)
 
 				timeout.Reset(time.Duration(configs.Timeout) * time.Second)
 
-				if len(bufferFila) >= configs.Buffer.Size {
-					buffer := make([]amqp.Delivery, len(bufferFila))
-					copy(buffer, bufferFila)
+				if len(bufferQueue) >= configs.Buffer.Size {
+					buffer := make([]amqp.Delivery, len(bufferQueue))
+					copy(buffer, bufferQueue)
 
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
 
-					go enviar.emails(buffer)
+					go send.emails(buffer)
 
-					bufferFila = bufferFila[:0]
+					bufferQueue = bufferQueue[:0]
 				}
 
 			case <-timeout.C:
-				if len(bufferFila) > 0 {
-					buffer := make([]amqp.Delivery, len(bufferFila))
-					copy(buffer, bufferFila)
+				if len(bufferQueue) > 0 {
+					buffer := make([]amqp.Delivery, len(bufferQueue))
+					copy(buffer, bufferQueue)
 
 					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
 
-					go enviar.emails(buffer)
+					go send.emails(buffer)
 
-					bufferFila = bufferFila[:0]
+					bufferQueue = bufferQueue[:0]
 				}
 			}
 		}
 	}()
 
 	log.Printf("[INFO] - Servidor inicializado com sucesso")
-	<-esperar
+	<-wait
 }

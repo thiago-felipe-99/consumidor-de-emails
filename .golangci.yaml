@@ -63,7 +63,7 @@ linters:
     - lll
     - maintidx
     - makezero
-    # - misspell
+    - misspell
     - musttag
     - nakedret
     - nestif

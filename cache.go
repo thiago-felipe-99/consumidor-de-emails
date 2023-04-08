@@ -81,7 +81,7 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 	return file, cache.data.Set(name, file)
 }
 
-func (cache *cache) getFile(name string) ([]byte, error) {
+func (cache *cache) GetFile(name string) ([]byte, error) {
 	file, err := cache.data.Get(name)
 	if err != nil {
 		if errors.Is(err, bigcache.ErrEntryNotFound) {

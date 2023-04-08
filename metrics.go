@@ -2,7 +2,7 @@ package main
 
 import "github.com/prometheus/client_golang/prometheus"
 
-type metricas struct {
+type metrics struct {
 	emailsReceived             prometheus.Counter
 	emailsReceivedBytes        prometheus.Counter
 	emailsSent                 prometheus.Counter
@@ -16,8 +16,8 @@ type metricas struct {
 	emailsCacheAttachmentBytes prometheus.Gauge
 }
 
-func newMetrics() *metricas {
-	return &metricas{
+func newMetrics() *metrics {
+	return &metrics{
 		emailsReceived: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "emails_recebidos",
 			Help: "A quantidade de emails recebidos pela fila do rabbit",
