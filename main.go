@@ -14,6 +14,7 @@ import (
 	"github.com/allegro/bigcache/v3"
 	"github.com/joho/godotenv"
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -21,14 +22,197 @@ import (
 	"github.com/wneessen/go-mail"
 )
 
+type remetente struct {
+	nome, email, senha, host string
+	porta                    int
+}
+
+type rabbit struct {
+	user, senha, host, vhost, fila string
+	porta                          int
+}
+
+type buffer struct {
+	tamanho, quantidade int
+}
+
+type cacheConfig struct {
+	shards                   int
+	lifeWindow, cleanWindow  time.Duration
+	avgEntries, avgEntrySize int
+	maxSize                  int
+	statics, verbose         bool
+}
+
+type minioConfig struct {
+	host             string
+	porta                 int
+	bucket               string
+	accesKey, secrectKey string
+	secure               bool
+}
+
+type configuracoes struct {
+	remetente
+	rabbit
+	buffer
+	timeout time.Duration
+	cache   cacheConfig
+	minio   minioConfig
+}
+
+func pegarConfiguracoes() (*configuracoes, error) {
+	err := godotenv.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	smtpPorta, err := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	if err != nil {
+		return nil, err
+	}
+
+	rabbitPorta, err := strconv.Atoi(os.Getenv("RABBIT_PORT"))
+	if err != nil {
+		return nil, err
+	}
+
+	bufferSize, err := strconv.Atoi(os.Getenv("BUFFER_SIZE"))
+	if err != nil {
+		return nil, err
+	}
+
+	bufferQT, err := strconv.Atoi(os.Getenv("BUFFER_QT"))
+	if err != nil {
+		return nil, err
+	}
+
+	timeoutSegundos, err := strconv.Atoi(os.Getenv(("TIMEOUT_SECONDS")))
+	if err != nil {
+		return nil, err
+	}
+
+	cacheShards, err := strconv.Atoi(os.Getenv(("CACHE_SHARDS")))
+	if err != nil {
+		return nil, err
+	}
+
+	cacheLifeWindowMinute, err := strconv.Atoi(os.Getenv(("CACHE_LIFE_WINDOW_MINUTE")))
+	if err != nil {
+		return nil, err
+	}
+
+	cacheCleanWindowMinute, err := strconv.Atoi(os.Getenv(("CACHE_CLEAN_WINDOW_MINUTE")))
+	if err != nil {
+		return nil, err
+	}
+
+	cacheAvgEntriesInWindow, err := strconv.Atoi(os.Getenv(("CACHE_AVG_ENTRIES_IN_WINDOW")))
+	if err != nil {
+		return nil, err
+	}
+
+	cacheAvgEntrySizeMB, err := strconv.Atoi(os.Getenv(("CACHE_AVG_ENTRY_SIZE_MB")))
+	if err != nil {
+		return nil, err
+	}
+
+	cacheMaxSizeMB, err := strconv.Atoi(os.Getenv(("CACHE_MAX_SIZE_MB")))
+	if err != nil {
+		return nil, err
+	}
+
+	minioPort, err := strconv.Atoi(os.Getenv(("MINIO_PORT")))
+	if err != nil {
+		return nil, err
+	}
+
+	config := &configuracoes{
+		remetente: remetente{
+			nome:  os.Getenv("SMTP_USERNAME"),
+			email: os.Getenv("SMTP_USER"),
+			senha: os.Getenv("SMTP_PASSWORD"),
+			host:  os.Getenv("SMTP_HOST"),
+			porta: smtpPorta,
+		},
+		rabbit: rabbit{
+			user:  os.Getenv("RABBIT_USER"),
+			senha: os.Getenv("RABBIT_PASSWORD"),
+			host:  os.Getenv("RABBIT_HOST"),
+			porta: rabbitPorta,
+			vhost: os.Getenv("RABBIT_VHOST"),
+			fila:  os.Getenv("RABBIT_QUEUE"),
+		},
+		buffer: buffer{
+			tamanho:    bufferSize,
+			quantidade: bufferQT,
+		},
+		timeout: time.Duration(timeoutSegundos) * time.Second,
+		cache: cacheConfig{
+			shards:       cacheShards,
+			lifeWindow:   time.Duration(cacheLifeWindowMinute) * time.Minute,
+			cleanWindow:  time.Duration(cacheCleanWindowMinute) * time.Minute,
+			avgEntries:   cacheAvgEntriesInWindow,
+			avgEntrySize: cacheAvgEntrySizeMB,
+			maxSize:      cacheMaxSizeMB,
+			statics:      os.Getenv("CACHE_STATICS_ENABLE") == "true",
+			verbose:      os.Getenv("CACHE_VERBOSE") == "true",
+		},
+		minio: minioConfig{
+			host:   os.Getenv("MINIO_HOSTNAME"),
+			porta:       minioPort,
+			bucket:     os.Getenv("MINIO_BUCKET"),
+			accesKey:   os.Getenv("MINIO_ACCESS_KEY"),
+			secrectKey: os.Getenv("MINIO_SECRETE_KEY"),
+			secure:     os.Getenv("MINIO_USE_SSL") == "true",
+		},
+	}
+
+	return config, nil
+}
+
 type cache struct {
 	data   *bigcache.BigCache
 	bucket string
 	minio  *minio.Client
 }
 
-func novoCache() (*cache, error) {
-	return nil, nil
+func novoCache(configuracoes *configuracoes) (*cache, error) {
+	dataConfig := bigcache.Config{
+		Shards:             configuracoes.cache.shards,
+		LifeWindow:         configuracoes.cache.lifeWindow,
+		CleanWindow:        configuracoes.cache.cleanWindow,
+		MaxEntriesInWindow: configuracoes.cache.avgEntries,
+		MaxEntrySize:       configuracoes.cache.avgEntrySize,
+		HardMaxCacheSize:   configuracoes.cache.maxSize,
+		StatsEnabled:       configuracoes.cache.statics,
+		Verbose:            configuracoes.cache.verbose,
+	}
+
+	data, err := bigcache.New(context.Background(), dataConfig)
+	if err != nil {
+		return nil, err
+	}
+
+  host := fmt.Sprintf("%s:%d", configuracoes.minio.host, configuracoes.minio.porta)
+	minioOptions := &minio.Options{
+		Creds: credentials.NewStaticV4(
+			configuracoes.minio.accesKey,
+			configuracoes.minio.secrectKey,
+			"",
+		),
+	}
+
+	minio, err := minio.New(host, minioOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cache{
+		data:   data,
+		bucket: configuracoes.minio.bucket,
+		minio:  minio,
+	}, nil
 }
 
 func (cache *cache) salvarArquivo(nome string) ([]byte, error) {
@@ -68,90 +252,6 @@ func (cache *cache) pegarArqivo(nome string) ([]byte, error) {
 	}
 
 	return arquivo, nil
-}
-
-type remetente struct {
-	nome, email, senha, host string
-	porta                    int
-}
-
-type rabbit struct {
-	user, senha, host, porta, vhost, fila string
-}
-
-type buffer struct {
-	tamanho, quantidade int
-}
-
-type configuracoes struct {
-	remetente
-	rabbit
-	buffer
-	timeoutSegundos time.Duration
-}
-
-func pegarConfiguracoes() (*configuracoes, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return nil, err
-	}
-
-	porta, err := strconv.Atoi(os.Getenv("SMTP_PORT"))
-	if err != nil {
-		return nil, err
-	}
-
-	bufferSize, err := strconv.Atoi(os.Getenv("BUFFER_SIZE"))
-	if err != nil {
-		return nil, err
-	}
-
-	bufferQT, err := strconv.Atoi(os.Getenv("BUFFER_QT"))
-	if err != nil {
-		return nil, err
-	}
-
-	timeoutSegundos, err := strconv.Atoi(os.Getenv(("TIMEOUT_SECONDS")))
-	if err != nil {
-		return nil, err
-	}
-
-	config := &configuracoes{
-		remetente: remetente{
-			nome:  os.Getenv("SMTP_USERNAME"),
-			email: os.Getenv("SMTP_USER"),
-			senha: os.Getenv("SMTP_PASSWORD"),
-			host:  os.Getenv("SMTP_HOST"),
-			porta: porta,
-		},
-		rabbit: rabbit{
-			user:  os.Getenv("RABBIT_USER"),
-			senha: os.Getenv("RABBIT_PASSWORD"),
-			host:  os.Getenv("RABBIT_HOST"),
-			porta: os.Getenv("RABBIT_PORT"),
-			vhost: os.Getenv("RABBIT_VHOST"),
-			fila:  os.Getenv("RABBIT_QUEUE"),
-		},
-		buffer: buffer{
-			tamanho:    bufferSize,
-			quantidade: bufferQT,
-		},
-		timeoutSegundos: time.Duration(timeoutSegundos) * time.Second,
-	}
-
-	return config, nil
-}
-
-type destinatario struct {
-	Nome, Email string
-}
-
-type email struct {
-	Destinatario      destinatario
-	Assunto, Mensagem string
-	Tipo              mail.ContentType
-	Anexos            []string
-	mensagemRabbit    amqp.Delivery
 }
 
 type metricas struct {
@@ -215,6 +315,18 @@ func criarMetricas() *metricas {
 			Help: "A quantidade em bytes de anexos no cache",
 		}),
 	}
+}
+
+type destinatario struct {
+	Nome, Email string
+}
+
+type email struct {
+	Destinatario      destinatario
+	Assunto, Mensagem string
+	Tipo              mail.ContentType
+	Anexos            []string
+	mensagemRabbit    amqp.Delivery
 }
 
 type enviar struct {
@@ -357,13 +469,13 @@ func main() {
 		log.Fatalf("[ERRO] - Erro ao ler as configurações: %s", err)
 	}
 
-	cache, err := novoCache()
+	cache, err := novoCache(configs)
 	if err != nil {
 		log.Fatalf("[ERRO] - Erro ao criar o cache de arquivos: %s", err)
 	}
 
 	rabbitURL := fmt.Sprintf(
-		"amqp://%s:%s@%s:%s/%s",
+		"amqp://%s:%s@%s:%d/%s",
 		configs.rabbit.user,
 		configs.rabbit.senha,
 		configs.rabbit.host,
@@ -429,14 +541,14 @@ func main() {
 
 	go func() {
 		bufferFila := []amqp.Delivery{}
-		timeout := time.NewTicker(configs.timeoutSegundos)
+		timeout := time.NewTicker(configs.timeout)
 		enviar := novoEnviar(cache, &configs.remetente, metricas)
 
 		for {
 			select {
 			case mensagen := <-fila:
 				bufferFila = append(bufferFila, mensagen)
-				timeout.Reset(configs.timeoutSegundos)
+				timeout.Reset(configs.timeout)
 
 				if len(bufferFila) >= configs.buffer.tamanho {
 					buffer := make([]amqp.Delivery, len(bufferFila))
