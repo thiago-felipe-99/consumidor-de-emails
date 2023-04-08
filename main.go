@@ -20,14 +20,14 @@ const (
 func main() {
 	configs, err := getConfigurations()
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao ler as configurações: %s", err)
+		log.Printf("[ERROR] - Error reading the configurations: %s", err)
 
 		return
 	}
 
 	cache, err := newCache(configs)
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao criar o cache de arquivos: %s", err)
+		log.Printf("[ERROR] - Error creating the files cache: %s", err)
 
 		return
 	}
@@ -43,7 +43,7 @@ func main() {
 
 	rabbit, err := amqp.Dial(rabbitURL)
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao conectar com o Rabbit: %s", err)
+		log.Printf("[ERROR] - Error connecting to RabbitMQ: %s", err)
 
 		return
 	}
@@ -51,7 +51,7 @@ func main() {
 
 	channel, err := rabbit.Channel()
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao abrir o canal do Rabbit: %s", err)
+		log.Printf("[ERROR] - Error opening RabbitMQ channel: %s", err)
 
 		return
 	}
@@ -59,14 +59,14 @@ func main() {
 
 	err = channel.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao configurar o tamanho da fila do consumidor: %s", err)
+		log.Printf("[ERROR] - Error configuring consumer queue size: %s", err)
 
 		return
 	}
 
 	queue, err := channel.Consume(configs.Rabbit.Queue, "", false, false, false, false, nil)
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao registrar o consumidor: %s", err)
+		log.Printf("[ERROR] - Error registering consumer: %s", err)
 
 		return
 	}
@@ -104,10 +104,10 @@ func main() {
 
 		err := server.ListenAndServe()
 		if err != nil {
-			log.Fatalf("[ERRO] - Erro ao inicializar servidor de metrics")
+			log.Fatalf("[ERROR] - Error starting metrics server")
 		}
 
-		log.Printf("[INFO] - Servidor de metrics inicializado com sucesso")
+		log.Printf("[INFO] - Metrics server started successfully")
 	}()
 
 	go func() {
@@ -126,7 +126,7 @@ func main() {
 					buffer := make([]amqp.Delivery, len(bufferQueue))
 					copy(buffer, bufferQueue)
 
-					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
+					log.Printf("[INFO] - Sending %d emails", len(buffer))
 
 					go send.emails(buffer)
 
@@ -138,7 +138,7 @@ func main() {
 					buffer := make([]amqp.Delivery, len(bufferQueue))
 					copy(buffer, bufferQueue)
 
-					log.Printf("[INFO] - Fazendo envio de %d emails", len(buffer))
+					log.Printf("[INFO] - Sending %d emails", len(buffer))
 
 					go send.emails(buffer)
 
@@ -148,6 +148,6 @@ func main() {
 		}
 	}()
 
-	log.Printf("[INFO] - Servidor inicializado com sucesso")
+	log.Printf("[INFO] - Server started successfully")
 	<-wait
 }
