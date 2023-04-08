@@ -113,7 +113,7 @@ func main() {
 	go func() {
 		bufferFila := []amqp.Delivery{}
 		timeout := time.NewTicker(time.Duration(configs.Timeout) * time.Second)
-		enviar := novoEnviar(cache, &configs.Sender, &configs.SMTP, metricas)
+		enviar := newSend(cache, &configs.Sender, &configs.SMTP, metricas)
 
 		for {
 			select {
