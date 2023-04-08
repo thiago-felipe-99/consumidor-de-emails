@@ -3,11 +3,11 @@ services:
   consumidor-de-emails:
     build: .
     volumes: 
-      - .env:/.env
+      - ./teste/.env:/.env
   benchmarking:
     build: .
     volumes:
-      - .benchmarking.env:/.env
+      - ./teste/.benchmarking.env:/.env
     entrypoint: /benchmarking
   rabbit:
     image: rabbitmq:3.11-management
@@ -29,7 +29,7 @@ services:
   prometheus:
     image: prom/prometheus
     volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./teste/prometheus.yaml:/etc/prometheus/prometheus.yml
       - prometheus:/prometheus
   grafana:
     image: grafana/grafana-oss
