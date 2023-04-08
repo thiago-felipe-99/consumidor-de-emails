@@ -40,7 +40,7 @@ func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metricas) *send 
 }
 
 func (send *send) emailsToQueue(description string, err error, emails []email) {
-	send.metrics.emailsReenviados.Add(float64(len(emails)))
+	send.metrics.emailsResent.Add(float64(len(emails)))
 
 	log.Printf("[ERROR] - Error processing a batch of emails, resending them to the queue")
 	log.Printf("[ERROR] - %s: %s", description, err)
@@ -54,7 +54,7 @@ func (send *send) emailsToQueue(description string, err error, emails []email) {
 }
 
 func (send *send) messageToQueue(description string, err error, message amqp.Delivery) {
-	send.metrics.emailsReenviados.Inc()
+	send.metrics.emailsResent.Inc()
 
 	log.Printf("[ERROR] - Error processing a message, resending it to the queue")
 	log.Printf("[ERROR] - %s: %s", description, err)
@@ -68,7 +68,7 @@ func (send *send) messageToQueue(description string, err error, message amqp.Del
 func (send *send) emails(queue []amqp.Delivery) {
 	timeInit := time.Now()
 
-	send.metrics.emailsRecebidos.Add(float64(len(queue)))
+	send.metrics.emailsReceived.Add(float64(len(queue)))
 
 	emails := []email{}
 	bytesReceived := 0
@@ -88,7 +88,7 @@ func (send *send) emails(queue []amqp.Delivery) {
 		}
 	}
 
-	send.metrics.emailsRecebidosBytes.Add(float64(bytesReceived))
+	send.metrics.emailsReceivedBytes.Add(float64(bytesReceived))
 
 	clientOption := []mail.Option{
 		mail.WithPort(send.smtp.Port),
@@ -158,9 +158,9 @@ func (send *send) emails(queue []amqp.Delivery) {
 
 	tempoDecorrido := time.Since(timeInit).Seconds()
 
-	send.metrics.emailsEnviados.Add(float64(emailsSent))
-	send.metrics.emailsTempoDeEnvioSegundos.Observe(tempoDecorrido)
-	send.metrics.emailsEnviadosBytes.Add(float64(bytesSent))
+	send.metrics.emailsSent.Add(float64(emailsSent))
+	send.metrics.emailsSentTimeSeconds.Observe(tempoDecorrido)
+	send.metrics.emailsSentBytes.Add(float64(bytesSent))
 
 	log.Printf("[INFO] - Foram enviado %d emails", emailsSent)
 }

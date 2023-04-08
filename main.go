@@ -73,23 +73,23 @@ func main() {
 
 	var esperar chan struct{}
 
-	metricas := criarMetricas()
+	metricas := newMetrics()
 	registryMetricas := prometheus.NewRegistry()
 
 	registryMetricas.MustRegister(
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		metricas.emailsRecebidos,
-		metricas.emailsRecebidosBytes,
-		metricas.emailsEnviados,
-		metricas.emailsEnviadosBytes,
-		metricas.emailsAnexosEnviados,
-		metricas.emailsAnexosEnviadosBytes,
-		metricas.emailsEnviadosComAnexo,
-		metricas.emailsReenviados,
-		metricas.emailsTempoDeEnvioSegundos,
-		metricas.emailsCacheAnexos,
-		metricas.emailsCacheAnexosBytes,
+		metricas.emailsReceived,
+		metricas.emailsReceivedBytes,
+		metricas.emailsSent,
+		metricas.emailsSentBytes,
+		metricas.emailsSentAttachment,
+		metricas.emailsSentAttachmentBytes,
+		metricas.emailsSentWithAttachment,
+		metricas.emailsResent,
+		metricas.emailsSentTimeSeconds,
+		metricas.emailsCacheAttachment,
+		metricas.emailsCacheAttachmentBytes,
 	)
 
 	go func() {
