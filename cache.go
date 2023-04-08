@@ -80,7 +80,7 @@ func (cache *cache) salvarArquivo(nome string) ([]byte, error) {
 	return arquivo, cache.data.Set(nome, arquivo)
 }
 
-func (cache *cache) pegarArqivo(nome string) ([]byte, error) {
+func (cache *cache) PegarArqivo(nome string) ([]byte, error) {
 	arquivo, err := cache.data.Get(nome)
 	if err != nil {
 		if errors.Is(err, bigcache.ErrEntryNotFound) {

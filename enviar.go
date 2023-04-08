@@ -10,15 +10,17 @@ import (
 )
 
 type destinatario struct {
-	Nome, Email string
+	Nome  string `json:"nome"`
+	Email string `json:"email"`
 }
 
 type email struct {
-	Destinatario      destinatario
-	Assunto, Mensagem string
-	Tipo              mail.ContentType
-	Anexos            []string
-	mensagemRabbit    amqp.Delivery
+	Destinatario   destinatario     `json:"destinatario"`
+	Assunto        string           `json:"assunto"`
+	Mensagem       string           `json:"mensagem"`
+	Tipo           mail.ContentType `json:"tipo"`
+	Anexos         []string         `json:"anexos"`
+	mensagemRabbit amqp.Delivery
 }
 
 type enviar struct {
@@ -63,6 +65,7 @@ func (enviar *enviar) mensagemParaFila(descricao string, err error, mensagem amq
 
 func (enviar *enviar) emails(fila []amqp.Delivery) {
 	tempoInicial := time.Now()
+
 	enviar.metricas.emailsRecebidos.Add(float64(len(fila)))
 
 	emails := []email{}
@@ -97,6 +100,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	if err != nil {
 		descricao := "Erro ao criar um cliente de email"
 		enviar.emailsParaFila(descricao, err, emails)
+
 		return
 	}
 
@@ -105,10 +109,12 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 
 	for _, email := range emails {
 		mensagem := mail.NewMsg()
+
 		err = mensagem.EnvelopeFromFormat(enviar.remetente.nome, enviar.remetente.email)
 		if err != nil {
 			descricao := "Erro ao colocar remetente no email"
 			enviar.mensagemParaFila(descricao, err, email.mensagemRabbit)
+
 			continue
 		}
 
@@ -116,6 +122,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		if err != nil {
 			descricao := "Erro ao colocar destinatario no email"
 			enviar.mensagemParaFila(descricao, err, email.mensagemRabbit)
+
 			continue
 		}
 
@@ -130,6 +137,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	if err != nil {
 		descricao := "Erro ao enviar os emails"
 		enviar.emailsParaFila(descricao, err, emailsProcessados)
+
 		return
 	}
 
@@ -141,7 +149,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 		if err != nil {
 			log.Printf("[ERRO] - Erro ao enviar mensagem de finalização para o rabbit: %s", err)
 		} else {
-			emailsEnviados += 1
+			emailsEnviados++
 			bytesEnviados += len(email.Mensagem)
 		}
 	}
