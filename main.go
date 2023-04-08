@@ -17,6 +17,50 @@ const (
 	serverReadTImeout  = 5 * time.Second
 )
 
+func newRabbit(configs *configurations) (<-chan amqp.Delivery, func(), error) {
+	rabbitURL := fmt.Sprintf(
+		"amqp://%s:%s@%s:%d/%s",
+		configs.Rabbit.User,
+		configs.Rabbit.Password,
+		configs.Rabbit.Host,
+		configs.Rabbit.Port,
+		configs.Rabbit.Vhost,
+	)
+
+	rabbit, err := amqp.Dial(rabbitURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error connecting to RabbitMQ: %w", err)
+	}
+
+	channel, err := rabbit.Channel()
+	if err != nil {
+		rabbit.Close()
+
+		return nil, nil, fmt.Errorf("error opening RabbitMQ channel: %w", err)
+	}
+
+	closeRabbit := func() {
+		channel.Close()
+		rabbit.Close()
+	}
+
+	err = channel.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
+	if err != nil {
+		closeRabbit()
+
+		return nil, nil, fmt.Errorf("error configuring consumer queue size: %w", err)
+	}
+
+	queue, err := channel.Consume(configs.Rabbit.Queue, "", false, false, false, false, nil)
+	if err != nil {
+		closeRabbit()
+
+		return nil, nil, fmt.Errorf("error registering consumer: %w", err)
+	}
+
+	return queue, closeRabbit, nil
+}
+
 func serverMetrics(metrics *metrics) {
 	registryMetrics := prometheus.NewRegistry()
 
@@ -96,50 +140,25 @@ func main() {
 		return
 	}
 
-	rabbitURL := fmt.Sprintf(
-		"amqp://%s:%s@%s:%d/%s",
-		configs.Rabbit.User,
-		configs.Rabbit.Password,
-		configs.Rabbit.Host,
-		configs.Rabbit.Port,
-		configs.Rabbit.Vhost,
-	)
-
-	rabbit, err := amqp.Dial(rabbitURL)
+	queue, closeRabbit, err := newRabbit(configs)
 	if err != nil {
-		log.Printf("[ERROR] - Error connecting to RabbitMQ: %s", err)
-
-		return
-	}
-	defer rabbit.Close()
-
-	channel, err := rabbit.Channel()
-	if err != nil {
-		log.Printf("[ERROR] - Error opening RabbitMQ channel: %s", err)
-
-		return
-	}
-	defer channel.Close()
-
-	err = channel.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
-	if err != nil {
-		log.Printf("[ERROR] - Error configuring consumer queue size: %s", err)
+		log.Printf("[ERROR] - Error creating queue: %s", err)
 
 		return
 	}
 
-	queue, err := channel.Consume(configs.Rabbit.Queue, "", false, false, false, false, nil)
-	if err != nil {
-		log.Printf("[ERROR] - Error registering consumer: %s", err)
-
-		return
-	}
-
-	var wait chan struct{}
+	defer closeRabbit()
 
 	metrics := newMetrics()
-	send := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
+
+	send, err := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
+	if err != nil {
+		log.Printf("[ERROR] - Error creating sender: %s", err)
+	}
+
 	timeout := time.Duration(configs.Timeout) * time.Second
+
+	var wait chan struct{}
 
 	go serverMetrics(metrics)
 

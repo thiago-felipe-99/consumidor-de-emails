@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -26,50 +27,46 @@ type email struct {
 type send struct {
 	*cache
 	*sender
-	*smtp
-	metrics *metrics
+	*metrics
+	client *mail.Client
+	infos  <-chan string
+	errors <-chan string
 }
 
-func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) *send {
+func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) (*send, error) {
+	clientOption := []mail.Option{
+		mail.WithPort(smtp.Port),
+		mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithUsername(smtp.User),
+		mail.WithPassword(smtp.Password),
+		mail.WithTLSPolicy(mail.TLSMandatory),
+	}
+
+	client, err := mail.NewClient(smtp.Host, clientOption...)
+	if err != nil {
+		return nil, fmt.Errorf("error creating an email client: %w", err)
+	}
+
 	return &send{
 		cache:   cache,
 		sender:  sender,
-		smtp:    smtp,
 		metrics: metrics,
-	}
+		client:  client,
+		infos:   make(<-chan string),
+		errors:  make(<-chan string),
+	}, nil
 }
 
-func (send *send) emailsToQueue(description string, err error, emails []email) {
-	send.metrics.emailsResent.Add(float64(len(emails)))
-
-	log.Printf("[ERROR] - Error processing a batch of emails, resending them to the queue")
-	log.Printf("[ERROR] - %s: %s", description, err)
-
-	for _, email := range emails {
-		err = email.messageRabbit.Nack(false, true)
-		if err != nil {
-			log.Printf("[ERROR] Error resending message to the queue: %s", err)
-		}
-	}
-}
-
-func (send *send) messageToQueue(description string, err error, message amqp.Delivery) {
+func (send *send) messageToQueue(message amqp.Delivery) {
 	send.metrics.emailsResent.Inc()
 
-	log.Printf("[ERROR] - Error processing a message, resending it to the queue")
-	log.Printf("[ERROR] - %s: %s", description, err)
-
-	err = message.Nack(false, true)
+	err := message.Nack(false, true)
 	if err != nil {
 		log.Printf("[ERROR] Error resending message to the queue: %s", err)
 	}
 }
 
-func (send *send) emails(queue []amqp.Delivery) {
-	timeInit := time.Now()
-
-	send.metrics.emailsReceived.Add(float64(len(queue)))
-
+func (send *send) queueToEmails(queue []amqp.Delivery) ([]email, int) {
 	emails := []email{}
 	bytesReceived := 0
 
@@ -80,50 +77,36 @@ func (send *send) emails(queue []amqp.Delivery) {
 
 		err := json.Unmarshal(message.Body, &email)
 		if err != nil {
-			description := "Error converting a message to an email"
-			send.messageToQueue(description, err, message)
+			log.Printf("[ERROR] - Error converting a message to an email: %s", err)
+			send.messageToQueue(message)
 		} else {
 			email.messageRabbit = message
 			emails = append(emails, email)
 		}
 	}
 
-	send.metrics.emailsReceivedBytes.Add(float64(bytesReceived))
+	return emails, bytesReceived
+}
 
-	clientOption := []mail.Option{
-		mail.WithPort(send.smtp.Port),
-		mail.WithSMTPAuth(mail.SMTPAuthPlain),
-		mail.WithUsername(send.smtp.User),
-		mail.WithPassword(send.smtp.Password),
-		mail.WithTLSPolicy(mail.TLSMandatory),
-	}
-
-	client, err := mail.NewClient(send.smtp.Host, clientOption...)
-	if err != nil {
-		descricao := "Error creating an email client"
-		send.emailsToQueue(descricao, err, emails)
-
-		return
-	}
-
+func (send *send) emailToMessages(emails []email) ([]*mail.Msg, []email) {
 	messages := []*mail.Msg{}
 	emailsReady := []email{}
 
 	for _, email := range emails {
 		message := mail.NewMsg()
 
-		err = message.EnvelopeFromFormat(send.sender.Name, send.sender.Email)
+		err := message.EnvelopeFromFormat(send.sender.Name, send.sender.Email)
 		if err != nil {
-			description := "Error adding email sender"
-			send.messageToQueue(description, err, email.messageRabbit)
+			log.Printf("[ERROR] - Error adding email sender: %s", err)
+			send.messageToQueue(email.messageRabbit)
 
 			continue
 		}
 
 		err = message.AddToFormat(email.Receiver.Name, email.Receiver.Email)
 		if err != nil {
-			description := "Error adding email receiver"
-			send.messageToQueue(description, err, email.messageRabbit)
+			log.Printf("[ERROR] - Error adding email receiver: %s", err)
+			send.messageToQueue(email.messageRabbit)
 
 			continue
 		}
@@ -135,10 +118,26 @@ func (send *send) emails(queue []amqp.Delivery) {
 		emailsReady = append(emailsReady, email)
 	}
 
-	err = client.DialAndSend(messages...)
+	return messages, emailsReady
+}
+
+func (send *send) emails(queue []amqp.Delivery) {
+	timeInit := time.Now()
+
+	emails, bytesReceived := send.queueToEmails(queue)
+
+	send.metrics.emailsReceived.Add(float64(len(queue)))
+	send.metrics.emailsReceivedBytes.Add(float64(bytesReceived))
+
+	messages, emailsReady := send.emailToMessages(emails)
+
+	err := send.client.DialAndSend(messages...)
 	if err != nil {
-		description := "Error seding emails"
-		send.emailsToQueue(description, err, emailsReady)
+		log.Printf("[ERROR] - Error processing a batch of emails: %s", err)
+
+		for _, email := range emails {
+			send.messageToQueue(email.messageRabbit)
+		}
 
 		return
 	}
@@ -156,13 +155,11 @@ func (send *send) emails(queue []amqp.Delivery) {
 		}
 	}
 
-	tempoDecorrido := time.Since(timeInit).Seconds()
-
+	send.metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
 	send.metrics.emailsSent.Add(float64(emailsSent))
-	send.metrics.emailsSentTimeSeconds.Observe(tempoDecorrido)
 	send.metrics.emailsSentBytes.Add(float64(bytesSent))
 
-	log.Printf("[INFO] - Foram enviado %d emails", emailsSent)
+	log.Printf("[INFO] - Has been sent %d emails", emailsSent)
 }
 
 func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {
