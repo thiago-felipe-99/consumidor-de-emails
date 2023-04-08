@@ -25,7 +25,7 @@ func main() {
 		return
 	}
 
-	cache, err := novoCache(configs)
+	cache, err := newCache(configs)
 	if err != nil {
 		log.Printf("[ERRO] - Erro ao criar o cache de arquivos: %s", err)
 

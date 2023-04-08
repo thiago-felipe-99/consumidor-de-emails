@@ -17,16 +17,16 @@ type cache struct {
 	minio  *minio.Client
 }
 
-func novoCache(configuracoes *configurations) (*cache, error) {
+func newCache(configs *configurations) (*cache, error) {
 	dataConfig := bigcache.Config{
-		Shards:             configuracoes.Cache.Shards,
-		LifeWindow:         time.Duration(configuracoes.Cache.LifeWindow) * time.Minute,
-		CleanWindow:        time.Duration(configuracoes.Cache.CleanWindow) * time.Minute,
-		MaxEntriesInWindow: configuracoes.Cache.AvgEntries,
-		MaxEntrySize:       configuracoes.Cache.AvgEntrySize,
-		HardMaxCacheSize:   configuracoes.Cache.MaxSize,
-		StatsEnabled:       configuracoes.Cache.Statics,
-		Verbose:            configuracoes.Cache.Verbose,
+		Shards:             configs.Cache.Shards,
+		LifeWindow:         time.Duration(configs.Cache.LifeWindow) * time.Minute,
+		CleanWindow:        time.Duration(configs.Cache.CleanWindow) * time.Minute,
+		MaxEntriesInWindow: configs.Cache.AvgEntries,
+		MaxEntrySize:       configs.Cache.AvgEntrySize,
+		HardMaxCacheSize:   configs.Cache.MaxSize,
+		StatsEnabled:       configs.Cache.Statics,
+		Verbose:            configs.Cache.Verbose,
 	}
 
 	data, err := bigcache.New(context.Background(), dataConfig)
@@ -34,11 +34,11 @@ func novoCache(configuracoes *configurations) (*cache, error) {
 		return nil, err
 	}
 
-	host := fmt.Sprintf("%s:%d", configuracoes.Minio.Host, configuracoes.Minio.Port)
+	host := fmt.Sprintf("%s:%d", configs.Minio.Host, configs.Minio.Port)
 	minioOptions := &minio.Options{
 		Creds: credentials.NewStaticV4(
-			configuracoes.Minio.AccessKey,
-			configuracoes.Minio.SecretKey,
+			configs.Minio.AccessKey,
+			configs.Minio.SecretKey,
 			"",
 		),
 	}
@@ -50,46 +50,46 @@ func novoCache(configuracoes *configurations) (*cache, error) {
 
 	return &cache{
 		data:   data,
-		bucket: configuracoes.Minio.Bucket,
+		bucket: configs.Minio.Bucket,
 		minio:  minio,
 	}, nil
 }
 
-func (cache *cache) salvarArquivo(nome string) ([]byte, error) {
-	objeto, err := cache.minio.GetObject(
+func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
+	object, err := cache.minio.GetObject(
 		context.Background(),
 		cache.bucket,
-		nome,
+		name,
 		minio.GetObjectOptions{},
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	objetoInfo, err := objeto.Stat()
+	objectInfo, err := object.Stat()
 	if err != nil {
 		return nil, err
 	}
 
-	arquivo := make([]byte, objetoInfo.Size)
+	file := make([]byte, objectInfo.Size)
 
-	_, err = objeto.Read(arquivo)
+	_, err = object.Read(file)
 	if err != nil {
 		return nil, err
 	}
 
-	return arquivo, cache.data.Set(nome, arquivo)
+	return file, cache.data.Set(name, file)
 }
 
-func (cache *cache) PegarArqivo(nome string) ([]byte, error) {
-	arquivo, err := cache.data.Get(nome)
+func (cache *cache) getFile(name string) ([]byte, error) {
+	file, err := cache.data.Get(name)
 	if err != nil {
 		if errors.Is(err, bigcache.ErrEntryNotFound) {
-			return cache.salvarArquivo(nome)
+			return cache.getFileFromMinio(name)
 		}
 
 		return nil, err
 	}
 
-	return arquivo, nil
+	return file, nil
 }
