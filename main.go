@@ -17,6 +17,84 @@ const (
 	serverReadTImeout  = 5 * time.Second
 )
 
+func serverMetrics(metrics *metrics) {
+	registryMetrics := prometheus.NewRegistry()
+
+	registryMetrics.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		metrics.emailsReceived,
+		metrics.emailsReceivedBytes,
+		metrics.emailsSent,
+		metrics.emailsSentBytes,
+		metrics.emailsSentAttachment,
+		metrics.emailsSentAttachmentBytes,
+		metrics.emailsSentWithAttachment,
+		metrics.emailsResent,
+		metrics.emailsSentTimeSeconds,
+		metrics.emailsCacheAttachment,
+		metrics.emailsCacheAttachmentBytes,
+	)
+
+	http.Handle("/metrics", promhttp.HandlerFor(registryMetrics, promhttp.HandlerOpts{
+		EnableOpenMetrics: true,
+	}))
+
+	server := &http.Server{
+		WriteTimeout: serverWriteTimeout,
+		ReadTimeout:  serverReadTImeout,
+	}
+
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Fatalf("[ERROR] - Error starting metrics server")
+	}
+
+	log.Printf("[INFO] - Metrics server started successfully")
+}
+
+func processQueue(
+	queue <-chan amqp.Delivery,
+	send *send,
+	timeout time.Duration,
+	bufferSize int,
+) {
+	bufferQueue := []amqp.Delivery{}
+	ticker := time.NewTicker(timeout)
+
+	for {
+		select {
+		case message := <-queue:
+			bufferQueue = append(bufferQueue, message)
+
+			ticker.Reset(timeout)
+
+			if len(bufferQueue) >= bufferSize {
+				buffer := make([]amqp.Delivery, len(bufferQueue))
+				copy(buffer, bufferQueue)
+
+				log.Printf("[INFO] - Sending %d emails", len(buffer))
+
+				go send.emails(buffer)
+
+				bufferQueue = bufferQueue[:0]
+			}
+
+		case <-ticker.C:
+			if len(bufferQueue) > 0 {
+				buffer := make([]amqp.Delivery, len(bufferQueue))
+				copy(buffer, bufferQueue)
+
+				log.Printf("[INFO] - Sending %d emails", len(buffer))
+
+				go send.emails(buffer)
+
+				bufferQueue = bufferQueue[:0]
+			}
+		}
+	}
+}
+
 func main() {
 	configs, err := getConfigurations()
 	if err != nil {
@@ -74,79 +152,12 @@ func main() {
 	var wait chan struct{}
 
 	metrics := newMetrics()
-	registryMetrics := prometheus.NewRegistry()
+	send := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
+	timeout := time.Duration(configs.Timeout) * time.Second
 
-	registryMetrics.MustRegister(
-		collectors.NewGoCollector(),
-		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		metrics.emailsReceived,
-		metrics.emailsReceivedBytes,
-		metrics.emailsSent,
-		metrics.emailsSentBytes,
-		metrics.emailsSentAttachment,
-		metrics.emailsSentAttachmentBytes,
-		metrics.emailsSentWithAttachment,
-		metrics.emailsResent,
-		metrics.emailsSentTimeSeconds,
-		metrics.emailsCacheAttachment,
-		metrics.emailsCacheAttachmentBytes,
-	)
+	go serverMetrics(metrics)
 
-	go func() {
-		http.Handle("/metrics", promhttp.HandlerFor(registryMetrics, promhttp.HandlerOpts{
-			EnableOpenMetrics: true,
-		}))
-
-		server := &http.Server{
-			WriteTimeout: serverWriteTimeout,
-			ReadTimeout:  serverReadTImeout,
-		}
-
-		err := server.ListenAndServe()
-		if err != nil {
-			log.Fatalf("[ERROR] - Error starting metrics server")
-		}
-
-		log.Printf("[INFO] - Metrics server started successfully")
-	}()
-
-	go func() {
-		bufferQueue := []amqp.Delivery{}
-		timeout := time.NewTicker(time.Duration(configs.Timeout) * time.Second)
-		send := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
-
-		for {
-			select {
-			case message := <-queue:
-				bufferQueue = append(bufferQueue, message)
-
-				timeout.Reset(time.Duration(configs.Timeout) * time.Second)
-
-				if len(bufferQueue) >= configs.Buffer.Size {
-					buffer := make([]amqp.Delivery, len(bufferQueue))
-					copy(buffer, bufferQueue)
-
-					log.Printf("[INFO] - Sending %d emails", len(buffer))
-
-					go send.emails(buffer)
-
-					bufferQueue = bufferQueue[:0]
-				}
-
-			case <-timeout.C:
-				if len(bufferQueue) > 0 {
-					buffer := make([]amqp.Delivery, len(bufferQueue))
-					copy(buffer, bufferQueue)
-
-					log.Printf("[INFO] - Sending %d emails", len(buffer))
-
-					go send.emails(buffer)
-
-					bufferQueue = bufferQueue[:0]
-				}
-			}
-		}
-	}()
+	go processQueue(queue, send, timeout, configs.Buffer.Size)
 
 	log.Printf("[INFO] - Server started successfully")
 	<-wait
