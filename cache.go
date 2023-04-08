@@ -17,7 +17,7 @@ type cache struct {
 	minio  *minio.Client
 }
 
-func novoCache(configuracoes *configuracoes) (*cache, error) {
+func novoCache(configuracoes *configurations) (*cache, error) {
 	dataConfig := bigcache.Config{
 		Shards:             configuracoes.Cache.Shards,
 		LifeWindow:         time.Duration(configuracoes.Cache.LifeWindow) * time.Minute,

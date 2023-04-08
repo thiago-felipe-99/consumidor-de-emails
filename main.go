@@ -18,7 +18,7 @@ const (
 )
 
 func main() {
-	configs, err := pegarConfiguracoes()
+	configs, err := getConfigurations()
 	if err != nil {
 		log.Printf("[ERRO] - Erro ao ler as configurações: %s", err)
 

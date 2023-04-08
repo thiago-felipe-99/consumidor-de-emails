@@ -59,7 +59,7 @@ type minioConfig struct {
 	Secure    bool   `config:"secure"`
 }
 
-type configuracoes struct {
+type configurations struct {
 	Sender  sender      `config:"sender"  validate:"required"`
 	SMTP    smtp        `config:"smtp"    validate:"required"`
 	Rabbit  rabbit      `config:"rabbit"  validate:"required"`
@@ -70,8 +70,8 @@ type configuracoes struct {
 }
 
 //nolint:gomnd
-func configuracoesPadroes() configuracoes {
-	return configuracoes{
+func defaultConfigurations() configurations {
+	return configurations{
 		SMTP: smtp{
 			Port: 587,
 		},
@@ -102,24 +102,24 @@ func configuracoesPadroes() configuracoes {
 }
 
 func parseEnv(env string) string {
-	key := strings.SplitN(env, "_", 2) //nolint:gomnd
-	size := len(key)
+	keys := strings.SplitN(env, "_", 2) //nolint:gomnd
+	size := len(keys)
 
-	var final string
+	var key string
 
 	switch size {
 	case 0:
 		return ""
 	case 1:
-		final = key[0]
+		key = keys[0]
 	default:
-		final = key[0] + "__" + strings.Join(key[1:], "_")
+		key = keys[0] + "__" + strings.Join(keys[1:], "_")
 	}
 
-	return strings.ToLower(final)
+	return strings.ToLower(key)
 }
 
-func pegarConfiguracoes() (*configuracoes, error) {
+func getConfigurations() (*configurations, error) {
 	koanfConfig := koanf.Conf{
 		Delim:       "__",
 		StrictMerge: false,
@@ -127,7 +127,7 @@ func pegarConfiguracoes() (*configuracoes, error) {
 
 	configRaw := koanf.NewWithConf(koanfConfig)
 
-	err := configRaw.Load(structs.Provider(configuracoesPadroes(), "config"), nil)
+	err := configRaw.Load(structs.Provider(defaultConfigurations(), "config"), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func pegarConfiguracoes() (*configuracoes, error) {
 		return nil, err
 	}
 
-	config := &configuracoes{}
+	config := &configurations{}
 
 	err = configRaw.UnmarshalWithConf("", config, koanf.UnmarshalConf{
 		Tag:       "config",
