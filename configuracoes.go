@@ -1,157 +1,154 @@
 package main
 
 import (
+	"errors"
 	"os"
-	"strconv"
-	"time"
+	"strings"
 
-	"github.com/joho/godotenv"
+	"github.com/knadh/koanf/parsers/dotenv"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/providers/structs"
+	"github.com/knadh/koanf/v2"
 )
 
-type remetente struct {
-	nome, email, senha, host string
-	porta                    int
+type sender struct {
+	Name  string `config:"name"`
+	Email string `config:"email"`
+}
+
+type smtp struct {
+	User     string `config:"user"`
+	Password string `config:"password"`
+	Host     string `config:"host"`
+	Port     int    `config:"port"`
 }
 
 type rabbit struct {
-	user, senha, host, vhost, fila string
-	porta                          int
+	User     string `config:"user"`
+	Password string `config:"password"`
+	Host     string `config:"host"`
+	Port     int    `config:"port"`
+	Vhost    string `config:"vhost"`
+	Queue    string `config:"queue"`
 }
 
 type buffer struct {
-	tamanho, quantidade int
+	Size     int `config:"size"`
+	Quantity int `config:"quantity"`
 }
 
 type cacheConfig struct {
-	shards                   int
-	lifeWindow, cleanWindow  time.Duration
-	avgEntries, avgEntrySize int
-	maxSize                  int
-	statics, verbose         bool
+	Shards       int  `config:"shards"`
+	LifeWindow   int  `config:"life_window"`
+	CleanWindow  int  `config:"clean_window"`
+	AvgEntries   int  `config:"avg_entries"`
+	AvgEntrySize int  `config:"avg_entry_size"`
+	MaxSize      int  `config:"maxsize"`
+	Statics      bool `config:"statics"`
+	Verbose      bool `config:"verbose"`
 }
 
 type minioConfig struct {
-	host                 string
-	porta                int
-	bucket               string
-	accesKey, secrectKey string
-	secure               bool
+	Host       string `config:"host"`
+	Port       int    `config:"port"`
+	Bucket     string `config:"bucket"`
+	AccessKey  string `config:"access_key"`
+	SecrectKey string `config:"secrect_key"`
+	Secure     bool   `config:"secure"`
 }
 
 type configuracoes struct {
-	remetente
-	rabbit
-	buffer
-	timeout time.Duration
-	cache   cacheConfig
-	minio   minioConfig
+	Sender  sender      `config:"sender"`
+	SMTP    smtp        `config:"smtp"`
+	Rabbit  rabbit      `config:"rabbit"`
+	Buffer  buffer      `config:"buffer"`
+	Timeout int         `config:"timeout"`
+	Cache   cacheConfig `config:"cache"`
+	Minio   minioConfig `config:"minio"`
+}
+
+//nolint:gomnd
+func configuracoesPadroes() configuracoes {
+	return configuracoes{
+		SMTP: smtp{
+			Port: 587,
+		},
+		Rabbit: rabbit{
+			Port:  5672,
+			Vhost: "/",
+		},
+		Buffer: buffer{
+			Size:     100,
+			Quantity: 10,
+		},
+		Cache: cacheConfig{
+			Shards:       64,
+			LifeWindow:   60,
+			CleanWindow:  5,
+			AvgEntries:   10,
+			AvgEntrySize: 25,
+			MaxSize:      1000,
+			Statics:      false,
+			Verbose:      false,
+		},
+		Minio: minioConfig{
+			Port:   9000,
+			Secure: true,
+		},
+		Timeout: 2,
+	}
+}
+
+func parseEnv(env string) string {
+	key := strings.SplitN(env, "_", 2) //nolint:gomnd
+	size := len(key)
+
+	var final string
+
+	switch size {
+	case 0:
+		return ""
+	case 1:
+		final = key[0]
+	default:
+		final = key[0] + "__" + strings.Join(key[1:], "_")
+	}
+
+	return strings.ToLower(final)
 }
 
 func pegarConfiguracoes() (*configuracoes, error) {
-	err := godotenv.Load()
+	koanfConfig := koanf.Conf{
+		Delim:       "__",
+		StrictMerge: false,
+	}
+
+	configRaw := koanf.NewWithConf(koanfConfig)
+
+	err := configRaw.Load(structs.Provider(configuracoesPadroes(), "config"), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	smtpPorta, err := strconv.Atoi(os.Getenv("SMTP_PORT"))
+	err = configRaw.Load(file.Provider(".env"), dotenv.ParserEnv("", "__", parseEnv))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	err = configRaw.Load(env.Provider("", "__", parseEnv), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	rabbitPorta, err := strconv.Atoi(os.Getenv("RABBIT_PORT"))
+	config := &configuracoes{}
+
+	err = configRaw.UnmarshalWithConf("", config, koanf.UnmarshalConf{
+		Tag:       "config",
+		FlatPaths: false,
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	bufferSize, err := strconv.Atoi(os.Getenv("BUFFER_SIZE"))
-	if err != nil {
-		return nil, err
-	}
-
-	bufferQT, err := strconv.Atoi(os.Getenv("BUFFER_QT"))
-	if err != nil {
-		return nil, err
-	}
-
-	timeoutSegundos, err := strconv.Atoi(os.Getenv(("TIMEOUT_SECONDS")))
-	if err != nil {
-		return nil, err
-	}
-
-	cacheShards, err := strconv.Atoi(os.Getenv(("CACHE_SHARDS")))
-	if err != nil {
-		return nil, err
-	}
-
-	cacheLifeWindowMinute, err := strconv.Atoi(os.Getenv(("CACHE_LIFE_WINDOW_MINUTE")))
-	if err != nil {
-		return nil, err
-	}
-
-	cacheCleanWindowMinute, err := strconv.Atoi(os.Getenv(("CACHE_CLEAN_WINDOW_MINUTE")))
-	if err != nil {
-		return nil, err
-	}
-
-	cacheAvgEntriesInWindow, err := strconv.Atoi(os.Getenv(("CACHE_AVG_ENTRIES_IN_WINDOW")))
-	if err != nil {
-		return nil, err
-	}
-
-	cacheAvgEntrySizeMB, err := strconv.Atoi(os.Getenv(("CACHE_AVG_ENTRY_SIZE_MB")))
-	if err != nil {
-		return nil, err
-	}
-
-	cacheMaxSizeMB, err := strconv.Atoi(os.Getenv(("CACHE_MAX_SIZE_MB")))
-	if err != nil {
-		return nil, err
-	}
-
-	minioPort, err := strconv.Atoi(os.Getenv(("MINIO_PORT")))
-	if err != nil {
-		return nil, err
-	}
-
-	config := &configuracoes{
-		remetente: remetente{
-			nome:  os.Getenv("SMTP_USERNAME"),
-			email: os.Getenv("SMTP_USER"),
-			senha: os.Getenv("SMTP_PASSWORD"),
-			host:  os.Getenv("SMTP_HOST"),
-			porta: smtpPorta,
-		},
-		rabbit: rabbit{
-			user:  os.Getenv("RABBIT_USER"),
-			senha: os.Getenv("RABBIT_PASSWORD"),
-			host:  os.Getenv("RABBIT_HOST"),
-			porta: rabbitPorta,
-			vhost: os.Getenv("RABBIT_VHOST"),
-			fila:  os.Getenv("RABBIT_QUEUE"),
-		},
-		buffer: buffer{
-			tamanho:    bufferSize,
-			quantidade: bufferQT,
-		},
-		timeout: time.Duration(timeoutSegundos) * time.Second,
-		cache: cacheConfig{
-			shards:       cacheShards,
-			lifeWindow:   time.Duration(cacheLifeWindowMinute) * time.Minute,
-			cleanWindow:  time.Duration(cacheCleanWindowMinute) * time.Minute,
-			avgEntries:   cacheAvgEntriesInWindow,
-			avgEntrySize: cacheAvgEntrySizeMB,
-			maxSize:      cacheMaxSizeMB,
-			statics:      os.Getenv("CACHE_STATICS_ENABLE") == "true",
-			verbose:      os.Getenv("CACHE_VERBOSE") == "true",
-		},
-		minio: minioConfig{
-			host:       os.Getenv("MINIO_HOSTNAME"),
-			porta:      minioPort,
-			bucket:     os.Getenv("MINIO_BUCKET"),
-			accesKey:   os.Getenv("MINIO_ACCESS_KEY"),
-			secrectKey: os.Getenv("MINIO_SECRETE_KEY"),
-			secure:     os.Getenv("MINIO_USE_SSL") == "true",
-		},
 	}
 
 	return config, nil

@@ -2,12 +2,12 @@ version: '3.9'
 services:
   consumidor-de-emails:
     build: .
-    volumes: 
-      - ./teste/.env:/.env
+    env_file: 
+      - ./teste/.env
   benchmarking:
     build: .
-    volumes:
-      - ./teste/.benchmarking.env:/.env
+    env_file:
+      - ./teste/.benchmarking.env
     entrypoint: /benchmarking
   rabbit:
     image: rabbitmq:3.11-management

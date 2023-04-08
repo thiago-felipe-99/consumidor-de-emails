@@ -34,11 +34,11 @@ func main() {
 
 	rabbitURL := fmt.Sprintf(
 		"amqp://%s:%s@%s:%d/%s",
-		configs.rabbit.user,
-		configs.rabbit.senha,
-		configs.rabbit.host,
-		configs.rabbit.porta,
-		configs.rabbit.vhost,
+		configs.Rabbit.User,
+		configs.Rabbit.Password,
+		configs.Rabbit.Host,
+		configs.Rabbit.Port,
+		configs.Rabbit.Vhost,
 	)
 
 	rabbit, err := amqp.Dial(rabbitURL)
@@ -57,14 +57,14 @@ func main() {
 	}
 	defer canal.Close()
 
-	err = canal.Qos(configs.buffer.tamanho*configs.buffer.quantidade, 0, false)
+	err = canal.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
 	if err != nil {
 		log.Printf("[ERRO] - Erro ao configurar o tamanho da fila do consumidor: %s", err)
 
 		return
 	}
 
-	fila, err := canal.Consume(configs.rabbit.fila, "", false, false, false, false, nil)
+	fila, err := canal.Consume(configs.Rabbit.Queue, "", false, false, false, false, nil)
 	if err != nil {
 		log.Printf("[ERRO] - Erro ao registrar o consumidor: %s", err)
 
@@ -112,17 +112,17 @@ func main() {
 
 	go func() {
 		bufferFila := []amqp.Delivery{}
-		timeout := time.NewTicker(configs.timeout)
-		enviar := novoEnviar(cache, &configs.remetente, metricas)
+		timeout := time.NewTicker(time.Duration(configs.Timeout) * time.Second)
+		enviar := novoEnviar(cache, &configs.Sender, &configs.SMTP, metricas)
 
 		for {
 			select {
 			case mensagen := <-fila:
 				bufferFila = append(bufferFila, mensagen)
 
-				timeout.Reset(configs.timeout)
+				timeout.Reset(time.Duration(configs.Timeout) * time.Second)
 
-				if len(bufferFila) >= configs.buffer.tamanho {
+				if len(bufferFila) >= configs.Buffer.Size {
 					buffer := make([]amqp.Delivery, len(bufferFila))
 					copy(buffer, bufferFila)
 

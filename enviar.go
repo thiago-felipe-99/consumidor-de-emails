@@ -25,15 +25,17 @@ type email struct {
 
 type enviar struct {
 	*cache
-	*remetente
+	*sender
+	*smtp
 	*metricas
 }
 
-func novoEnviar(cache *cache, remetente *remetente, metricas *metricas) *enviar {
+func novoEnviar(cache *cache, sender *sender, smtp *smtp, metricas *metricas) *enviar {
 	return &enviar{
-		cache:     cache,
-		remetente: remetente,
-		metricas:  metricas,
+		cache:    cache,
+		sender:   sender,
+		smtp:     smtp,
+		metricas: metricas,
 	}
 }
 
@@ -89,14 +91,14 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	enviar.metricas.emailsRecebidosBytes.Add(float64(bytesRecebidos))
 
 	opcoesCliente := []mail.Option{
-		mail.WithPort(enviar.remetente.porta),
+		mail.WithPort(enviar.smtp.Port),
 		mail.WithSMTPAuth(mail.SMTPAuthPlain),
-		mail.WithUsername(enviar.remetente.email),
-		mail.WithPassword(enviar.remetente.senha),
+		mail.WithUsername(enviar.smtp.User),
+		mail.WithPassword(enviar.smtp.Password),
 		mail.WithTLSPolicy(mail.TLSMandatory),
 	}
 
-	cliente, err := mail.NewClient(enviar.remetente.host, opcoesCliente...)
+	cliente, err := mail.NewClient(enviar.smtp.Host, opcoesCliente...)
 	if err != nil {
 		descricao := "Erro ao criar um cliente de email"
 		enviar.emailsParaFila(descricao, err, emails)
@@ -110,7 +112,7 @@ func (enviar *enviar) emails(fila []amqp.Delivery) {
 	for _, email := range emails {
 		mensagem := mail.NewMsg()
 
-		err = mensagem.EnvelopeFromFormat(enviar.remetente.nome, enviar.remetente.email)
+		err = mensagem.EnvelopeFromFormat(enviar.sender.Name, enviar.sender.Email)
 		if err != nil {
 			descricao := "Erro ao colocar remetente no email"
 			enviar.mensagemParaFila(descricao, err, email.mensagemRabbit)

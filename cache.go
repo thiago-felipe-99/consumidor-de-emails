@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/allegro/bigcache/v3"
 	"github.com/minio/minio-go/v7"
@@ -18,14 +19,14 @@ type cache struct {
 
 func novoCache(configuracoes *configuracoes) (*cache, error) {
 	dataConfig := bigcache.Config{
-		Shards:             configuracoes.cache.shards,
-		LifeWindow:         configuracoes.cache.lifeWindow,
-		CleanWindow:        configuracoes.cache.cleanWindow,
-		MaxEntriesInWindow: configuracoes.cache.avgEntries,
-		MaxEntrySize:       configuracoes.cache.avgEntrySize,
-		HardMaxCacheSize:   configuracoes.cache.maxSize,
-		StatsEnabled:       configuracoes.cache.statics,
-		Verbose:            configuracoes.cache.verbose,
+		Shards:             configuracoes.Cache.Shards,
+		LifeWindow:         time.Duration(configuracoes.Cache.LifeWindow) * time.Minute,
+		CleanWindow:        time.Duration(configuracoes.Cache.CleanWindow) * time.Minute,
+		MaxEntriesInWindow: configuracoes.Cache.AvgEntries,
+		MaxEntrySize:       configuracoes.Cache.AvgEntrySize,
+		HardMaxCacheSize:   configuracoes.Cache.MaxSize,
+		StatsEnabled:       configuracoes.Cache.Statics,
+		Verbose:            configuracoes.Cache.Verbose,
 	}
 
 	data, err := bigcache.New(context.Background(), dataConfig)
@@ -33,11 +34,11 @@ func novoCache(configuracoes *configuracoes) (*cache, error) {
 		return nil, err
 	}
 
-	host := fmt.Sprintf("%s:%d", configuracoes.minio.host, configuracoes.minio.porta)
+	host := fmt.Sprintf("%s:%d", configuracoes.Minio.Host, configuracoes.Minio.Port)
 	minioOptions := &minio.Options{
 		Creds: credentials.NewStaticV4(
-			configuracoes.minio.accesKey,
-			configuracoes.minio.secrectKey,
+			configuracoes.Minio.AccessKey,
+			configuracoes.Minio.SecrectKey,
 			"",
 		),
 	}
@@ -49,7 +50,7 @@ func novoCache(configuracoes *configuracoes) (*cache, error) {
 
 	return &cache{
 		data:   data,
-		bucket: configuracoes.minio.bucket,
+		bucket: configuracoes.Minio.Bucket,
 		minio:  minio,
 	}, nil
 }
