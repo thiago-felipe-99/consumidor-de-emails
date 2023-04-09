@@ -3,12 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -61,51 +57,7 @@ func newRabbit(configs *configurations) (<-chan amqp.Delivery, func(), error) {
 	return queue, closeRabbit, nil
 }
 
-func serverMetrics(metrics *metrics) {
-	registryMetrics := prometheus.NewRegistry()
-
-	registryMetrics.MustRegister(
-		collectors.NewGoCollector(),
-		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
-		metrics.emailsReceived,
-		metrics.emailsReceivedBytes,
-		metrics.emailsSent,
-		metrics.emailsSentBytes,
-		metrics.emailsSentAttachment,
-		metrics.emailsSentAttachmentBytes,
-		metrics.emailsSentWithAttachment,
-		metrics.emailsResent,
-		metrics.emailsSentTimeSeconds,
-		metrics.emailsCacheAttachment,
-		metrics.emailsCacheAttachmentBytes,
-	)
-
-	http.Handle("/metrics", promhttp.HandlerFor(registryMetrics, promhttp.HandlerOpts{
-		EnableOpenMetrics: true,
-	}))
-
-	server := &http.Server{
-		WriteTimeout: serverWriteTimeout,
-		ReadTimeout:  serverReadTImeout,
-		Addr:         ":8001",
-	}
-
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Fatalf("[ERROR] - Error starting metrics server")
-	}
-}
-
-func cacheMetrics(cache *cache, metrics *metrics) {
-	ticker := time.NewTicker(time.Second)
-
-	for range ticker.C {
-		metrics.emailsCacheAttachment.Set(float64(cache.data.Len()))
-		metrics.emailsCacheAttachmentBytes.Set(float64(cache.data.Capacity()))
-	}
-}
-
-func processQueue(
+func getMessages(
 	queue <-chan amqp.Delivery,
 	send *send,
 	timeout time.Duration,
@@ -133,7 +85,7 @@ func processQueue(
 	}
 }
 
-func logSendMessages(send *send) {
+func logSend(send *send) {
 	for status := range send.status {
 		if status.successfully > 0 {
 			log.Printf("[INFO] - Were sent %d successfully emails", status.successfully)
@@ -183,9 +135,9 @@ func main() {
 
 	go cacheMetrics(cache, metrics)
 
-	go processQueue(queue, send, timeout, configs.Buffer.Size)
+	go getMessages(queue, send, timeout, configs.Buffer.Size)
 
-	go logSendMessages(send)
+	go logSend(send)
 
 	log.Printf("[INFO] - Server started successfully")
 	<-wait

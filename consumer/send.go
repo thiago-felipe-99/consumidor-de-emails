@@ -78,7 +78,7 @@ func proccessQueue(queue []amqp.Delivery) ([]email, []email) {
 	return ready, failed
 }
 
-func proccesEmails(cache *cache, sender *sender, emails, failed []email) ([]email, []email) {
+func proccessEmails(cache *cache, sender *sender, emails, failed []email) ([]email, []email) {
 	ready := []email{}
 
 emailToMessage:
@@ -248,7 +248,7 @@ func (send *send) emails(queue []amqp.Delivery) {
 	timeInit := time.Now()
 
 	emailsReady, emailsFailed := proccessQueue(queue)
-	emailsReady, emailsFailed = proccesEmails(send.cache, send.sender, emailsReady, emailsFailed)
+	emailsReady, emailsFailed = proccessEmails(send.cache, send.sender, emailsReady, emailsFailed)
 	emailsReady, emailsFailed = sendEmails(send.smtp, emailsReady, emailsFailed)
 	emailsReady, emailsFailed = proccessAcknowledgment(emailsReady, emailsFailed)
 

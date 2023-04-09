@@ -1,6 +1,14 @@
 package main
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
 
 type metrics struct {
 	emailsReceived             prometheus.Counter
@@ -62,5 +70,49 @@ func newMetrics() *metrics {
 			Name: "emails_cache_anexo_bytes",
 			Help: "A quantidade em bytes de anexos no cache",
 		}),
+	}
+}
+
+func serverMetrics(metrics *metrics) {
+	registryMetrics := prometheus.NewRegistry()
+
+	registryMetrics.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		metrics.emailsReceived,
+		metrics.emailsReceivedBytes,
+		metrics.emailsSent,
+		metrics.emailsSentBytes,
+		metrics.emailsSentAttachment,
+		metrics.emailsSentAttachmentBytes,
+		metrics.emailsSentWithAttachment,
+		metrics.emailsResent,
+		metrics.emailsSentTimeSeconds,
+		metrics.emailsCacheAttachment,
+		metrics.emailsCacheAttachmentBytes,
+	)
+
+	http.Handle("/metrics", promhttp.HandlerFor(registryMetrics, promhttp.HandlerOpts{
+		EnableOpenMetrics: true,
+	}))
+
+	server := &http.Server{
+		WriteTimeout: serverWriteTimeout,
+		ReadTimeout:  serverReadTImeout,
+		Addr:         ":8001",
+	}
+
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Fatalf("[ERROR] - Error starting metrics server")
+	}
+}
+
+func cacheMetrics(cache *cache, metrics *metrics) {
+	ticker := time.NewTicker(time.Second)
+
+	for range ticker.C {
+		metrics.emailsCacheAttachment.Set(float64(cache.data.Len()))
+		metrics.emailsCacheAttachmentBytes.Set(float64(cache.data.Capacity()))
 	}
 }
