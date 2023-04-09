@@ -1,4 +1,4 @@
-module github.com/thiago-felipe-99/mail-consumer/benckmarking
+module github.com/thiago-felipe-99/mail/benckmarking
 
 go 1.20
 
