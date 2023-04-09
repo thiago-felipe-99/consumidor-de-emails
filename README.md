@@ -7,7 +7,7 @@ O objetivo desse projeto é ler a partir de uma fila do RabbitMQ as informaçõe
 - [x] Fazer envio de e-mail com anexo
 - [x] Ler anexo do Minio
 - [x] Criar cache local de anexos
-- [ ] Criar fila dos mortos, e-mails com mais X tentativas de envio
+- [x] Criar fila dos mortos, e-mails com mais X tentativas de envio
 
 ## Métricas
 - [x] Expor as métricas do servidor na porta `8001`
