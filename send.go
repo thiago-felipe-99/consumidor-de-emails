@@ -22,103 +22,79 @@ type email struct {
 	Type            mail.ContentType `json:"type"`
 	Attachments     []string         `json:"attachments"`
 	attachmentsSize int
-	messageRabbit   amqp.Delivery
+	messageQueue    amqp.Delivery
+	messageMail     *mail.Msg
+	error           error
 }
 
 type send struct {
 	*cache
 	*sender
 	*metrics
-	client *mail.Client
+	*smtp
 	infos  chan string
 	errors chan string
 }
 
-func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) (*send, error) {
-	clientOption := []mail.Option{
-		mail.WithPort(smtp.Port),
-		mail.WithSMTPAuth(mail.SMTPAuthPlain),
-		mail.WithUsername(smtp.User),
-		mail.WithPassword(smtp.Password),
-		mail.WithTLSPolicy(mail.TLSMandatory),
-	}
-
-	client, err := mail.NewClient(smtp.Host, clientOption...)
-	if err != nil {
-		return nil, fmt.Errorf("error creating an email client: %w", err)
-	}
-
+func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) *send {
 	return &send{
 		cache:   cache,
 		sender:  sender,
 		metrics: metrics,
-		client:  client,
+		smtp:    smtp,
 		infos:   make(chan string),
 		errors:  make(chan string),
-	}, nil
-}
-
-func (send *send) messageToQueue(message amqp.Delivery) {
-	send.metrics.emailsResent.Inc()
-
-	err := message.Nack(false, true)
-	if err != nil {
-		send.errors <- fmt.Sprintf("Error resending message to the queue: %s", err)
 	}
 }
 
-func (send *send) queueToEmails(queue []amqp.Delivery) ([]email, int) {
-	emails := []email{}
-	bytesReceived := 0
+func proccessQueue(queue []amqp.Delivery) ([]email, []email) {
+	ready, failed := []email{}, []email{}
 
 	for _, message := range queue {
-		bytesReceived += len(message.Body)
-
-		email := email{}
+		email := email{
+			messageQueue: message,
+		}
 
 		err := json.Unmarshal(message.Body, &email)
 		if err != nil {
-			send.errors <- fmt.Sprintf("Error converting a message to an email: %s", err)
-			send.messageToQueue(message)
+			email.error = fmt.Errorf("error converting a message to an email: %w", err)
+			failed = append(failed, email)
 		} else {
-			email.messageRabbit = message
-			email.attachmentsSize = 0
-			emails = append(emails, email)
+			ready = append(ready, email)
 		}
 	}
 
-	return emails, bytesReceived
+	return ready, failed
 }
 
-func (send *send) emailsToMessages(emails []email) ([]*mail.Msg, []email) {
-	messages := []*mail.Msg{}
-	emailsReady := []email{}
+func proccesEmails(cache *cache, sender *sender, emails, failed []email) ([]email, []email) {
+	ready := []email{}
 
 emailToMessage:
 	for _, email := range emails {
 		message := mail.NewMsg()
 
-		err := message.EnvelopeFromFormat(send.sender.Name, send.sender.Email)
+		err := message.EnvelopeFromFormat(sender.Name, sender.Email)
 		if err != nil {
-			send.errors <- fmt.Sprintf("Error adding email sender: %s", err)
-			send.messageToQueue(email.messageRabbit)
+			email.error = fmt.Errorf("error adding email sender: %w", err)
+			failed = append(failed, email)
 
 			continue
 		}
 
 		err = message.AddToFormat(email.Receiver.Name, email.Receiver.Email)
 		if err != nil {
-			send.errors <- fmt.Sprintf("Error adding email receiver: %s", err)
-			send.messageToQueue(email.messageRabbit)
+			email.error = fmt.Errorf("error adding email receiver: %w", err)
+			failed = append(failed, email)
 
 			continue
 		}
 
 		for _, attachment := range email.Attachments {
-			file, err := send.cache.getFile(attachment)
+			file, err := cache.getFile(attachment)
 			if err != nil {
-				send.errors <- fmt.Sprintf("Error getting file from cache: %s", err)
-				send.messageToQueue(email.messageRabbit)
+				email.error = fmt.Errorf("error getting attachment from cache: %w", err)
+				failed = append(failed, email)
 
 				continue emailToMessage
 			}
@@ -130,68 +106,133 @@ emailToMessage:
 		message.Subject(email.Subject)
 		message.SetBodyString(email.Type, email.Message)
 
-		messages = append(messages, message)
-		emailsReady = append(emailsReady, email)
+		email.messageMail = message
+
+		ready = append(ready, email)
 	}
 
-	return messages, emailsReady
+	return ready, failed
 }
 
-func (send *send) emails(queue []amqp.Delivery) {
-	timeInit := time.Now()
-
-	emails, bytesReceived := send.queueToEmails(queue)
-
-	send.metrics.emailsReceived.Add(float64(len(queue)))
-	send.metrics.emailsReceivedBytes.Add(float64(bytesReceived))
-
-	messages, emailsReady := send.emailsToMessages(emails)
-	if len(messages) == 0 {
-		return
+func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
+	clientOption := []mail.Option{
+		mail.WithPort(smtp.Port),
+		mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithUsername(smtp.User),
+		mail.WithPassword(smtp.Password),
+		mail.WithTLSPolicy(mail.TLSMandatory),
 	}
 
-	err := send.client.DialAndSend(messages...)
+	client, err := mail.NewClient(smtp.Host, clientOption...)
 	if err != nil {
-		send.errors <- fmt.Sprintf("Error processing a batch of emails: %s", err)
-
-		for _, email := range emails {
-			send.messageToQueue(email.messageRabbit)
+		for _, email := range ready {
+			email.error = err
+			failed = append(failed, email)
 		}
 
-		return
+		return []email{}, failed
 	}
 
+	messages := []*mail.Msg{}
+	for _, email := range ready {
+		messages = append(messages, email.messageMail)
+	}
+
+	err = client.DialAndSend(messages...)
+	if err != nil {
+		for _, email := range ready {
+			email.error = err
+			failed = append(failed, email)
+		}
+
+		return []email{}, failed
+	}
+
+	return ready, failed
+}
+
+func proccessAcknowledgment(emails, failed []email) ([]email, []email) {
+	ready := []email{}
+
+	for _, email := range emails {
+		err := email.messageQueue.Ack(false)
+		if err != nil {
+			email.error = fmt.Errorf("error sending a termination message to RabbitMQ: %w", err)
+			failed = append(failed, email)
+		} else {
+			ready = append(ready, email)
+		}
+	}
+
+	return ready, failed
+}
+
+func proccessNotAcknowledgment(emails []email) []error {
+	errs := []error{}
+
+	for _, email := range emails {
+		err := email.messageQueue.Nack(false, true)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("error resending message to the queue: %w", err))
+		}
+
+		errs = append(errs, email.error)
+	}
+
+	return errs
+}
+
+func (send *send) setMetrics(timeInit time.Time, ready, failed []email) {
+	receivedBytes := 0
 	sentEmails := 0
 	sentBytes := 0
 	sentAttachment := 0
 	sentAttachmentsBytes := 0
 	sentWithAttachemnt := 0
 
-	for _, email := range emailsReady {
-		err := email.messageRabbit.Ack(false)
-		if err != nil {
-			send.errors <- fmt.Sprintf("Error sending a termination message to RabbitMQ: %s", err)
-		} else {
-			sentEmails++
-			sentBytes += len(email.Message)
+	for _, email := range failed {
+		receivedBytes += len(email.messageQueue.Body)
+	}
 
-			attachmentsSize := len(email.Attachments)
-			if attachmentsSize > 0 {
-				sentAttachment += attachmentsSize
-				sentAttachmentsBytes += email.attachmentsSize
-				sentWithAttachemnt++
-			}
+	for _, email := range ready {
+		receivedBytes += len(email.messageQueue.Body)
+		sentEmails++
+		sentBytes += len(email.Message)
+
+		attachmentsSize := len(email.Attachments)
+		if attachmentsSize > 0 {
+			sentAttachment += attachmentsSize
+			sentAttachmentsBytes += email.attachmentsSize
+			sentWithAttachemnt++
 		}
 	}
 
-	send.metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
+	send.metrics.emailsReceived.Add(float64(len(ready) + len(failed)))
+	send.metrics.emailsReceivedBytes.Add(float64(receivedBytes))
 	send.metrics.emailsSent.Add(float64(sentEmails))
 	send.metrics.emailsSentBytes.Add(float64(sentBytes))
 	send.metrics.emailsSentAttachment.Add(float64(sentAttachment))
 	send.metrics.emailsSentAttachmentBytes.Add(float64(sentAttachmentsBytes))
 	send.metrics.emailsSentWithAttachment.Add(float64(sentWithAttachemnt))
+  send.metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
+	send.metrics.emailsResent.Add(float64(len(failed)))
+}
 
-	send.infos <- fmt.Sprintf("Has been sent %d emails", sentEmails)
+func (send *send) emails(queue []amqp.Delivery) []error {
+	timeInit := time.Now()
+
+	emailsReady, emailsFailed := proccessQueue(queue)
+	emailsReady, emailsFailed = proccesEmails(send.cache, send.sender, emailsReady, emailsFailed)
+	emailsReady, emailsFailed = sendEmails(send.smtp, emailsReady, emailsFailed)
+	emailsReady, emailsFailed = proccessAcknowledgment(emailsReady, emailsFailed)
+
+	err := proccessNotAcknowledgment(emailsFailed)
+
+	send.setMetrics(timeInit, emailsReady, emailsFailed)
+
+	send.infos <- fmt.Sprintf("Has been sent %d emails", len(emailsReady))
+
+	return err
 }
 
 func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {
