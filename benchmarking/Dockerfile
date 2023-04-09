@@ -6,14 +6,14 @@ COPY go.sum ./
 COPY go.mod ./
 RUN go mod download
 
-COPY ./consumer/ ./
+COPY ./ ./
 
-RUN go build -o /consumer
+RUN go build -o /benchmarking
 
 FROM alpine
 
 WORKDIR /
 
-COPY --from=build /consumer /consumer
+COPY --from=build /benchmarking /benchmarking
 
-ENTRYPOINT ["/consumer"]
+ENTRYPOINT ["/benchmarking"]
