@@ -18,7 +18,7 @@ type receiver struct {
 }
 
 type email struct {
-	Receiver        receiver         `json:"receiver"`
+	Receivers       []receiver       `json:"receivers"`
 	Subject         string           `json:"subject"`
 	Message         string           `json:"message"`
 	Type            mail.ContentType `json:"type"`
@@ -95,12 +95,14 @@ emailToMessage:
 			continue
 		}
 
-		err = message.AddToFormat(email.Receiver.Name, email.Receiver.Email)
-		if err != nil {
-			email.error = fmt.Errorf("error adding email receiver: %w", err)
-			failed = append(failed, email)
+		for _, receiver := range email.Receivers {
+			err = message.AddToFormat(receiver.Name, receiver.Email)
+			if err != nil {
+				email.error = fmt.Errorf("error adding email receiver: %w", err)
+				failed = append(failed, email)
 
-			continue
+				continue emailToMessage
+			}
 		}
 
 		for _, attachment := range email.Attachments {
