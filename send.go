@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -27,13 +29,23 @@ type email struct {
 	error           error
 }
 
+type errorQuantity struct {
+	error
+	quantity int
+}
+
+type sendStatus struct {
+	successfully int
+	failed       int
+	errors       []errorQuantity
+}
+
 type send struct {
 	*cache
 	*sender
 	*metrics
 	*smtp
-	infos  chan string
-	errors chan string
+	status chan sendStatus
 }
 
 func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) *send {
@@ -42,8 +54,7 @@ func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) *send {
 		sender:  sender,
 		metrics: metrics,
 		smtp:    smtp,
-		infos:   make(chan string),
-		errors:  make(chan string),
+		status:  make(chan sendStatus),
 	}
 }
 
@@ -167,16 +178,31 @@ func proccessAcknowledgment(emails, failed []email) ([]email, []email) {
 	return ready, failed
 }
 
-func proccessNotAcknowledgment(emails []email) []error {
-	errs := []error{}
+func appendIfMissing(items []errorQuantity, item error) []errorQuantity {
+	for index, ele := range items {
+		if errors.Is(item, ele.error) {
+			items[index].quantity++
+
+			return items
+		}
+	}
+
+	return append(items, errorQuantity{error: item, quantity: 1})
+}
+
+func proccessNotAcknowledgment(emails []email) []errorQuantity {
+	errs := []errorQuantity{}
 
 	for _, email := range emails {
 		err := email.messageQueue.Nack(false, true)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("error resending message to the queue: %w", err))
+			errs = appendIfMissing(
+				errs,
+				fmt.Errorf("error resending message to the queue: %w", err),
+			)
 		}
 
-		errs = append(errs, email.error)
+		errs = appendIfMissing(errs, email.error)
 	}
 
 	return errs
@@ -196,8 +222,8 @@ func (send *send) setMetrics(timeInit time.Time, ready, failed []email) {
 
 	for _, email := range ready {
 		receivedBytes += len(email.messageQueue.Body)
-		sentEmails++
 		sentBytes += len(email.Message)
+		sentEmails++
 
 		attachmentsSize := len(email.Attachments)
 		if attachmentsSize > 0 {
@@ -214,11 +240,11 @@ func (send *send) setMetrics(timeInit time.Time, ready, failed []email) {
 	send.metrics.emailsSentAttachment.Add(float64(sentAttachment))
 	send.metrics.emailsSentAttachmentBytes.Add(float64(sentAttachmentsBytes))
 	send.metrics.emailsSentWithAttachment.Add(float64(sentWithAttachemnt))
-  send.metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
 	send.metrics.emailsResent.Add(float64(len(failed)))
+	send.metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
 }
 
-func (send *send) emails(queue []amqp.Delivery) []error {
+func (send *send) emails(queue []amqp.Delivery) {
 	timeInit := time.Now()
 
 	emailsReady, emailsFailed := proccessQueue(queue)
@@ -228,18 +254,20 @@ func (send *send) emails(queue []amqp.Delivery) []error {
 
 	err := proccessNotAcknowledgment(emailsFailed)
 
+	send.status <- sendStatus{
+		successfully: len(emailsReady),
+		failed:       len(emailsFailed),
+		errors:       err,
+	}
+
 	send.setMetrics(timeInit, emailsReady, emailsFailed)
-
-	send.infos <- fmt.Sprintf("Has been sent %d emails", len(emailsReady))
-
-	return err
 }
 
 func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {
 	buffer := make([]amqp.Delivery, len(queue))
 	copy(buffer, queue)
 
-	send.infos <- fmt.Sprintf("Sending %d emails", len(buffer))
+	log.Printf("[INFO] - Sending %d emails", len(buffer))
 
 	go send.emails(buffer)
 

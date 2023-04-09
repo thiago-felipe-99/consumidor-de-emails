@@ -134,13 +134,17 @@ func processQueue(
 }
 
 func logSendMessages(send *send) {
-	for {
-		select {
-		case message := <-send.infos:
-			log.Printf("[INFO] - %s", message)
+	for status := range send.status {
+		if status.successfully > 0 {
+			log.Printf("[INFO] - Were sent %d successfully emails", status.successfully)
+		}
 
-		case message := <-send.errors:
-			log.Printf("[ERROR] - %s", message)
+		if status.failed > 0 {
+			log.Printf("[ERROR] - Failed to send %d emails", status.failed)
+		}
+
+		for _, err := range status.errors {
+			log.Printf("[ERROR] - %d errors with message: %s", err.quantity, err.error)
 		}
 	}
 }
@@ -170,12 +174,7 @@ func main() {
 	defer closeRabbit()
 
 	metrics := newMetrics()
-
-	send, err := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
-	if err != nil {
-		log.Printf("[ERROR] - Error creating sender: %s", err)
-	}
-
+	send := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
 	timeout := time.Duration(configs.Timeout) * time.Second
 
 	var wait chan struct{}
