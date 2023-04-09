@@ -16,12 +16,13 @@ type receiver struct {
 }
 
 type email struct {
-	Receiver      receiver         `json:"receiver"`
-	Subject       string           `json:"subject"`
-	Message       string           `json:"message"`
-	Type          mail.ContentType `json:"type"`
-	Attachments   []string         `json:"attachments"`
-	messageRabbit amqp.Delivery
+	Receiver        receiver         `json:"receiver"`
+	Subject         string           `json:"subject"`
+	Message         string           `json:"message"`
+	Type            mail.ContentType `json:"type"`
+	Attachments     []string         `json:"attachments"`
+	attachmentsSize int
+	messageRabbit   amqp.Delivery
 }
 
 type send struct {
@@ -81,6 +82,7 @@ func (send *send) queueToEmails(queue []amqp.Delivery) ([]email, int) {
 			send.messageToQueue(message)
 		} else {
 			email.messageRabbit = message
+			email.attachmentsSize = 0
 			emails = append(emails, email)
 		}
 	}
@@ -121,6 +123,7 @@ emailToMessage:
 				continue emailToMessage
 			}
 
+			email.attachmentsSize += len(file)
 			message.AttachReadSeeker(attachment, bytes.NewReader(file))
 		}
 
@@ -158,24 +161,37 @@ func (send *send) emails(queue []amqp.Delivery) {
 		return
 	}
 
-	emailsSent := 0
-	bytesSent := 0
+	sentEmails := 0
+	sentBytes := 0
+	sentAttachment := 0
+	sentAttachmentsBytes := 0
+	sentWithAttachemnt := 0
 
 	for _, email := range emailsReady {
 		err := email.messageRabbit.Ack(false)
 		if err != nil {
 			send.errors <- fmt.Sprintf("Error sending a termination message to RabbitMQ: %s", err)
 		} else {
-			emailsSent++
-			bytesSent += len(email.Message)
+			sentEmails++
+			sentBytes += len(email.Message)
+
+			attachmentsSize := len(email.Attachments)
+			if attachmentsSize > 0 {
+				sentAttachment += attachmentsSize
+				sentAttachmentsBytes += email.attachmentsSize
+				sentWithAttachemnt++
+			}
 		}
 	}
 
 	send.metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
-	send.metrics.emailsSent.Add(float64(emailsSent))
-	send.metrics.emailsSentBytes.Add(float64(bytesSent))
+	send.metrics.emailsSent.Add(float64(sentEmails))
+	send.metrics.emailsSentBytes.Add(float64(sentBytes))
+	send.metrics.emailsSentAttachment.Add(float64(sentAttachment))
+	send.metrics.emailsSentAttachmentBytes.Add(float64(sentAttachmentsBytes))
+	send.metrics.emailsSentWithAttachment.Add(float64(sentWithAttachemnt))
 
-	send.infos <- fmt.Sprintf("Has been sent %d emails", emailsSent)
+	send.infos <- fmt.Sprintf("Has been sent %d emails", sentEmails)
 }
 
 func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {
