@@ -45,7 +45,8 @@ type cacheConfig struct {
 	CleanWindow  int  `config:"clean_window"   validate:"required"`
 	AvgEntries   int  `config:"avg_entries"    validate:"required"`
 	AvgEntrySize int  `config:"avg_entry_size" validate:"required"`
-	MaxSize      int  `config:"maxsize"        validate:"required"`
+	MaxEntrySize int  `config:"max_entry_size" validate:"required"`
+	MaxSize      int  `config:"max_size"       validate:"required"`
 	Statics      bool `config:"statics"`
 	Verbose      bool `config:"verbose"`
 }
@@ -88,7 +89,8 @@ func defaultConfigurations() configurations {
 			LifeWindow:   60,
 			CleanWindow:  5,
 			AvgEntries:   10,
-			AvgEntrySize: 25,
+			AvgEntrySize: 10,
+			MaxEntrySize: 25,
 			MaxSize:      1000,
 			Statics:      false,
 			Verbose:      false,

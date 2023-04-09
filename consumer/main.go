@@ -8,11 +8,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const (
-	serverWriteTimeout = 10 * time.Second
-	serverReadTImeout  = 5 * time.Second
-)
-
 func newRabbit(configs *configurations) (<-chan amqp.Delivery, func(), error) {
 	rabbitURL := fmt.Sprintf(
 		"amqp://%s:%s@%s:%d/%s",

@@ -74,6 +74,11 @@ func newMetrics() *metrics {
 }
 
 func serverMetrics(metrics *metrics) {
+	const (
+		serverWriteTimeout = 10 * time.Second
+		serverReadTImeout  = 5 * time.Second
+	)
+
 	registryMetrics := prometheus.NewRegistry()
 
 	registryMetrics.MustRegister(

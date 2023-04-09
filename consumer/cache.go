@@ -12,19 +12,24 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+var errMaxEntrySize = fmt.Errorf("entry is to big")
+
 type cache struct {
-	data   *bigcache.BigCache
-	bucket string
-	minio  *minio.Client
+	data         *bigcache.BigCache
+	bucket       string
+	minio        *minio.Client
+	maxEntrySize int64
 }
 
 func newCache(configs *configurations) (*cache, error) {
+	const megabyte = 1000 * 1000
+
 	dataConfig := bigcache.Config{
 		Shards:             configs.Cache.Shards,
 		LifeWindow:         time.Duration(configs.Cache.LifeWindow) * time.Minute,
 		CleanWindow:        time.Duration(configs.Cache.CleanWindow) * time.Minute,
 		MaxEntriesInWindow: configs.Cache.AvgEntries,
-		MaxEntrySize:       configs.Cache.AvgEntrySize,
+		MaxEntrySize:       configs.Cache.AvgEntrySize * megabyte,
 		HardMaxCacheSize:   configs.Cache.MaxSize,
 		StatsEnabled:       configs.Cache.Statics,
 		Verbose:            configs.Cache.Verbose,
@@ -50,9 +55,10 @@ func newCache(configs *configurations) (*cache, error) {
 	}
 
 	return &cache{
-		data:   data,
-		bucket: configs.Minio.Bucket,
-		minio:  minio,
+		data:         data,
+		bucket:       configs.Minio.Bucket,
+		minio:        minio,
+		maxEntrySize: int64(configs.Cache.MaxEntrySize) * megabyte,
 	}, nil
 }
 
@@ -70,6 +76,10 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 	objectInfo, err := object.Stat()
 	if err != nil {
 		return nil, err
+	}
+
+	if objectInfo.Size > cache.maxEntrySize {
+		return nil, errMaxEntrySize
 	}
 
 	file := make([]byte, objectInfo.Size)
