@@ -146,6 +146,13 @@ func main() {
 		return
 	}
 
+	template, err := newTemplate(configs)
+	if err != nil {
+		log.Printf("[ERROR] - Error creating the files cache: %s", err)
+
+		return
+	}
+
 	queue, closeRabbit, err := newRabbit(configs)
 	if err != nil {
 		log.Printf("[ERROR] - Error creating queue: %s", err)
@@ -156,7 +163,7 @@ func main() {
 	defer closeRabbit()
 
 	metrics := newMetrics()
-	send := newSend(cache, &configs.Sender, &configs.SMTP, metrics, configs.Rabbit.MaxRetries)
+	send := newSend(cache, template, &configs.Sender, &configs.SMTP, metrics, configs.Rabbit.MaxRetries)
 	timeout := time.Duration(configs.Timeout) * time.Second
 
 	var wait chan struct{}

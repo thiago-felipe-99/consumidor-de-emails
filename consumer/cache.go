@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"time"
 
 	"github.com/allegro/bigcache/v3"
@@ -56,7 +57,7 @@ func newCache(configs *configurations) (*cache, error) {
 
 	return &cache{
 		data:         data,
-		bucket:       configs.Minio.Bucket,
+		bucket:       configs.Cache.Bucket,
 		minio:        minio,
 		maxEntrySize: int64(configs.Cache.MaxEntrySize) * megabyte,
 	}, nil
@@ -103,4 +104,72 @@ func (cache *cache) getFile(name string) ([]byte, error) {
 	}
 
 	return file, nil
+}
+
+type template struct {
+	cache
+}
+
+func newTemplate(configs *configurations) (*template, error) {
+	const megabyte = 1000 * 1000
+
+	dataConfig := bigcache.Config{
+		Shards:             configs.Template.Shards,
+		LifeWindow:         0,
+		CleanWindow:        0,
+		MaxEntriesInWindow: configs.Template.AvgEntries,
+		MaxEntrySize:       configs.Template.AvgEntrySize * megabyte,
+		HardMaxCacheSize:   configs.Template.MaxSize,
+		StatsEnabled:       configs.Template.Statics,
+		Verbose:            configs.Template.Verbose,
+	}
+
+	data, err := bigcache.New(context.Background(), dataConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	host := fmt.Sprintf("%s:%d", configs.Minio.Host, configs.Minio.Port)
+	minioOptions := &minio.Options{
+		Creds: credentials.NewStaticV4(
+			configs.Minio.AccessKey,
+			configs.Minio.SecretKey,
+			"",
+		),
+	}
+
+	minio, err := minio.New(host, minioOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	template := &template{
+		cache: cache{
+			data:         data,
+			bucket:       configs.Template.Bucket,
+			minio:        minio,
+			maxEntrySize: int64(configs.Template.MaxEntrySize) * megabyte,
+		},
+	}
+
+	template.setAll()
+
+	return template, nil
+}
+
+// TODO:make set all files from a bucket
+func (template *template) setAll() {
+	options := minio.ListObjectsOptions{
+		WithVersions: false,
+		WithMetadata: true,
+		Prefix:       "",
+		Recursive:    true,
+	}
+	for object := range template.cache.minio.ListObjects(context.Background(), template.bucket, options) {
+		log.Println(object.Key)
+	}
+}
+
+func (template *template) get(name string) ([]byte, error) {
+	return template.cache.getFile(name)
 }

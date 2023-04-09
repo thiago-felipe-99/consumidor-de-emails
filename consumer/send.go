@@ -43,6 +43,7 @@ type sendStatus struct {
 
 type send struct {
 	*cache
+	*template
 	*sender
 	*metrics
 	*smtp
@@ -50,9 +51,17 @@ type send struct {
 	maxReties int64
 }
 
-func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics, maxReties int64) *send {
+func newSend(
+	cache *cache,
+	template *template,
+	sender *sender,
+	smtp *smtp,
+	metrics *metrics,
+	maxReties int64,
+) *send {
 	return &send{
 		cache:     cache,
+		template:  template,
 		sender:    sender,
 		metrics:   metrics,
 		smtp:      smtp,

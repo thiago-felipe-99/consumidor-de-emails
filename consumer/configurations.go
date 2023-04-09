@@ -41,34 +41,35 @@ type buffer struct {
 }
 
 type cacheConfig struct {
-	Shards       int  `config:"shards"         validate:"required"`
-	LifeWindow   int  `config:"life_window"    validate:"required"`
-	CleanWindow  int  `config:"clean_window"   validate:"required"`
-	AvgEntries   int  `config:"avg_entries"    validate:"required"`
-	AvgEntrySize int  `config:"avg_entry_size" validate:"required"`
-	MaxEntrySize int  `config:"max_entry_size" validate:"required"`
-	MaxSize      int  `config:"max_size"       validate:"required"`
-	Statics      bool `config:"statics"`
-	Verbose      bool `config:"verbose"`
+	Bucket       string `config:"bucket"         validate:"required"`
+	Shards       int    `config:"shards"         validate:"required"`
+	LifeWindow   int    `config:"life_window"    validate:"required"`
+	CleanWindow  int    `config:"clean_window"   validate:"required"`
+	AvgEntries   int    `config:"avg_entries"    validate:"required"`
+	AvgEntrySize int    `config:"avg_entry_size" validate:"required"`
+	MaxEntrySize int    `config:"max_entry_size" validate:"required"`
+	MaxSize      int    `config:"max_size"       validate:"required"`
+	Statics      bool   `config:"statics"`
+	Verbose      bool   `config:"verbose"`
 }
 
 type minioConfig struct {
 	Host      string `config:"host"       validate:"required"`
 	Port      int    `config:"port"       validate:"required"`
-	Bucket    string `config:"bucket"     validate:"required"`
 	AccessKey string `config:"access_key" validate:"required"`
 	SecretKey string `config:"secret_key" validate:"required"`
 	Secure    bool   `config:"secure"`
 }
 
 type configurations struct {
-	Sender  sender      `config:"sender"  validate:"required"`
-	SMTP    smtp        `config:"smtp"    validate:"required"`
-	Rabbit  rabbit      `config:"rabbit"  validate:"required"`
-	Buffer  buffer      `config:"buffer"  validate:"required"`
-	Timeout int         `config:"timeout" validate:"required"`
-	Cache   cacheConfig `config:"cache"   validate:"required"`
-	Minio   minioConfig `config:"minio"   validate:"required"`
+	Sender   sender      `config:"sender"   validate:"required"`
+	SMTP     smtp        `config:"smtp"     validate:"required"`
+	Rabbit   rabbit      `config:"rabbit"   validate:"required"`
+	Buffer   buffer      `config:"buffer"   validate:"required"`
+	Timeout  int         `config:"timeout"  validate:"required"`
+	Cache    cacheConfig `config:"cache"    validate:"required"`
+	Template cacheConfig `config:"template" validate:"required"`
+	Minio    minioConfig `config:"minio"    validate:"required"`
 }
 
 //nolint:gomnd
@@ -94,6 +95,15 @@ func defaultConfigurations() configurations {
 			AvgEntrySize: 10,
 			MaxEntrySize: 25,
 			MaxSize:      1000,
+			Statics:      false,
+			Verbose:      false,
+		},
+		Template: cacheConfig{
+			Shards:       64,
+			AvgEntries:   10,
+			AvgEntrySize: 1,
+			MaxEntrySize: 2,
+			MaxSize:      100,
 			Statics:      false,
 			Verbose:      false,
 		},
@@ -158,5 +168,30 @@ func getConfigurations() (*configurations, error) {
 
 	validate := validator.New()
 
-	return config, validate.Struct(config)
+	err = validate.Struct(config)
+	if err != nil {
+		validationErrs := validator.ValidationErrors{}
+
+		okay := errors.As(err, &validationErrs)
+		if !okay {
+			return nil, err
+		}
+
+		for index := len(validationErrs) - 1; index >= 0; index-- {
+			name := validationErrs[index].Namespace()
+			if name == "configurations.Template.CleanWindow" ||
+				name == "configurations.Template.LifeWindow" {
+				validationErrs[index] = validationErrs[len(validationErrs)-1]
+				validationErrs = validationErrs[:len(validationErrs)-1]
+			}
+		}
+
+		if len(validationErrs) > 0 {
+			return nil, validationErrs
+		}
+
+		return config, nil
+	}
+
+	return config, nil
 }
