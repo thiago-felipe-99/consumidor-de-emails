@@ -19,6 +19,7 @@ type receiver struct {
 
 type email struct {
 	Receivers       []receiver       `json:"receivers"`
+	BlindReceivers  []receiver       `json:"blindReceivers"`
 	Subject         string           `json:"subject"`
 	Message         string           `json:"message"`
 	Type            mail.ContentType `json:"type"`
@@ -99,6 +100,16 @@ emailToMessage:
 			err = message.AddToFormat(receiver.Name, receiver.Email)
 			if err != nil {
 				email.error = fmt.Errorf("error adding email receiver: %w", err)
+				failed = append(failed, email)
+
+				continue emailToMessage
+			}
+		}
+
+		for _, receiver := range email.BlindReceivers {
+			err = message.AddBccFormat(receiver.Name, receiver.Email)
+			if err != nil {
+				email.error = fmt.Errorf("error adding email blind receiver: %w", err)
 				failed = append(failed, email)
 
 				continue emailToMessage
