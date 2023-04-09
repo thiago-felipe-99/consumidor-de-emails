@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/allegro/bigcache/v3"
@@ -74,14 +75,14 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 	file := make([]byte, objectInfo.Size)
 
 	_, err = object.Read(file)
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
 
 	return file, cache.data.Set(name, file)
 }
 
-func (cache *cache) GetFile(name string) ([]byte, error) {
+func (cache *cache) getFile(name string) ([]byte, error) {
 	file, err := cache.data.Get(name)
 	if err != nil {
 		if errors.Is(err, bigcache.ErrEntryNotFound) {

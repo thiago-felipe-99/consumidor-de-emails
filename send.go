@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -87,10 +88,11 @@ func (send *send) queueToEmails(queue []amqp.Delivery) ([]email, int) {
 	return emails, bytesReceived
 }
 
-func (send *send) emailToMessages(emails []email) ([]*mail.Msg, []email) {
+func (send *send) emailsToMessages(emails []email) ([]*mail.Msg, []email) {
 	messages := []*mail.Msg{}
 	emailsReady := []email{}
 
+emailToMessage:
 	for _, email := range emails {
 		message := mail.NewMsg()
 
@@ -108,6 +110,18 @@ func (send *send) emailToMessages(emails []email) ([]*mail.Msg, []email) {
 			send.messageToQueue(email.messageRabbit)
 
 			continue
+		}
+
+		for _, attachment := range email.Attachments {
+			file, err := send.cache.getFile(attachment)
+			if err != nil {
+				send.errors <- fmt.Sprintf("Error getting file from cache: %s", err)
+				send.messageToQueue(email.messageRabbit)
+
+				continue emailToMessage
+			}
+
+			message.AttachReadSeeker(attachment, bytes.NewReader(file))
 		}
 
 		message.Subject(email.Subject)
@@ -128,7 +142,10 @@ func (send *send) emails(queue []amqp.Delivery) {
 	send.metrics.emailsReceived.Add(float64(len(queue)))
 	send.metrics.emailsReceivedBytes.Add(float64(bytesReceived))
 
-	messages, emailsReady := send.emailToMessages(emails)
+	messages, emailsReady := send.emailsToMessages(emails)
+	if len(messages) == 0 {
+		return
+	}
 
 	err := send.client.DialAndSend(messages...)
 	if err != nil {

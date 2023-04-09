@@ -4,9 +4,9 @@ O objetivo desse projeto é ler a partir de uma fila do RabbitMQ as informaçõe
 ## Objetivos
 - [x] Ler destinatário, descrição, mensagem e caminho de anexos do email a partir de uma fila do RabbitMQ
 - [x] Fazer envio de email sem anexo
-- [ ] Fazer envio de email com anexo
-- [ ] Ler anexo do Minio
-- [ ] Criar cache do Minio
+- [x] Fazer envio de email com anexo
+- [x] Ler anexo do Minio
+- [x] Criar cache do Minio
 
 ## Métricas
 - [x] Expor as métricas do servidor na porta `8001`
