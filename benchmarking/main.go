@@ -13,16 +13,16 @@ import (
 )
 
 type rabbit struct {
-	user, senha, host, porta, vhost, fila string
+	user, password, host, port, vhost, queue string
 }
 
-type configuracoes struct {
+type configurations struct {
 	rabbit
-	quantidadeDeMensagens int
-	contentType, body     string
+	messagesQuantity  int
+	contentType, body string
 }
 
-func pegarConfiguracoes() (*configuracoes, error) {
+func getConfigurations() (*configurations, error) {
 	err := godotenv.Load()
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
@@ -33,27 +33,27 @@ func pegarConfiguracoes() (*configuracoes, error) {
 		return nil, err
 	}
 
-	config := &configuracoes{
+	config := &configurations{
 		rabbit: rabbit{
-			user:  os.Getenv("RABBIT_USER"),
-			senha: os.Getenv("RABBIT_PASSWORD"),
-			host:  os.Getenv("RABBIT_HOST"),
-			porta: os.Getenv("RABBIT_PORT"),
-			vhost: os.Getenv("RABBIT_VHOST"),
-			fila:  os.Getenv("RABBIT_QUEUE"),
+			user:     os.Getenv("RABBIT_USER"),
+			password: os.Getenv("RABBIT_PASSWORD"),
+			host:     os.Getenv("RABBIT_HOST"),
+			port:     os.Getenv("RABBIT_PORT"),
+			vhost:    os.Getenv("RABBIT_VHOST"),
+			queue:    os.Getenv("RABBIT_QUEUE"),
 		},
-		quantidadeDeMensagens: quantidadeDeMensagens,
-		contentType:           os.Getenv("CONTENT_TYPE"),
-		body:                  os.Getenv("BODY"),
+		messagesQuantity: quantidadeDeMensagens,
+		contentType:      os.Getenv("CONTENT_TYPE"),
+		body:             os.Getenv("BODY"),
 	}
 
 	return config, nil
 }
 
 func main() {
-	configs, err := pegarConfiguracoes()
+	configs, err := getConfigurations()
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao ler as configurações: %v", err)
+		log.Printf("[ERROR] - Error reading the configurations: %s", err)
 
 		return
 	}
@@ -61,66 +61,94 @@ func main() {
 	rabbitURL := fmt.Sprintf(
 		"amqp://%s:%s@%s:%s/%s",
 		configs.rabbit.user,
-		configs.rabbit.senha,
+		configs.rabbit.password,
 		configs.rabbit.host,
-		configs.rabbit.porta,
+		configs.rabbit.port,
 		configs.rabbit.vhost,
 	)
 
 	rabbit, err := amqp.Dial(rabbitURL)
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao conectar com o Rabbit: %s", err)
+		log.Printf("[ERROR] - Error connecting to RabbitMQ: %s", err)
 
 		return
 	}
 	defer rabbit.Close()
 
-	canal, err := rabbit.Channel()
+	channel, err := rabbit.Channel()
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao abrir o canal do Rabbit: %s", err)
+		log.Printf("[ERROR] - Error opening RabbitMQ channel: %s", err)
 
 		return
 	}
-	defer canal.Close()
+	defer channel.Close()
 
-	fila, err := canal.QueueDeclare(configs.rabbit.fila, false, false, false, false, nil)
+	dlx := configs.rabbit.queue + "-dlx"
+	queueArgs := amqp.Table{}
+	queueArgs["x-dead-letter-exchange"] = configs.rabbit.queue + "-dlx"
+	queueArgs["x-dead-letter-routing-key"] = "dead-message"
+	queueArgs["x-delivery-limit"] = 2
+	queueArgs["x-queue-type"] = "quorum"
+
+	queue, err := channel.QueueDeclare(configs.rabbit.queue, true, false, false, false, queueArgs)
 	if err != nil {
-		log.Printf("[ERRO] - Erro ao declarar a fila: %s", err)
+		log.Println("[ERROR] - Error declaring RabbitMQ queue: %w", err)
+
+		return
+	}
+
+	_, err = channel.QueueDeclare(dlx, true, false, false, false, nil)
+	if err != nil {
+		log.Println("[ERROR] - Error declaring RabbitMQ dlx queue: %w", err)
+
+		return
+	}
+
+	err = channel.ExchangeDeclare(dlx, "direct", true, false, false, false, nil)
+	if err != nil {
+		log.Println("[ERROR] - Error declaring RabbitMQ dlx exchange: %w", err)
+
+		return
+	}
+
+	err = channel.QueueBind(dlx, "dead-message", dlx, false, nil)
+	if err != nil {
+		log.Println("[ERROR] - Error binding dlx queue with dlx exchange: %w", err)
 
 		return
 	}
 
 	log.Printf(
-		"[INFO] - A fila '%s' tem %d mensagens e %d consumidores",
-		fila.Name,
-		fila.Messages,
-		fila.Consumers,
+		"[INFO] - The queue '%s' has %d messages and %d consumers",
+		queue.Name,
+		queue.Messages,
+		queue.Consumers,
 	)
 
-	mensagem := amqp.Publishing{
+	message := amqp.Publishing{
 		ContentType: configs.contentType,
 		Body:        []byte(configs.body),
 	}
 
-	for i := 1; i <= configs.quantidadeDeMensagens; i++ {
-		err := canal.PublishWithContext(
+	for i := 1; i <= configs.messagesQuantity; i++ {
+		err := channel.PublishWithContext(
 			context.Background(),
 			"",
-			fila.Name,
+			queue.Name,
 			false,
 			false,
-			mensagem,
+			message,
 		)
 		if err != nil {
-			log.Printf("[ERRO] - Erro ao enviar mensagem para a fila: %s", err)
+			log.Printf("[ERROR] - Error sending message to queue: %s", err)
 
 			return
 		}
 	}
 
 	log.Printf(
-		"[INFO] - Foram enviados %d mensagens para a fila '%s'",
-		configs.quantidadeDeMensagens,
-		fila.Name,
+		"[INFO] - %d messages were sent to queue '%s'",
+		configs.messagesQuantity,
+		queue.Name,
 	)
 }
