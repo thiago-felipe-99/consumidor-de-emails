@@ -1,8 +1,0 @@
-docker-compose.yaml
-Dockerfile
-.env*
-.git
-.gitignore
-LICENSE
-README.md
-teste

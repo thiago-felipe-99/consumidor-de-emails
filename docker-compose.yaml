@@ -1,11 +1,15 @@
 version: '3.9'
 services:
   consumidor-de-emails:
-    build: .
+    build: 
+      dockerfile: consumer.Dockerfile
+      context: .
     env_file: 
       - ./teste/.env
   benchmarking:
-    build: .
+    build: 
+      dockerfile: benchmarking.Dockerfile
+      context: .
     env_file:
       - ./teste/.benchmarking.env
     entrypoint: /benchmarking
