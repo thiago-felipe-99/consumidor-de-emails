@@ -35,11 +35,39 @@ func newRabbit(configs *configurations) (<-chan amqp.Delivery, func(), error) {
 		rabbit.Close()
 	}
 
-	_, err = channel.QueueDeclare(configs.Rabbit.Queue, false, false, false, false, nil)
+	dlx := configs.Rabbit.Queue + "-dlx"
+	queueArgs := amqp.Table{}
+	queueArgs["x-dead-letter-exchange"] = dlx
+	queueArgs["x-dead-letter-routing-key"] = "dead-message"
+	queueArgs["x-delivery-limit"] = 2
+	queueArgs["x-queue-type"] = "quorum"
+
+	_, err = channel.QueueDeclare(configs.Rabbit.Queue, true, false, false, false, queueArgs)
 	if err != nil {
 		closeRabbit()
 
 		return nil, nil, fmt.Errorf("error declaring RabbitMQ queue: %w", err)
+	}
+
+	_, err = channel.QueueDeclare(dlx, true, false, false, false, nil)
+	if err != nil {
+		closeRabbit()
+
+		return nil, nil, fmt.Errorf("error declaring RabbitMQ dlx queue: %w", err)
+	}
+
+	err = channel.ExchangeDeclare(dlx, "direct", true, false, false, false, nil)
+	if err != nil {
+		closeRabbit()
+
+		return nil, nil, fmt.Errorf("error declaring RabbitMQ dlx exchange: %w", err)
+	}
+
+	err = channel.QueueBind(dlx, "dead-message", dlx, false, nil)
+	if err != nil {
+		closeRabbit()
+
+		return nil, nil, fmt.Errorf("error binding dlx queue with dlx exchange: %w", err)
 	}
 
 	err = channel.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
