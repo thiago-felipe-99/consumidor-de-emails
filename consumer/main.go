@@ -39,8 +39,8 @@ func newRabbit(configs *configurations) (<-chan amqp.Delivery, func(), error) {
 	queueArgs := amqp.Table{}
 	queueArgs["x-dead-letter-exchange"] = dlx
 	queueArgs["x-dead-letter-routing-key"] = "dead-message"
-	queueArgs["x-delivery-limit"] = 2
 	queueArgs["x-queue-type"] = "quorum"
+	queueArgs["x-delivery-limit"] = configs.Rabbit.MaxRetry
 
 	_, err = channel.QueueDeclare(configs.Rabbit.Queue, true, false, false, false, queueArgs)
 	if err != nil {

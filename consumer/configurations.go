@@ -26,12 +26,13 @@ type smtp struct {
 }
 
 type rabbit struct {
-	User     string `config:"user"     validate:"required"`
-	Password string `config:"password" validate:"required"`
-	Host     string `config:"host"     validate:"required"`
-	Port     int    `config:"port"     validate:"required"`
-	Vhost    string `config:"vhost"    validate:"required"`
-	Queue    string `config:"queue"    validate:"required"`
+	User     string `config:"user"      validate:"required"`
+	Password string `config:"password"  validate:"required"`
+	Host     string `config:"host"      validate:"required"`
+	Port     int    `config:"port"      validate:"required"`
+	Vhost    string `config:"vhost"     validate:"required"`
+	Queue    string `config:"queue"     validate:"required"`
+	MaxRetry int    `config:"max_retry" validate:"required"`
 }
 
 type buffer struct {
@@ -77,8 +78,9 @@ func defaultConfigurations() configurations {
 			Port: 587,
 		},
 		Rabbit: rabbit{
-			Port:  5672,
-			Vhost: "/",
+			Port:     5672,
+			Vhost:    "/",
+			MaxRetry: 4,
 		},
 		Buffer: buffer{
 			Size:     100,
