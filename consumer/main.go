@@ -35,6 +35,13 @@ func newRabbit(configs *configurations) (<-chan amqp.Delivery, func(), error) {
 		rabbit.Close()
 	}
 
+	_, err = channel.QueueDeclare(configs.Rabbit.Queue, false, false, false, false, nil)
+	if err != nil {
+		closeRabbit()
+
+		return nil, nil, fmt.Errorf("error declaring RabbitMQ queue: %w", err)
+	}
+
 	err = channel.Qos(configs.Buffer.Size*configs.Buffer.Quantity, 0, false)
 	if err != nil {
 		closeRabbit()
