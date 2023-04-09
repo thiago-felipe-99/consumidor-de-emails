@@ -87,14 +87,22 @@ func serverMetrics(metrics *metrics) {
 	server := &http.Server{
 		WriteTimeout: serverWriteTimeout,
 		ReadTimeout:  serverReadTImeout,
+		Addr:         ":8001",
 	}
 
 	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatalf("[ERROR] - Error starting metrics server")
 	}
+}
 
-	log.Printf("[INFO] - Metrics server started successfully")
+func cacheMetrics(cache *cache, metrics *metrics) {
+	ticker := time.NewTicker(time.Second)
+
+	for range ticker.C {
+		metrics.emailsCacheAttachment.Set(float64(cache.data.Len()))
+		metrics.emailsCacheAttachmentBytes.Set(float64(cache.data.Capacity()))
+	}
 }
 
 func processQueue(
@@ -173,6 +181,8 @@ func main() {
 	var wait chan struct{}
 
 	go serverMetrics(metrics)
+
+	go cacheMetrics(cache, metrics)
 
 	go processQueue(queue, send, timeout, configs.Buffer.Size)
 
