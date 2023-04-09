@@ -14,6 +14,7 @@ import (
 
 type rabbit struct {
 	user, password, host, port, vhost, queue string
+	maxRetries                               int
 }
 
 type configurations struct {
@@ -33,14 +34,20 @@ func getConfigurations() (*configurations, error) {
 		return nil, err
 	}
 
+	rabbitMaxRetries, err := strconv.Atoi(os.Getenv("RABBIT_MAX_RETRIES"))
+	if err != nil {
+		return nil, err
+	}
+
 	config := &configurations{
 		rabbit: rabbit{
-			user:     os.Getenv("RABBIT_USER"),
-			password: os.Getenv("RABBIT_PASSWORD"),
-			host:     os.Getenv("RABBIT_HOST"),
-			port:     os.Getenv("RABBIT_PORT"),
-			vhost:    os.Getenv("RABBIT_VHOST"),
-			queue:    os.Getenv("RABBIT_QUEUE"),
+			user:       os.Getenv("RABBIT_USER"),
+			password:   os.Getenv("RABBIT_PASSWORD"),
+			host:       os.Getenv("RABBIT_HOST"),
+			port:       os.Getenv("RABBIT_PORT"),
+			vhost:      os.Getenv("RABBIT_VHOST"),
+			queue:      os.Getenv("RABBIT_QUEUE"),
+			maxRetries: rabbitMaxRetries,
 		},
 		messagesQuantity: quantidadeDeMensagens,
 		contentType:      os.Getenv("CONTENT_TYPE"),
@@ -87,7 +94,7 @@ func main() {
 	queueArgs := amqp.Table{}
 	queueArgs["x-dead-letter-exchange"] = configs.rabbit.queue + "-dlx"
 	queueArgs["x-dead-letter-routing-key"] = "dead-message"
-	queueArgs["x-delivery-limit"] = 2
+	queueArgs["x-delivery-limit"] = configs.rabbit.maxRetries
 	queueArgs["x-queue-type"] = "quorum"
 
 	queue, err := channel.QueueDeclare(configs.rabbit.queue, true, false, false, false, queueArgs)

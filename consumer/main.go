@@ -40,7 +40,7 @@ func newRabbit(configs *configurations) (<-chan amqp.Delivery, func(), error) {
 	queueArgs["x-dead-letter-exchange"] = dlx
 	queueArgs["x-dead-letter-routing-key"] = "dead-message"
 	queueArgs["x-queue-type"] = "quorum"
-	queueArgs["x-delivery-limit"] = configs.Rabbit.MaxRetry
+	queueArgs["x-delivery-limit"] = configs.Rabbit.MaxRetries
 
 	_, err = channel.QueueDeclare(configs.Rabbit.Queue, true, false, false, false, queueArgs)
 	if err != nil {
@@ -156,7 +156,7 @@ func main() {
 	defer closeRabbit()
 
 	metrics := newMetrics()
-	send := newSend(cache, &configs.Sender, &configs.SMTP, metrics)
+	send := newSend(cache, &configs.Sender, &configs.SMTP, metrics, configs.Rabbit.MaxRetries)
 	timeout := time.Duration(configs.Timeout) * time.Second
 
 	var wait chan struct{}

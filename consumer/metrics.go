@@ -19,6 +19,7 @@ type metrics struct {
 	emailsSentAttachmentBytes  prometheus.Counter
 	emailsSentWithAttachment   prometheus.Counter
 	emailsResent               prometheus.Counter
+	emailsSentMaxRetries       prometheus.Counter
 	emailsSentTimeSeconds      prometheus.Histogram
 	emailsCacheAttachment      prometheus.Gauge
 	emailsCacheAttachmentBytes prometheus.Gauge
@@ -58,6 +59,10 @@ func newMetrics() *metrics {
 			Name: "emails_reenviados",
 			Help: "A quantidade de emails reeenviados para a fila do rabbit",
 		}),
+		emailsSentMaxRetries: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "emails_tentativas_maximas",
+			Help: "A quantidade de emails enviados para a fila dos mortos",
+		}),
 		emailsSentTimeSeconds: prometheus.NewHistogram(prometheus.HistogramOpts{
 			Name: "emails_tempo_de_envio_segundos",
 			Help: "O tempo de envio de lotes de emails em segundos",
@@ -92,6 +97,7 @@ func serverMetrics(metrics *metrics) {
 		metrics.emailsSentAttachmentBytes,
 		metrics.emailsSentWithAttachment,
 		metrics.emailsResent,
+		metrics.emailsSentMaxRetries,
 		metrics.emailsSentTimeSeconds,
 		metrics.emailsCacheAttachment,
 		metrics.emailsCacheAttachmentBytes,

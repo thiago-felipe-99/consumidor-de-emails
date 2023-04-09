@@ -45,16 +45,18 @@ type send struct {
 	*sender
 	*metrics
 	*smtp
-	status chan sendStatus
+	status    chan sendStatus
+	maxReties int64
 }
 
-func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics) *send {
+func newSend(cache *cache, sender *sender, smtp *smtp, metrics *metrics, maxReties int64) *send {
 	return &send{
-		cache:   cache,
-		sender:  sender,
-		metrics: metrics,
-		smtp:    smtp,
-		status:  make(chan sendStatus),
+		cache:     cache,
+		sender:    sender,
+		metrics:   metrics,
+		smtp:      smtp,
+		status:    make(chan sendStatus),
+		maxReties: maxReties,
 	}
 }
 
@@ -208,16 +210,25 @@ func proccessNotAcknowledgment(emails []email) []errorQuantity {
 	return errs
 }
 
-func (send *send) setMetrics(timeInit time.Time, ready, failed []email) {
+func setMetrics(metrics *metrics, timeInit time.Time, ready, failed []email, maxRetries int64) {
 	receivedBytes := 0
 	sentEmails := 0
 	sentBytes := 0
 	sentAttachment := 0
 	sentAttachmentsBytes := 0
 	sentWithAttachemnt := 0
+	sentMaxRetries := 0
 
 	for _, email := range failed {
 		receivedBytes += len(email.messageQueue.Body)
+
+		if value, okay := email.messageQueue.Headers["x-delivery-count"]; okay {
+			if retries, okay := value.(int64); okay {
+				if retries >= maxRetries {
+					sentMaxRetries++
+				}
+			}
+		}
 	}
 
 	for _, email := range ready {
@@ -233,15 +244,16 @@ func (send *send) setMetrics(timeInit time.Time, ready, failed []email) {
 		}
 	}
 
-	send.metrics.emailsReceived.Add(float64(len(ready) + len(failed)))
-	send.metrics.emailsReceivedBytes.Add(float64(receivedBytes))
-	send.metrics.emailsSent.Add(float64(sentEmails))
-	send.metrics.emailsSentBytes.Add(float64(sentBytes))
-	send.metrics.emailsSentAttachment.Add(float64(sentAttachment))
-	send.metrics.emailsSentAttachmentBytes.Add(float64(sentAttachmentsBytes))
-	send.metrics.emailsSentWithAttachment.Add(float64(sentWithAttachemnt))
-	send.metrics.emailsResent.Add(float64(len(failed)))
-	send.metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
+	metrics.emailsReceived.Add(float64(len(ready) + len(failed)))
+	metrics.emailsReceivedBytes.Add(float64(receivedBytes))
+	metrics.emailsSent.Add(float64(sentEmails))
+	metrics.emailsSentBytes.Add(float64(sentBytes))
+	metrics.emailsSentAttachment.Add(float64(sentAttachment))
+	metrics.emailsSentAttachmentBytes.Add(float64(sentAttachmentsBytes))
+	metrics.emailsSentWithAttachment.Add(float64(sentWithAttachemnt))
+	metrics.emailsResent.Add(float64(len(failed)))
+	metrics.emailsSentMaxRetries.Add(float64(sentMaxRetries))
+	metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
 }
 
 func (send *send) emails(queue []amqp.Delivery) {
@@ -260,7 +272,7 @@ func (send *send) emails(queue []amqp.Delivery) {
 		errors:       err,
 	}
 
-	send.setMetrics(timeInit, emailsReady, emailsFailed)
+	setMetrics(send.metrics, timeInit, emailsReady, emailsFailed, send.maxReties)
 }
 
 func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {

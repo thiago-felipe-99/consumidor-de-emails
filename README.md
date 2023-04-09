@@ -11,13 +11,13 @@ O objetivo desse projeto é ler a partir de uma fila do RabbitMQ as informaçõe
 
 ## Métricas
 - [x] Expor as métricas do servidor na porta `8001`
-- [ ] Pegar as seguintes métricas:
+- [x] Pegar as seguintes métricas:
   - [x] Quantidade de e-mails recebidos da fila do RabbitMQ
   - [x] Quantidade de bytes recebidos da fila do RabbitMQ
   - [x] Quantidade de e-mails enviados com sucesso
   - [x] Quantidade de bytes enviados no corpo do email
   - [x] Quantidade de e-mails reenviados para a fila
-  - [ ] Quantidade de e-mails enviados para a fila dos mortos
+  - [x] Quantidade de e-mails enviados para a fila dos mortos
   - [x] Quantidade de e-mails enviados com anexo
   - [x] Quantidade de anexos enviados 
   - [x] Quantidade de bytes enviados no anexo
