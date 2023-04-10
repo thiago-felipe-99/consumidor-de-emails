@@ -157,7 +157,7 @@ func newTemplate(configs *configurations) (*template, error) {
 	return template, nil
 }
 
-// TODO:make set all files from a bucket
+// TODO:make set all files from a bucket.
 func (template *template) setAll() {
 	options := minio.ListObjectsOptions{
 		WithVersions: false,
