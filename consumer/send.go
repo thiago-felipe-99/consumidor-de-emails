@@ -90,60 +90,63 @@ func proccessQueue(queue []amqp.Delivery) ([]email, []email) {
 	return ready, failed
 }
 
-func proccessEmails(cache *cache, sender *sender, emails, failed []email) ([]email, []email) {
-	ready := []email{}
+func emailFailed(index int, ready, failed []email) ([]email, []email) {
+	failed = append(failed, ready[index])
 
-emailToMessage:
-	for _, email := range emails {
-		message := mail.NewMsg()
+	ready[index], ready[len(ready)-1] = ready[len(ready)-1], ready[index]
 
-		err := message.EnvelopeFromFormat(sender.Name, sender.Email)
+	return ready[:len(ready)-1], failed
+}
+
+func createEmailMessage(cache *cache, sender *sender, email email) (*mail.Msg, int, error) {
+	message := mail.NewMsg()
+	attachmentsSize := 0
+
+	err := message.EnvelopeFromFormat(sender.Name, sender.Email)
+	if err != nil {
+		return nil, 0, fmt.Errorf("error adding email sender: %w", err)
+	}
+
+	for _, receiver := range email.Receivers {
+		err = message.AddToFormat(receiver.Name, receiver.Email)
 		if err != nil {
-			email.error = fmt.Errorf("error adding email sender: %w", err)
-			failed = append(failed, email)
+			return nil, 0, fmt.Errorf("error adding email receiver: %w", err)
+		}
+	}
 
-			continue
+	for _, receiver := range email.BlindReceivers {
+		err = message.AddBccFormat(receiver.Name, receiver.Email)
+		if err != nil {
+			return nil, 0, fmt.Errorf("error adding email blind receiver: %w", err)
+		}
+	}
+
+	for _, attachment := range email.Attachments {
+		file, err := cache.getFile(attachment)
+		if err != nil {
+			return nil, 0, fmt.Errorf("error getting attachment from cache: %w", err)
 		}
 
-		for _, receiver := range email.Receivers {
-			err = message.AddToFormat(receiver.Name, receiver.Email)
-			if err != nil {
-				email.error = fmt.Errorf("error adding email receiver: %w", err)
-				failed = append(failed, email)
+		attachmentsSize += len(file)
+		message.AttachReadSeeker(attachment, bytes.NewReader(file))
+	}
 
-				continue emailToMessage
-			}
+	message.Subject(email.Subject)
+	message.SetBodyString(email.Type, email.Message)
+
+	return message, attachmentsSize, nil
+}
+
+func proccessEmails(cache *cache, sender *sender, ready, failed []email) ([]email, []email) {
+	for index := len(ready) - 1; index >= 0; index-- {
+		message, attachmentsSize, err := createEmailMessage(cache, sender, ready[index])
+		if err != nil {
+			ready[index].error = err
+			ready, failed = emailFailed(index, ready, failed)
+		} else {
+			ready[index].messageMail = message
+			ready[index].attachmentsSize = attachmentsSize
 		}
-
-		for _, receiver := range email.BlindReceivers {
-			err = message.AddBccFormat(receiver.Name, receiver.Email)
-			if err != nil {
-				email.error = fmt.Errorf("error adding email blind receiver: %w", err)
-				failed = append(failed, email)
-
-				continue emailToMessage
-			}
-		}
-
-		for _, attachment := range email.Attachments {
-			file, err := cache.getFile(attachment)
-			if err != nil {
-				email.error = fmt.Errorf("error getting attachment from cache: %w", err)
-				failed = append(failed, email)
-
-				continue emailToMessage
-			}
-
-			email.attachmentsSize += len(file)
-			message.AttachReadSeeker(attachment, bytes.NewReader(file))
-		}
-
-		message.Subject(email.Subject)
-		message.SetBodyString(email.Type, email.Message)
-
-		email.messageMail = message
-
-		ready = append(ready, email)
 	}
 
 	return ready, failed
