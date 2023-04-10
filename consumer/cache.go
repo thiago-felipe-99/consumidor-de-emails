@@ -152,12 +152,9 @@ func newTemplate(configs *configurations) (*template, error) {
 		},
 	}
 
-	template.setAll()
-
 	return template, nil
 }
 
-// TODO:make set all files from a bucket.
 func (template *template) setAll() {
 	options := minio.ListObjectsOptions{
 		WithVersions: false,
@@ -165,9 +162,78 @@ func (template *template) setAll() {
 		Prefix:       "",
 		Recursive:    true,
 	}
-	for object := range template.cache.minio.ListObjects(context.Background(), template.bucket, options) {
-		log.Println(object.Key)
+
+  templatesQuantity := 0
+
+	for info := range template.cache.minio.ListObjects(context.Background(), template.bucket, options) {
+		if info.Err != nil {
+			log.Printf("[ERROR] - Error getting '%s' template info: %s", info.Key, info.Err)
+
+			continue
+		}
+
+		object, err := template.cache.minio.GetObject(
+			context.Background(),
+			template.bucket,
+			info.Key,
+			minio.GetObjectOptions{},
+		)
+		if err != nil {
+			log.Printf("[ERROR] - Error getting template: %s", err)
+
+			continue
+		}
+
+    // Need to get a new status because ListObjects doesn't return ContentType
+    // https://github.com/minio/minio-go/issues/1593
+		status, err := object.Stat()
+		if err != nil {
+			log.Printf("[ERROR] - Error getting '%s' template status: %s", info.Key, err)
+
+			continue
+		}
+
+		if status.Size > template.maxEntrySize {
+			log.Printf("[ERROR] - '%s' template is to big: %dMB", info.Key, (info.Size)/1000/1000)
+
+			continue
+		}
+
+		contentType := status.ContentType
+		if contentType != "text/plain" && contentType != "text/html" {
+			log.Printf(
+				"[ERROR] - '%s' template has a invalid Content Type: %s",
+				info.Key,
+				info.ContentType,
+			)
+
+			continue
+		}
+
+		buffer := make([]byte, info.Size)
+
+		_, err = object.Read(buffer)
+		if err != nil && !errors.Is(err, io.EOF) {
+			log.Printf("[ERROR] - Error reading template: %s", err)
+
+			continue
+		} else if err == nil {
+			log.Printf("[ERROR] - Unable to get all template")
+
+			continue
+		}
+
+		err = template.cache.data.Set(info.Key, buffer)
+		if err != nil {
+			log.Printf("[ERROR] - Error setting template: %s", err)
+
+			continue
+		}
+
+    templatesQuantity++
 	}
+
+  log.Printf("[INFO] - %d templates on cache", templatesQuantity)
 }
 
 func (template *template) get(name string) ([]byte, error) {

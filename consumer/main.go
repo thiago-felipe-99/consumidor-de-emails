@@ -153,6 +153,8 @@ func main() {
 		return
 	}
 
+  template.setAll()
+
 	queue, closeRabbit, err := newRabbit(configs)
 	if err != nil {
 		log.Printf("[ERROR] - Error creating queue: %s", err)
