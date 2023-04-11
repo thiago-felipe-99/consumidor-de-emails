@@ -189,16 +189,12 @@ func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
 	return ready, failed
 }
 
-func proccessAcknowledgment(emails, failed []email) ([]email, []email) {
-	ready := []email{}
-
-	for _, email := range emails {
-		err := email.messageQueue.Ack(false)
+func proccessAcknowledgment(ready, failed []email) ([]email, []email) {
+	for index := len(ready) - 1; index >= 0; index-- {
+		err := ready[index].messageQueue.Ack(false)
 		if err != nil {
-			email.error = fmt.Errorf("error sending a termination message to RabbitMQ: %w", err)
-			failed = append(failed, email)
-		} else {
-			ready = append(ready, email)
+			ready[index].error = err
+			ready, failed = emailFailed(index, ready, failed)
 		}
 	}
 
