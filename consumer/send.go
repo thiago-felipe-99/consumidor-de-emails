@@ -99,6 +99,15 @@ func emailFailed(index int, ready, failed []email) ([]email, []email) {
 	return ready[:len(ready)-1], failed
 }
 
+func emailFailedUniqErr(err error, ready, failed []email) []email {
+	for _, email := range ready {
+		email.error = err
+		failed = append(failed, email)
+	}
+
+	return failed
+}
+
 func createEmailMessage(cache *cache, sender *sender, email email) (*mail.Msg, int, error) {
 	message := mail.NewMsg()
 	attachmentsSize := 0
@@ -164,12 +173,7 @@ func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
 
 	client, err := mail.NewClient(smtp.Host, clientOption...)
 	if err != nil {
-		for _, email := range ready {
-			email.error = err
-			failed = append(failed, email)
-		}
-
-		return []email{}, failed
+		return []email{}, emailFailedUniqErr(err, ready, failed)
 	}
 
 	messages := []*mail.Msg{}
@@ -179,12 +183,7 @@ func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
 
 	err = client.DialWithContext(context.Background())
 	if err != nil {
-		for _, email := range ready {
-			email.error = err
-			failed = append(failed, email)
-		}
-
-		return []email{}, failed
+		return []email{}, emailFailedUniqErr(err, ready, failed)
 	}
 
 	err = client.Send(messages...)
