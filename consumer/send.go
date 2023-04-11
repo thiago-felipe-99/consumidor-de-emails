@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -176,7 +177,7 @@ func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
 		messages = append(messages, email.messageMail)
 	}
 
-	err = client.DialAndSend(messages...)
+	err = client.DialWithContext(context.Background())
 	if err != nil {
 		for _, email := range ready {
 			email.error = err
@@ -184,6 +185,18 @@ func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
 		}
 
 		return []email{}, failed
+	}
+
+	err = client.Send(messages...)
+	if err != nil {
+		for index, email := range ready {
+			if email.messageMail.HasSendError() {
+				ready[index].error = email.messageMail.SendError()
+				ready, failed = emailFailed(index, ready, failed)
+			}
+		}
+
+		return ready, failed
 	}
 
 	return ready, failed
