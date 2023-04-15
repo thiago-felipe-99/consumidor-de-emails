@@ -16,10 +16,11 @@ import (
 var errMaxEntrySize = fmt.Errorf("entry is to big")
 
 type cache struct {
-	data         *bigcache.BigCache
-	bucket       string
-	minio        *minio.Client
-	maxEntrySize int64
+	data              *bigcache.BigCache
+	bucket            string
+	minio             *minio.Client
+	maxEntrySize      int64
+	validContentTypes []string
 }
 
 func newCache(configs *configurations) (*cache, error) {
@@ -56,11 +57,26 @@ func newCache(configs *configurations) (*cache, error) {
 	}
 
 	return &cache{
-		data:         data,
-		bucket:       configs.Cache.Bucket,
-		minio:        minio,
-		maxEntrySize: int64(configs.Cache.MaxEntrySize) * megabyte,
+		data:              data,
+		bucket:            configs.Cache.Bucket,
+		minio:             minio,
+		maxEntrySize:      int64(configs.Cache.MaxEntrySize) * megabyte,
+		validContentTypes: nil,
 	}, nil
+}
+
+func validContentType(contentType string, contentTypes []string) bool {
+	if contentTypes == nil || len(contentTypes) == 0 {
+		return true
+	}
+
+	for _, validContentType := range contentTypes {
+		if validContentType == contentType {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
@@ -79,6 +95,10 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 		return nil, err
 	}
 
+	if !validContentType(objectInfo.ContentType, cache.validContentTypes) {
+		return nil, fmt.Errorf("obeject has a invalid Content Type: %s", objectInfo.ContentType)
+	}
+
 	if objectInfo.Size > cache.maxEntrySize {
 		return nil, errMaxEntrySize
 	}
@@ -88,6 +108,8 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 	_, err = object.Read(file)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
+	} else if err == nil {
+		return nil, fmt.Errorf("unable to get all template")
 	}
 
 	return file, cache.data.Set(name, file)
@@ -145,10 +167,11 @@ func newTemplate(configs *configurations) (*templateCache, error) {
 
 	template := &templateCache{
 		cache: cache{
-			data:         data,
-			bucket:       configs.Template.Bucket,
-			minio:        minio,
-			maxEntrySize: int64(configs.Template.MaxEntrySize) * megabyte,
+			data:              data,
+			bucket:            configs.Template.Bucket,
+			minio:             minio,
+			maxEntrySize:      int64(configs.Template.MaxEntrySize) * megabyte,
+			validContentTypes: []string{"text/markdown"},
 		},
 	}
 
@@ -163,7 +186,7 @@ func (template *templateCache) setAll() {
 		Recursive:    true,
 	}
 
-  templatesQuantity := 0
+	templatesQuantity := 0
 
 	for info := range template.cache.minio.ListObjects(context.Background(), template.bucket, options) {
 		if info.Err != nil {
@@ -172,68 +195,15 @@ func (template *templateCache) setAll() {
 			continue
 		}
 
-		object, err := template.cache.minio.GetObject(
-			context.Background(),
-			template.bucket,
-			info.Key,
-			minio.GetObjectOptions{},
-		)
+		_, err := template.cache.getFileFromMinio(info.Key)
 		if err != nil {
-			log.Printf("[ERROR] - Error getting template: %s", err)
-
-			continue
+			log.Printf("[ERROR] - Error setting '%s' template: %s", info.Key, err)
+		} else {
+			templatesQuantity++
 		}
-
-    // Need to get a new status because ListObjects doesn't return ContentType
-    // https://github.com/minio/minio-go/issues/1593
-		status, err := object.Stat()
-		if err != nil {
-			log.Printf("[ERROR] - Error getting '%s' template status: %s", info.Key, err)
-
-			continue
-		}
-
-		if status.Size > template.maxEntrySize {
-			log.Printf("[ERROR] - '%s' template is to big: %dMB", info.Key, (info.Size)/1000/1000)
-
-			continue
-		}
-
-		contentType := status.ContentType
-		if contentType != "text/markdown" {
-			log.Printf(
-				"[ERROR] - '%s' template has a invalid Content Type: %s",
-				info.Key,
-				contentType,
-			)
-
-			continue
-		}
-
-		buffer := make([]byte, info.Size)
-
-		_, err = object.Read(buffer)
-		if err != nil && !errors.Is(err, io.EOF) {
-			log.Printf("[ERROR] - Error reading template: %s", err)
-
-			continue
-		} else if err == nil {
-			log.Printf("[ERROR] - Unable to get all template")
-
-			continue
-		}
-
-		err = template.cache.data.Set(info.Key, buffer)
-		if err != nil {
-			log.Printf("[ERROR] - Error setting template: %s", err)
-
-			continue
-		}
-
-    templatesQuantity++
 	}
 
-  log.Printf("[INFO] - %d templates on cache", templatesQuantity)
+	log.Printf("[INFO] - %d templates on cache", templatesQuantity)
 }
 
 func (template *templateCache) get(name string) ([]byte, error) {
