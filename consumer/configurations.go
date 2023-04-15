@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -143,17 +144,17 @@ func getConfigurations() (*configurations, error) {
 
 	err := configRaw.Load(structs.Provider(defaultConfigurations(), "config"), nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get default configurations: %w", err)
 	}
 
 	err = configRaw.Load(file.Provider(".env"), dotenv.ParserEnv("", "__", parseEnv))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
+		return nil, fmt.Errorf("unable to get .env file: %w", err)
 	}
 
 	err = configRaw.Load(env.Provider("", "__", parseEnv), nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get environment vaiables: %w", err)
 	}
 
 	config := &configurations{}
@@ -163,7 +164,7 @@ func getConfigurations() (*configurations, error) {
 		FlatPaths: false,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to unmarshal configurations: %w", err)
 	}
 
 	validate := validator.New()
@@ -174,7 +175,7 @@ func getConfigurations() (*configurations, error) {
 
 		okay := errors.As(err, &validationErrs)
 		if !okay {
-			return nil, err
+			return nil, fmt.Errorf("error on validating configurations: %w", err)
 		}
 
 		for index := len(validationErrs) - 1; index >= 0; index-- {
@@ -187,7 +188,7 @@ func getConfigurations() (*configurations, error) {
 		}
 
 		if len(validationErrs) > 0 {
-			return nil, validationErrs
+			return nil, fmt.Errorf("error on validating configurations: %w", validationErrs)
 		}
 
 		return config, nil

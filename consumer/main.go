@@ -153,7 +153,7 @@ func main() {
 		return
 	}
 
-  template.setAll()
+	template.setAll()
 
 	queue, closeRabbit, err := newRabbit(configs)
 	if err != nil {

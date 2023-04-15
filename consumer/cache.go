@@ -13,7 +13,11 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-var errMaxEntrySize = fmt.Errorf("entry is to big")
+var (
+	errMaxEntrySize       = errors.New("entry is to big")
+	errInvalidContentType = errors.New("obeject has a invalid Content Type: %s")
+	errSmallBuffer        = errors.New("unable to get all template")
+)
 
 type cache struct {
 	data              *bigcache.BigCache
@@ -39,7 +43,7 @@ func newCache(configs *configurations) (*cache, error) {
 
 	data, err := bigcache.New(context.Background(), dataConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro creating BigCache: %w", err)
 	}
 
 	host := fmt.Sprintf("%s:%d", configs.Minio.Host, configs.Minio.Port)
@@ -53,7 +57,7 @@ func newCache(configs *configurations) (*cache, error) {
 
 	minio, err := minio.New(host, minioOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating Minio client: %w", err)
 	}
 
 	return &cache{
@@ -66,7 +70,7 @@ func newCache(configs *configurations) (*cache, error) {
 }
 
 func validContentType(contentType string, contentTypes []string) bool {
-	if contentTypes == nil || len(contentTypes) == 0 {
+	if len(contentTypes) == 0 {
 		return true
 	}
 
@@ -87,16 +91,16 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 		minio.GetObjectOptions{},
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting object from minio: %w", err)
 	}
 
 	objectInfo, err := object.Stat()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting object status: %w", err)
 	}
 
 	if !validContentType(objectInfo.ContentType, cache.validContentTypes) {
-		return nil, fmt.Errorf("obeject has a invalid Content Type: %s", objectInfo.ContentType)
+		return nil, errInvalidContentType
 	}
 
 	if objectInfo.Size > cache.maxEntrySize {
@@ -107,12 +111,17 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 
 	_, err = object.Read(file)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, err
+		return nil, fmt.Errorf("error reading file: %w", err)
 	} else if err == nil {
-		return nil, fmt.Errorf("unable to get all template")
+		return nil, errSmallBuffer
 	}
 
-	return file, cache.data.Set(name, file)
+	err = cache.data.Set(name, file)
+	if err != nil {
+		return nil, fmt.Errorf("error setting file on cache: %w", err)
+	}
+
+	return file, nil
 }
 
 func (cache *cache) getFile(name string) ([]byte, error) {
@@ -122,7 +131,7 @@ func (cache *cache) getFile(name string) ([]byte, error) {
 			return cache.getFileFromMinio(name)
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("error getting file from minio: %w", err)
 	}
 
 	return file, nil
@@ -148,7 +157,7 @@ func newTemplate(configs *configurations) (*templateCache, error) {
 
 	data, err := bigcache.New(context.Background(), dataConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("erro creating BigCache: %w", err)
 	}
 
 	host := fmt.Sprintf("%s:%d", configs.Minio.Host, configs.Minio.Port)
@@ -162,7 +171,7 @@ func newTemplate(configs *configurations) (*templateCache, error) {
 
 	minio, err := minio.New(host, minioOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating Minio client: %w", err)
 	}
 
 	template := &templateCache{

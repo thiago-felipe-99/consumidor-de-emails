@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	htmplate "html/template"
 	"log"
 	"regexp"
 	"time"
-
-	htmplate "html/template"
 
 	"github.com/microcosm-cc/bluemonday"
 	amqp "github.com/rabbitmq/amqp091-go"
