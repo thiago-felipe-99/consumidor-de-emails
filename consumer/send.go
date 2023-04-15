@@ -30,13 +30,13 @@ type template struct {
 }
 
 type email struct {
-	Receivers       []receiver       `json:"receivers"`
-	BlindReceivers  []receiver       `json:"blindReceivers"`
-	Subject         string           `json:"subject"`
-	Message         string           `json:"message"`
-	Template        template         `json:"template"`
-	Type            mail.ContentType `json:"type"`
-	Attachments     []string         `json:"attachments"`
+	Receivers       []receiver `json:"receivers"`
+	BlindReceivers  []receiver `json:"blindReceivers"`
+	Subject         string     `json:"subject"`
+	Message         string     `json:"message"`
+	Template        template   `json:"template"`
+	Attachments     []string   `json:"attachments"`
+	contentType     mail.ContentType
 	attachmentsSize int
 	messageQueue    amqp.Delivery
 	messageMail     *mail.Msg
@@ -88,6 +88,7 @@ func proccessQueue(queue []amqp.Delivery) ([]email, []email) {
 
 	for _, message := range queue {
 		email := email{
+			contentType:  "text/plain",
 			messageQueue: message,
 		}
 
@@ -101,23 +102,6 @@ func proccessQueue(queue []amqp.Delivery) ([]email, []email) {
 	}
 
 	return ready, failed
-}
-
-func emailFailed(index int, ready, failed []email) ([]email, []email) {
-	failed = append(failed, ready[index])
-
-	ready[index], ready[len(ready)-1] = ready[len(ready)-1], ready[index]
-
-	return ready[:len(ready)-1], failed
-}
-
-func emailFailedUniqErr(err error, ready, failed []email) []email {
-	for _, email := range ready {
-		email.error = err
-		failed = append(failed, email)
-	}
-
-	return failed
 }
 
 func getTemplateHTML(template template, cache *templateCache) (string, error) {
@@ -157,12 +141,34 @@ func getTemplateHTML(template template, cache *templateCache) (string, error) {
 	return html.String(), nil
 }
 
-func createEmailMessage(
-	cache *cache,
-	template *templateCache,
-	sender *sender,
-	email email,
-) (*mail.Msg, int, error) {
+func emailFailed(index int, ready, failed []email) ([]email, []email) {
+	failed = append(failed, ready[index])
+
+	ready[index], ready[len(ready)-1] = ready[len(ready)-1], ready[index]
+
+	return ready[:len(ready)-1], failed
+}
+
+func proccessEmailsTemplate(cache *templateCache, ready, failed []email) ([]email, []email) {
+	for index := len(ready) - 1; index >= 0; index-- {
+		if ready[index].Template.Name == "" {
+			continue
+		}
+
+		message, err := getTemplateHTML(ready[index].Template, cache)
+		if err != nil {
+			ready[index].error = err
+			ready, failed = emailFailed(index, ready, failed)
+		} else {
+			ready[index].contentType = "text/html"
+			ready[index].Message = message
+		}
+	}
+
+	return ready, failed
+}
+
+func createMessageMail(cache *cache, sender *sender, email email) (*mail.Msg, int, error) {
 	message := mail.NewMsg()
 	attachmentsSize := 0
 
@@ -197,33 +203,14 @@ func createEmailMessage(
 
 	message.Subject(email.Subject)
 
-	if email.Template.Name != "" {
-		html, err := getTemplateHTML(email.Template, template)
-		if err != nil {
-			return nil, 0, fmt.Errorf("error getting template HTML: %w", err)
-		}
-
-		message.SetBodyString(mail.TypeTextHTML, html)
-	} else {
-		message.SetBodyString(email.Type, email.Message)
-	}
+	message.SetBodyString(email.contentType, email.Message)
 
 	return message, attachmentsSize, nil
 }
 
-func proccessEmails(
-	cache *cache,
-	templateCache *templateCache,
-	sender *sender,
-	ready, failed []email,
-) ([]email, []email) {
+func proccessEmails(cache *cache, sender *sender, ready, failed []email) ([]email, []email) {
 	for index := len(ready) - 1; index >= 0; index-- {
-		message, attachmentsSize, err := createEmailMessage(
-			cache,
-			templateCache,
-			sender,
-			ready[index],
-		)
+		message, attachmentsSize, err := createMessageMail(cache, sender, ready[index])
 		if err != nil {
 			ready[index].error = err
 			ready, failed = emailFailed(index, ready, failed)
@@ -234,6 +221,15 @@ func proccessEmails(
 	}
 
 	return ready, failed
+}
+
+func emailFailedUniqErr(err error, ready, failed []email) []email {
+	for _, email := range ready {
+		email.error = err
+		failed = append(failed, email)
+	}
+
+	return failed
 }
 
 func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
@@ -366,26 +362,21 @@ func setMetrics(metrics *metrics, timeInit time.Time, ready, failed []email, max
 func (send *send) emails(queue []amqp.Delivery) {
 	timeInit := time.Now()
 
-	emailsReady, emailsFailed := proccessQueue(queue)
-	emailsReady, emailsFailed = proccessEmails(
-		send.cache,
-		send.templateCache,
-		send.sender,
-		emailsReady,
-		emailsFailed,
-	)
-	emailsReady, emailsFailed = sendEmails(send.smtp, emailsReady, emailsFailed)
-	emailsReady, emailsFailed = proccessAcknowledgment(emailsReady, emailsFailed)
+	ready, failed := proccessQueue(queue)
+	ready, failed = proccessEmailsTemplate(send.templateCache, ready, failed)
+	ready, failed = proccessEmails(send.cache, send.sender, ready, failed)
+	ready, failed = sendEmails(send.smtp, ready, failed)
+	ready, failed = proccessAcknowledgment(ready, failed)
 
-	err := proccessNotAcknowledgment(emailsFailed)
+	err := proccessNotAcknowledgment(failed)
 
 	send.status <- sendStatus{
-		successfully: len(emailsReady),
-		failed:       len(emailsFailed),
+		successfully: len(ready),
+		failed:       len(failed),
 		errors:       err,
 	}
 
-	setMetrics(send.metrics, timeInit, emailsReady, emailsFailed, send.maxReties)
+	setMetrics(send.metrics, timeInit, ready, failed, send.maxReties)
 }
 
 func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {
