@@ -7,9 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"time"
 
+	htmplate "html/template"
+
+	"github.com/microcosm-cc/bluemonday"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/russross/blackfriday/v2"
 	"github.com/wneessen/go-mail"
 )
 
@@ -18,11 +23,17 @@ type receiver struct {
 	Email string `json:"email"`
 }
 
+type template struct {
+	Name string         `json:"name"`
+	Data map[string]any `json:"data"`
+}
+
 type email struct {
 	Receivers       []receiver       `json:"receivers"`
 	BlindReceivers  []receiver       `json:"blindReceivers"`
 	Subject         string           `json:"subject"`
 	Message         string           `json:"message"`
+	Template        template         `json:"template"`
 	Type            mail.ContentType `json:"type"`
 	Attachments     []string         `json:"attachments"`
 	attachmentsSize int
@@ -44,7 +55,7 @@ type sendStatus struct {
 
 type send struct {
 	*cache
-	*template
+	*templateCache
 	*sender
 	*metrics
 	*smtp
@@ -54,20 +65,20 @@ type send struct {
 
 func newSend(
 	cache *cache,
-	template *template,
+	templateCache *templateCache,
 	sender *sender,
 	smtp *smtp,
 	metrics *metrics,
 	maxReties int64,
 ) *send {
 	return &send{
-		cache:     cache,
-		template:  template,
-		sender:    sender,
-		metrics:   metrics,
-		smtp:      smtp,
-		status:    make(chan sendStatus),
-		maxReties: maxReties,
+		cache:         cache,
+		templateCache: templateCache,
+		sender:        sender,
+		metrics:       metrics,
+		smtp:          smtp,
+		status:        make(chan sendStatus),
+		maxReties:     maxReties,
 	}
 }
 
@@ -108,7 +119,42 @@ func emailFailedUniqErr(err error, ready, failed []email) []email {
 	return failed
 }
 
-func createEmailMessage(cache *cache, sender *sender, email email) (*mail.Msg, int, error) {
+func getTemplateHTML(template template, cache *templateCache) (string, error) {
+	markdown, err := cache.get(template.Name)
+	if err != nil {
+		return "", fmt.Errorf("error getting template from cache: %w", err)
+	}
+
+	rawHTML := blackfriday.Run(markdown)
+
+	regex := regexp.MustCompile(`({{)( *)(\w+)( *)(}})`)
+	replace := []byte("$1 index . \"$3\" $5")
+
+	replaceHTML := regex.ReplaceAll(rawHTML, replace)
+
+	templateHTML, err := htmplate.New("template").Parse(string(replaceHTML))
+	if err != nil {
+		return "", fmt.Errorf("erro parsing HTML: %w", err)
+	}
+
+	buffer := bytes.NewBuffer(make([]byte, len(replaceHTML)))
+
+	err = templateHTML.Execute(buffer, template.Data)
+	if err != nil {
+		return "", fmt.Errorf("error executing template: %w", err)
+	}
+
+	html := bluemonday.UGCPolicy().SanitizeReader(buffer)
+
+	return html.String(), nil
+}
+
+func createEmailMessage(
+	cache *cache,
+	template *templateCache,
+	sender *sender,
+	email email,
+) (*mail.Msg, int, error) {
 	message := mail.NewMsg()
 	attachmentsSize := 0
 
@@ -142,14 +188,34 @@ func createEmailMessage(cache *cache, sender *sender, email email) (*mail.Msg, i
 	}
 
 	message.Subject(email.Subject)
-	message.SetBodyString(email.Type, email.Message)
+
+	if email.Template.Name != "" {
+		html, err := getTemplateHTML(email.Template, template)
+		if err != nil {
+			return nil, 0, fmt.Errorf("error getting template HTML: %w", err)
+		}
+
+		message.SetBodyString(mail.TypeTextHTML, html)
+	} else {
+		message.SetBodyString(email.Type, email.Message)
+	}
 
 	return message, attachmentsSize, nil
 }
 
-func proccessEmails(cache *cache, sender *sender, ready, failed []email) ([]email, []email) {
+func proccessEmails(
+	cache *cache,
+	templateCache *templateCache,
+	sender *sender,
+	ready, failed []email,
+) ([]email, []email) {
 	for index := len(ready) - 1; index >= 0; index-- {
-		message, attachmentsSize, err := createEmailMessage(cache, sender, ready[index])
+		message, attachmentsSize, err := createEmailMessage(
+			cache,
+			templateCache,
+			sender,
+			ready[index],
+		)
 		if err != nil {
 			ready[index].error = err
 			ready, failed = emailFailed(index, ready, failed)
@@ -293,7 +359,13 @@ func (send *send) emails(queue []amqp.Delivery) {
 	timeInit := time.Now()
 
 	emailsReady, emailsFailed := proccessQueue(queue)
-	emailsReady, emailsFailed = proccessEmails(send.cache, send.sender, emailsReady, emailsFailed)
+	emailsReady, emailsFailed = proccessEmails(
+		send.cache,
+		send.templateCache,
+		send.sender,
+		emailsReady,
+		emailsFailed,
+	)
 	emailsReady, emailsFailed = sendEmails(send.smtp, emailsReady, emailsFailed)
 	emailsReady, emailsFailed = proccessAcknowledgment(emailsReady, emailsFailed)
 

@@ -106,11 +106,11 @@ func (cache *cache) getFile(name string) ([]byte, error) {
 	return file, nil
 }
 
-type template struct {
+type templateCache struct {
 	cache
 }
 
-func newTemplate(configs *configurations) (*template, error) {
+func newTemplate(configs *configurations) (*templateCache, error) {
 	const megabyte = 1000 * 1000
 
 	dataConfig := bigcache.Config{
@@ -143,7 +143,7 @@ func newTemplate(configs *configurations) (*template, error) {
 		return nil, err
 	}
 
-	template := &template{
+	template := &templateCache{
 		cache: cache{
 			data:         data,
 			bucket:       configs.Template.Bucket,
@@ -155,7 +155,7 @@ func newTemplate(configs *configurations) (*template, error) {
 	return template, nil
 }
 
-func (template *template) setAll() {
+func (template *templateCache) setAll() {
 	options := minio.ListObjectsOptions{
 		WithVersions: false,
 		WithMetadata: true,
@@ -200,11 +200,11 @@ func (template *template) setAll() {
 		}
 
 		contentType := status.ContentType
-		if contentType != "text/plain" && contentType != "text/html" {
+		if contentType != "text/markdown" {
 			log.Printf(
 				"[ERROR] - '%s' template has a invalid Content Type: %s",
 				info.Key,
-				info.ContentType,
+				contentType,
 			)
 
 			continue
@@ -236,6 +236,6 @@ func (template *template) setAll() {
   log.Printf("[INFO] - %d templates on cache", templatesQuantity)
 }
 
-func (template *template) get(name string) ([]byte, error) {
+func (template *templateCache) get(name string) ([]byte, error) {
 	return template.cache.getFile(name)
 }
