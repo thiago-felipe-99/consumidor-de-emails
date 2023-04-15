@@ -17,14 +17,16 @@ import (
 	"github.com/wneessen/go-mail"
 )
 
+var errKeyDontExist = errors.New("key dont exist")
+
 type receiver struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
 }
 
 type template struct {
-	Name string         `json:"name"`
-	Data map[string]any `json:"data"`
+	Name string            `json:"name"`
+	Data map[string]string `json:"data"`
 }
 
 type email struct {
@@ -127,9 +129,16 @@ func getTemplateHTML(template template, cache *templateCache) (string, error) {
 	rawHTML := blackfriday.Run(markdown)
 
 	regex := regexp.MustCompile(`({{)( *)(\w+)( *)(}})`)
-	replace := []byte("$1 index . \"$3\" $5")
 
-	replaceHTML := regex.ReplaceAll(rawHTML, replace)
+	keys := regex.FindAll(rawHTML, -1)
+	for _, rawKey := range keys {
+		key := regex.ReplaceAll(rawKey, []byte("$3"))
+		if _, okay := template.Data[string(key)]; !okay {
+			return "", errKeyDontExist
+		}
+	}
+
+	replaceHTML := regex.ReplaceAll(rawHTML, []byte("$1 index . \"$3\" $5"))
 
 	templateHTML, err := htmplate.New("template").Parse(string(replaceHTML))
 	if err != nil {
