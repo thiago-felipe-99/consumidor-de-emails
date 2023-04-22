@@ -14,7 +14,6 @@ type Config struct {
 	Host     string
 	Port     string
 	Vhost    string
-	Queue    string
 }
 
 type Rabbit struct {
@@ -87,7 +86,7 @@ func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any
 	return nil
 }
 
-func NewChannel(config Config) (*Rabbit, error) {
+func New(config Config) (*Rabbit, error) {
 	url := fmt.Sprintf(
 		"amqp://%s:%s@%s:%s/%s",
 		config.User,
