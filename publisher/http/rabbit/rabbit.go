@@ -11,11 +11,23 @@ import (
 )
 
 var (
-	ErrConnectionClose  = errors.New("closed connection with RabbitMQ")
+	ErrConnectionClosed = errors.New("closed connection with RabbitMQ")
 	ErrEncondingMessage = errors.New("error enconding message")
 	ErrSendingMessage   = errors.New("error sending message")
-	ErrMaxRetries       = errors.New("error max retries")
 )
+
+type ErrMaxRetries struct {
+	errors []error
+}
+
+func (errMaxRetries *ErrMaxRetries) add(err error) {
+	errMaxRetries.errors = append(errMaxRetries.errors, err)
+}
+
+func (errMaxRetries *ErrMaxRetries) Error() string {
+	errMaxRetries.add(errors.New("error max retries"))
+	return errors.Join(errMaxRetries.errors...).Error()
+}
 
 type Config struct {
 	User     string
@@ -36,7 +48,7 @@ type Rabbit struct {
 
 func (rabbit *Rabbit) Close() error {
 	if rabbit.close {
-		return errors.New("connection already close")
+		return errors.New("connection already closed")
 	}
 
 	close(rabbit.done)
@@ -55,6 +67,10 @@ func (rabbit *Rabbit) Close() error {
 }
 
 func (rabbit *Rabbit) CreateQueue(name string, maxRetries int) error {
+	if rabbit.close {
+		return ErrConnectionClosed
+	}
+
 	dlx := name + "-dlx"
 
 	queueArgs := amqp.Table{}
@@ -86,23 +102,33 @@ func (rabbit *Rabbit) CreateQueue(name string, maxRetries int) error {
 	return nil
 }
 
-func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any) error {
+func (rabbit *Rabbit) retries(
+	ctx context.Context,
+	maxRetries int,
+	errsReturn []error,
+	try func() error,
+) error {
 	if rabbit.close {
-		return ErrConnectionClose
+		return ErrConnectionClosed
 	}
 
 	resendDelay := time.Second
+	errMaxRetries := &ErrMaxRetries{}
 
-	for retries := 0; retries < rabbit.maxPublishRetries; retries++ {
-		chanConfirm, err := rabbit.sendMessage(ctx, queue, message)
+	for retries := 0; retries < maxRetries; retries++ {
+		err := try()
 		if err != nil {
-			if errors.Is(err, ErrEncondingMessage) {
-				return err
+			for _, errReturn := range errsReturn {
+				if errors.Is(err, errReturn) {
+					return err
+				}
 			}
+
+			errMaxRetries.add(err)
 
 			select {
 			case <-rabbit.done:
-				return ErrConnectionClose
+				return ErrConnectionClosed
 			case <-time.After(resendDelay):
 				resendDelay *= 2
 			}
@@ -110,37 +136,33 @@ func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, resendDelay)
-		defer cancel()
-
-		done, err := chanConfirm.WaitContext(ctx)
-		if err != nil {
-			continue
-		}
-
-		if done {
-			return nil
-		}
+		return nil
 	}
 
-	return ErrMaxRetries
+	return errMaxRetries
 }
 
-func (rabbit *Rabbit) sendMessage(
-	ctx context.Context,
-	queue string,
-	message any,
-) (*amqp.DeferredConfirmation, error) {
-	if rabbit.close {
-		return nil, ErrConnectionClose
+func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any) error {
+	errsReturn := []error{ErrEncondingMessage}
+
+	sendMessage := func() error {
+		return rabbit.sendMessage(ctx, queue, message)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	return rabbit.retries(ctx, rabbit.maxPublishRetries, errsReturn, sendMessage)
+}
+
+func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any) error {
+	if rabbit.close {
+		return ErrConnectionClosed
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	messageEncoding, err := json.Marshal(message)
 	if err != nil {
-		return nil, errors.Join(ErrEncondingMessage, err)
+		return errors.Join(ErrEncondingMessage, err)
 	}
 
 	publish := amqp.Publishing{
@@ -157,10 +179,19 @@ func (rabbit *Rabbit) sendMessage(
 		publish,
 	)
 	if err != nil {
-		return nil, errors.Join(ErrSendingMessage, err)
+		return errors.Join(ErrSendingMessage, err)
 	}
 
-	return confirm, err
+	done, err := confirm.WaitContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if !done {
+		return errors.New("timeout sending message")
+	}
+
+	return nil
 }
 
 func New(config Config) (*Rabbit, error) {
