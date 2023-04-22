@@ -25,7 +25,7 @@ func (errMaxRetries *ErrMaxRetries) add(err error) {
 }
 
 func (errMaxRetries *ErrMaxRetries) Error() string {
-	errMaxRetries.add(errors.New("error max retries"))
+	errMaxRetries.errors = append([]error{errors.New("error max retries")}, errMaxRetries.errors...)
 	return errors.Join(errMaxRetries.errors...).Error()
 }
 
@@ -38,12 +38,13 @@ type Config struct {
 }
 
 type Rabbit struct {
-	done              chan bool
-	close             bool
-	maxPublishRetries int
-	connection        *amqp.Connection
-	channel           *amqp.Channel
-	notifyClose       chan amqp.Error
+	done                  chan bool
+	close                 bool
+	maxPublishRetries     int
+	maxCreateQueueRetries int
+	connection            *amqp.Connection
+	channel               *amqp.Channel
+	notifyClose           chan amqp.Error
 }
 
 func (rabbit *Rabbit) Close() error {
@@ -66,52 +67,12 @@ func (rabbit *Rabbit) Close() error {
 	return nil
 }
 
-func (rabbit *Rabbit) CreateQueue(name string, maxRetries int) error {
-	if rabbit.close {
-		return ErrConnectionClosed
-	}
-
-	dlx := name + "-dlx"
-
-	queueArgs := amqp.Table{}
-	queueArgs["x-dead-letter-exchange"] = name + "-dlx"
-	queueArgs["x-dead-letter-routing-key"] = "dead-message"
-	queueArgs["x-delivery-limit"] = maxRetries
-	queueArgs["x-queue-type"] = "quorum"
-
-	_, err := rabbit.channel.QueueDeclare(name, true, false, false, false, queueArgs)
-	if err != nil {
-		return fmt.Errorf("error declaring RabbitMQ queue: %w", err)
-	}
-
-	_, err = rabbit.channel.QueueDeclare(dlx, true, false, false, false, nil)
-	if err != nil {
-		return fmt.Errorf("error declaring RabbitMQ dlx queue: %w", err)
-	}
-
-	err = rabbit.channel.ExchangeDeclare(dlx, "direct", true, false, false, false, nil)
-	if err != nil {
-		return fmt.Errorf("error declaring RabbitMQ dlx exchange: %w", err)
-	}
-
-	err = rabbit.channel.QueueBind(dlx, "dead-message", dlx, false, nil)
-	if err != nil {
-		return fmt.Errorf("error binding dlx queue with dlx exchange: %w", err)
-	}
-
-	return nil
-}
-
 func (rabbit *Rabbit) retries(
 	ctx context.Context,
 	maxRetries int,
 	errsReturn []error,
 	try func() error,
 ) error {
-	if rabbit.close {
-		return ErrConnectionClosed
-	}
-
 	resendDelay := time.Second
 	errMaxRetries := &ErrMaxRetries{}
 
@@ -140,6 +101,57 @@ func (rabbit *Rabbit) retries(
 	}
 
 	return errMaxRetries
+}
+
+func (rabbit *Rabbit) CreateQueue(name string, maxRetries int) error {
+	errsReturn := []error{}
+
+	createQueue := func() error {
+		return rabbit.createQueue(name, maxRetries)
+	}
+
+	return rabbit.retries(
+		context.Background(),
+		rabbit.maxCreateQueueRetries,
+		errsReturn,
+		createQueue,
+	)
+}
+
+func (rabbit *Rabbit) createQueue(name string, maxRetries int) error {
+	if rabbit.close {
+		return ErrConnectionClosed
+	}
+
+	dlx := name + "-dlx"
+
+	queueArgs := amqp.Table{}
+	queueArgs["x-dead-letter-exchange"] = name + "-dlx"
+	queueArgs["x-dead-letter-routing-key"] = "dead-message"
+	queueArgs["x-delivery-limit"] = maxRetries + 1
+	queueArgs["x-queue-type"] = "quorum"
+
+	_, err := rabbit.channel.QueueDeclare(name, true, false, false, false, queueArgs)
+	if err != nil {
+		return fmt.Errorf("error declaring RabbitMQ queue: %w", err)
+	}
+
+	_, err = rabbit.channel.QueueDeclare(dlx, true, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("error declaring RabbitMQ dlx queue: %w", err)
+	}
+
+	err = rabbit.channel.ExchangeDeclare(dlx, "direct", true, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("error declaring RabbitMQ dlx exchange: %w", err)
+	}
+
+	err = rabbit.channel.QueueBind(dlx, "dead-message", dlx, false, nil)
+	if err != nil {
+		return fmt.Errorf("error binding dlx queue with dlx exchange: %w", err)
+	}
+
+	return nil
 }
 
 func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any) error {
@@ -217,11 +229,12 @@ func New(config Config) (*Rabbit, error) {
 	}
 
 	return &Rabbit{
-		done:              make(chan bool),
-		close:             false,
-		maxPublishRetries: 5,
-		connection:        rabbit,
-		channel:           channel,
-		notifyClose:       make(chan amqp.Error),
+		done:                  make(chan bool),
+		close:                 false,
+		maxPublishRetries:     5,
+		maxCreateQueueRetries: 3,
+		connection:            rabbit,
+		channel:               channel,
+		notifyClose:           make(chan amqp.Error),
 	}, nil
 }
