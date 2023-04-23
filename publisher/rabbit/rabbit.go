@@ -263,14 +263,14 @@ func (rabbit *Rabbit) createConnection() error {
 
 	channel, err := rabbit.connection.Channel()
 	if err != nil {
-    rabbit.connection.Close()
+		rabbit.connection.Close()
 
 		return fmt.Errorf("failed to open RabbitMQ channel: %w", err)
 	}
 
 	err = channel.Confirm(false)
 	if err != nil {
-    rabbit.connection.Close()
+		rabbit.connection.Close()
 
 		return fmt.Errorf("failed to active channel confirm: %w", err)
 	}
@@ -301,8 +301,6 @@ func New(config Config) *Rabbit {
 		close:                 true,
 		maxPublishRetries:     5,
 		maxCreateQueueRetries: 3,
-		notifyChannelClose:    make(chan *amqp.Error, 1),
-		notifyConnectionClose: make(chan *amqp.Error, 1),
 		timeoutSendMessage:    5 * time.Second,
 	}
 

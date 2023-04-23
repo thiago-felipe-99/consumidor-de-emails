@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/thiago-felipe-99/mail/publisher/http/rabbit"
+	"github.com/thiago-felipe-99/mail/publisher/rabbit"
 )
 
 func createQueue(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
