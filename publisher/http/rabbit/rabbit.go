@@ -5,28 +5,33 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 var (
+	ErrAlreadyClosed    = errors.New("connection already closed")
 	ErrConnectionClosed = errors.New("closed connection with RabbitMQ")
-	ErrEncondingMessage = errors.New("error enconding message")
+	ErrEncondingMessage = errors.New("error encoding message")
 	ErrSendingMessage   = errors.New("error sending message")
+	ErrTimeoutMessage   = errors.New("timeout sending message")
+	ErrMaxRetries       = errors.New("error max retries")
 )
 
-type ErrMaxRetries struct {
+type MaxRetriesError struct {
 	errors []error
 }
 
-func (errMaxRetries *ErrMaxRetries) add(err error) {
-	errMaxRetries.errors = append(errMaxRetries.errors, err)
+func (maxRetriesError *MaxRetriesError) add(err error) {
+	maxRetriesError.errors = append(maxRetriesError.errors, err)
 }
 
-func (errMaxRetries *ErrMaxRetries) Error() string {
-	errMaxRetries.errors = append([]error{errors.New("error max retries")}, errMaxRetries.errors...)
-	return errors.Join(errMaxRetries.errors...).Error()
+func (maxRetriesError *MaxRetriesError) Error() string {
+	maxRetriesError.errors = append([]error{ErrMaxRetries}, maxRetriesError.errors...)
+
+	return errors.Join(maxRetriesError.errors...).Error()
 }
 
 type Config struct {
@@ -38,18 +43,21 @@ type Config struct {
 }
 
 type Rabbit struct {
+	url                   string
 	done                  chan bool
 	close                 bool
 	maxPublishRetries     int
 	maxCreateQueueRetries int
 	connection            *amqp.Connection
 	channel               *amqp.Channel
-	notifyClose           chan amqp.Error
+	notifyConnectionClose chan *amqp.Error
+	notifyChannelClose    chan *amqp.Error
+	timeoutSendMessage    time.Duration
 }
 
 func (rabbit *Rabbit) Close() error {
 	if rabbit.close {
-		return errors.New("connection already closed")
+		return ErrAlreadyClosed
 	}
 
 	close(rabbit.done)
@@ -67,14 +75,9 @@ func (rabbit *Rabbit) Close() error {
 	return nil
 }
 
-func (rabbit *Rabbit) retries(
-	ctx context.Context,
-	maxRetries int,
-	errsReturn []error,
-	try func() error,
-) error {
+func (rabbit *Rabbit) retries(maxRetries int, errsReturn []error, try func() error) error {
 	resendDelay := time.Second
-	errMaxRetries := &ErrMaxRetries{}
+	errMaxRetries := &MaxRetriesError{}
 
 	for retries := 0; retries < maxRetries; retries++ {
 		err := try()
@@ -110,12 +113,7 @@ func (rabbit *Rabbit) CreateQueue(name string, maxRetries int) error {
 		return rabbit.createQueue(name, maxRetries)
 	}
 
-	return rabbit.retries(
-		context.Background(),
-		rabbit.maxCreateQueueRetries,
-		errsReturn,
-		createQueue,
-	)
+	return rabbit.retries(rabbit.maxCreateQueueRetries, errsReturn, createQueue)
 }
 
 func (rabbit *Rabbit) createQueue(name string, maxRetries int) error {
@@ -125,11 +123,12 @@ func (rabbit *Rabbit) createQueue(name string, maxRetries int) error {
 
 	dlx := name + "-dlx"
 
-	queueArgs := amqp.Table{}
-	queueArgs["x-dead-letter-exchange"] = name + "-dlx"
-	queueArgs["x-dead-letter-routing-key"] = "dead-message"
-	queueArgs["x-delivery-limit"] = maxRetries + 1
-	queueArgs["x-queue-type"] = "quorum"
+	queueArgs := amqp.Table{
+		"x-dead-letter-exchange":    name + "-dlx",
+		"x-dead-letter-routing-key": "dead-message",
+		"x-delivery-limit":          maxRetries,
+		"x-queue-type":              "quorum",
+	}
 
 	_, err := rabbit.channel.QueueDeclare(name, true, false, false, false, queueArgs)
 	if err != nil {
@@ -161,7 +160,7 @@ func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any
 		return rabbit.sendMessage(ctx, queue, message)
 	}
 
-	return rabbit.retries(ctx, rabbit.maxPublishRetries, errsReturn, sendMessage)
+	return rabbit.retries(rabbit.maxPublishRetries, errsReturn, sendMessage)
 }
 
 func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any) error {
@@ -169,7 +168,7 @@ func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any
 		return ErrConnectionClosed
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, rabbit.timeoutSendMessage)
 	defer cancel()
 
 	messageEncoding, err := json.Marshal(message)
@@ -196,17 +195,96 @@ func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any
 
 	done, err := confirm.WaitContext(ctx)
 	if err != nil {
-		return err
+		return errors.Join(ErrTimeoutMessage, err)
 	}
 
 	if !done {
-		return errors.New("timeout sending message")
+		return ErrTimeoutMessage
 	}
 
 	return nil
 }
 
-func New(config Config) (*Rabbit, error) {
+func (rabbit *Rabbit) HandleConnection() {
+	recreatDelay := time.Second
+
+	for {
+		log.Println("[INFO] - Trying to connect with RabbitMQ")
+
+		err := rabbit.createConnection()
+		if err != nil {
+			log.Printf("[ERROR] - Error creating RabbitMQ connection: %s", err)
+
+			select {
+			case <-rabbit.done:
+				log.Println("[INFO] - Connection was terminated")
+
+				return
+
+			case <-time.After(recreatDelay):
+				recreatDelay *= 2
+			}
+
+			continue
+		}
+
+		log.Println("[INFO] - Connection to RabbitMQ successfully established")
+
+		recreatDelay = time.Second
+
+		select {
+		case <-rabbit.done:
+			log.Println("[INFO] - Connection was terminated")
+
+			return
+
+		case <-rabbit.notifyConnectionClose:
+			log.Println("[INFO] - Connection was closed, recreating connection")
+
+		case <-rabbit.notifyChannelClose:
+			log.Println("[INFO] - Channel was closed, recreating channel")
+		}
+	}
+}
+
+func (rabbit *Rabbit) createConnection() error {
+	rabbit.close = true
+
+	if rabbit.connection == nil || rabbit.connection.IsClosed() {
+		connection, err := amqp.Dial(rabbit.url)
+		if err != nil {
+			return fmt.Errorf("error creating connection: %w", err)
+		}
+
+		rabbit.connection = connection
+		rabbit.notifyConnectionClose = make(chan *amqp.Error, 1)
+		rabbit.connection.NotifyClose(rabbit.notifyConnectionClose)
+	}
+
+	channel, err := rabbit.connection.Channel()
+	if err != nil {
+    rabbit.connection.Close()
+
+		return fmt.Errorf("failed to open RabbitMQ channel: %w", err)
+	}
+
+	err = channel.Confirm(false)
+	if err != nil {
+    rabbit.connection.Close()
+
+		return fmt.Errorf("failed to active channel confirm: %w", err)
+	}
+
+	rabbit.channel = channel
+	rabbit.notifyChannelClose = make(chan *amqp.Error, 1)
+	rabbit.channel.NotifyClose(rabbit.notifyChannelClose)
+
+	rabbit.close = false
+
+	return nil
+}
+
+func New(config Config) *Rabbit {
 	url := fmt.Sprintf(
 		"amqp://%s:%s@%s:%s/%s",
 		config.User,
@@ -216,25 +294,17 @@ func New(config Config) (*Rabbit, error) {
 		config.Vhost,
 	)
 
-	rabbit, err := amqp.Dial(url)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to RabbitMQ: %w", err)
-	}
-
-	channel, err := rabbit.Channel()
-	if err != nil {
-		rabbit.Close()
-
-		return nil, fmt.Errorf("error opening RabbitMQ channel: %w ", err)
-	}
-
-	return &Rabbit{
+	//nolint: gomnd
+	rabbit := &Rabbit{
+		url:                   url,
 		done:                  make(chan bool),
-		close:                 false,
+		close:                 true,
 		maxPublishRetries:     5,
 		maxCreateQueueRetries: 3,
-		connection:            rabbit,
-		channel:               channel,
-		notifyClose:           make(chan amqp.Error),
-	}, nil
+		notifyChannelClose:    make(chan *amqp.Error, 1),
+		notifyConnectionClose: make(chan *amqp.Error, 1),
+		timeoutSendMessage:    5 * time.Second,
+	}
+
+	return rabbit
 }

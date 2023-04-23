@@ -12,9 +12,9 @@ func createQueue(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
 		params := &struct {
 			Name       string `json:"name"`
 			MaxRetries int    `json:"maxRetries"`
-    }{
-      MaxRetries: 10,
-    }
+		}{
+			MaxRetries: 10,
+		}
 
 		err := handler.BodyParser(params)
 		if err != nil {

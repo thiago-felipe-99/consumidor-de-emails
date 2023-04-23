@@ -16,17 +16,14 @@ func main() {
 		Vhost:    "email",
 	}
 
-	rabbitConnection, err := rabbit.New(rabbitConfig)
-	if err != nil {
-		log.Printf("[ERROR] - Erro creating connection with RabbitMQ: %s", err)
-
-		return
-	}
+	rabbitConnection := rabbit.New(rabbitConfig)
 	defer rabbitConnection.Close()
+
+	go rabbitConnection.HandleConnection()
 
 	server := http.CreateServer(rabbitConnection)
 
-	err = server.Listen(":8080")
+	err := server.Listen(":8080")
 	if err != nil {
 		log.Printf("[ERROR] - Error listen HTTP server: %s", err)
 
