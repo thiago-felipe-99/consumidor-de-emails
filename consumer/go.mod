@@ -12,12 +12,13 @@ require (
 	github.com/knadh/koanf/v2 v2.0.0
 	github.com/microcosm-cc/bluemonday v1.0.23
 	github.com/minio/minio-go/v7 v7.0.50
-	github.com/rabbitmq/amqp091-go v1.8.0
 	github.com/russross/blackfriday/v2 v2.1.0
+	github.com/thiago-felipe-99/mail/rabbit v0.0.0-00010101000000-000000000000
 	github.com/wneessen/go-mail v0.3.9
 )
 
 require (
+	github.com/rabbitmq/amqp091-go v1.8.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -56,3 +57,5 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
+
+replace github.com/thiago-felipe-99/mail/rabbit => ../rabbit

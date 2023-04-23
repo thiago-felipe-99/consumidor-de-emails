@@ -11,6 +11,8 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type Message = amqp.Delivery
+
 var (
 	ErrAlreadyClosed    = errors.New("connection already closed")
 	ErrConnectionClosed = errors.New("closed connection with RabbitMQ")

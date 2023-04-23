@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/microcosm-cc/bluemonday"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/russross/blackfriday/v2"
+	"github.com/thiago-felipe-99/mail/rabbit"
 	"github.com/wneessen/go-mail"
 )
 
@@ -38,7 +38,7 @@ type email struct {
 	Attachments     []string   `json:"attachments"`
 	contentType     mail.ContentType
 	attachmentsSize int
-	messageQueue    amqp.Delivery
+	messageQueue    rabbit.Message
 	messageMail     *mail.Msg
 	error           error
 }
@@ -83,7 +83,7 @@ func newSend(
 	}
 }
 
-func proccessQueue(queue []amqp.Delivery) ([]email, []email) {
+func proccessQueue(queue []rabbit.Message) ([]email, []email) {
 	ready, failed := []email{}, []email{}
 
 	for _, message := range queue {
@@ -359,7 +359,7 @@ func setMetrics(metrics *metrics, timeInit time.Time, ready, failed []email, max
 	metrics.emailsSentTimeSeconds.Observe(time.Since(timeInit).Seconds())
 }
 
-func (send *send) emails(queue []amqp.Delivery) {
+func (send *send) emails(queue []rabbit.Message) {
 	timeInit := time.Now()
 
 	ready, failed := proccessQueue(queue)
@@ -379,8 +379,8 @@ func (send *send) emails(queue []amqp.Delivery) {
 	setMetrics(send.metrics, timeInit, ready, failed, send.maxReties)
 }
 
-func (send *send) copyQueueAndSendEmails(queue []amqp.Delivery) []amqp.Delivery {
-	buffer := make([]amqp.Delivery, len(queue))
+func (send *send) copyQueueAndSendEmails(queue []rabbit.Message) []rabbit.Message {
+	buffer := make([]rabbit.Message, len(queue))
 	copy(buffer, queue)
 
 	log.Printf("[INFO] - Sending %d emails", len(buffer))

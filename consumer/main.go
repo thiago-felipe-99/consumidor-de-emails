@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -23,7 +22,7 @@ func newRabbit(configs *configurations) *rabbit.Rabbit {
 	return rabbit
 }
 
-func consumeMessages(rabbit *rabbit.Rabbit, configs *configurations, queue chan<- amqp.Delivery) {
+func consumeMessages(rabbit *rabbit.Rabbit, configs *configurations, queue chan<- rabbit.Message) {
 	sleep := time.Second
 
 	for {
@@ -58,12 +57,12 @@ func consumeMessages(rabbit *rabbit.Rabbit, configs *configurations, queue chan<
 }
 
 func getMessages(
-	queue <-chan amqp.Delivery,
+	queue <-chan rabbit.Message,
 	send *send,
 	timeout time.Duration,
 	bufferSize int,
 ) {
-	buffer := []amqp.Delivery{}
+	buffer := []rabbit.Message{}
 	ticker := time.NewTicker(timeout)
 
 	for {
@@ -125,7 +124,7 @@ func main() {
 
 	template.setAll()
 
-	queue := make(chan amqp.Delivery)
+	queue := make(chan rabbit.Message)
 
 	rabbit := newRabbit(configs)
 
