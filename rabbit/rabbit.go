@@ -52,7 +52,6 @@ type Rabbit struct {
 
 	close      bool
 	connection *amqp.Connection
-	channel    *amqp.Channel
 }
 
 func (rabbit *Rabbit) Close() error {
@@ -60,12 +59,9 @@ func (rabbit *Rabbit) Close() error {
 		return ErrAlreadyClosed
 	}
 
-	err := rabbit.channel.Close()
-	if err != nil {
-		return fmt.Errorf("error on closing channel: %w", err)
-	}
+	rabbit.close = true
 
-	err = rabbit.connection.Close()
+	err := rabbit.connection.Close()
 	if err != nil {
 		return fmt.Errorf("error on closing RabbitMQ connection: %w", err)
 	}
@@ -125,22 +121,29 @@ func (rabbit *Rabbit) createQueue(name string, maxRetries int64) error {
 		"x-queue-type":              "quorum",
 	}
 
-	_, err := rabbit.channel.QueueDeclare(name, true, false, false, false, queueArgs)
+	channel, err := rabbit.connection.Channel()
+	if err != nil {
+		return fmt.Errorf("failed to open RabbitMQ channel: %w", err)
+	}
+
+	defer channel.Close()
+
+	_, err = channel.QueueDeclare(name, true, false, false, false, queueArgs)
 	if err != nil {
 		return fmt.Errorf("error declaring RabbitMQ queue: %w", err)
 	}
 
-	_, err = rabbit.channel.QueueDeclare(dlx, true, false, false, false, nil)
+	_, err = channel.QueueDeclare(dlx, true, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("error declaring RabbitMQ dlx queue: %w", err)
 	}
 
-	err = rabbit.channel.ExchangeDeclare(dlx, "direct", true, false, false, false, nil)
+	err = channel.ExchangeDeclare(dlx, "direct", true, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("error declaring RabbitMQ dlx exchange: %w", err)
 	}
 
-	err = rabbit.channel.QueueBind(dlx, "dead-message", dlx, false, nil)
+	err = channel.QueueBind(dlx, "dead-message", dlx, false, nil)
 	if err != nil {
 		return fmt.Errorf("error binding dlx queue with dlx exchange: %w", err)
 	}
@@ -163,6 +166,13 @@ func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any
 		return ErrConnectionClosed
 	}
 
+	channel, err := rabbit.connection.Channel()
+	if err != nil {
+		return fmt.Errorf("failed to open RabbitMQ channel: %w", err)
+	}
+
+	defer channel.Close()
+
 	ctx, cancel := context.WithTimeout(ctx, rabbit.timeoutSendMessage)
 	defer cancel()
 
@@ -176,7 +186,7 @@ func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any
 		Body:        messageEncoding,
 	}
 
-	confirm, err := rabbit.channel.PublishWithDeferredConfirmWithContext(
+	confirm, err := channel.PublishWithDeferredConfirmWithContext(
 		ctx,
 		"",
 		queue,
@@ -206,7 +216,7 @@ func (rabbit *Rabbit) HandleConnection() {
 	for {
 		log.Println("[INFO] - Trying to connect with RabbitMQ")
 
-		connectionClose, channelClose, err := rabbit.createConnection()
+		connectionClose, err := rabbit.createConnection()
 		if err != nil {
 			log.Printf("[ERROR] - Error creating RabbitMQ connection: %s", err)
 
@@ -220,51 +230,30 @@ func (rabbit *Rabbit) HandleConnection() {
 
 		recreatDelay = time.Second
 
-		select {
-		case message := <-connectionClose:
-			log.Printf("[INFO] - Connection was closed, recreating connection: %s", message)
-
-		case message := <-channelClose:
-			log.Printf("[INFO] - Channel was closed, recreating channel: %s", message)
+		err, okay := <-connectionClose
+		if !okay {
+			log.Printf("[ERROR] - Error when connection was closed: %s", err)
 		}
+
+		log.Printf("[INFO] - Connection was closed, recreating connection")
 	}
 }
 
-func (rabbit *Rabbit) createConnection() (chan *amqp.Error, chan *amqp.Error, error) {
+func (rabbit *Rabbit) createConnection() (chan *amqp.Error, error) {
 	rabbit.close = true
 	connectionClose := make(chan *amqp.Error, 1)
-	channelClose := make(chan *amqp.Error, 1)
 
-	if rabbit.connection == nil || rabbit.connection.IsClosed() {
-		connection, err := amqp.Dial(rabbit.url)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error creating connection: %w", err)
-		}
-
-		rabbit.connection = connection
-		rabbit.connection.NotifyClose(connectionClose)
-	}
-
-	channel, err := rabbit.connection.Channel()
+	connection, err := amqp.Dial(rabbit.url)
 	if err != nil {
-		rabbit.connection.Close()
-
-		return nil, nil, fmt.Errorf("failed to open RabbitMQ channel: %w", err)
+		return nil, fmt.Errorf("error creating connection: %w", err)
 	}
 
-	err = channel.Confirm(false)
-	if err != nil {
-		rabbit.connection.Close()
-
-		return nil, nil, fmt.Errorf("failed to active channel confirm: %w", err)
-	}
-
-	rabbit.channel = channel
-	rabbit.channel.NotifyClose(channelClose)
+	rabbit.connection = connection
+	rabbit.connection.NotifyClose(connectionClose)
 
 	rabbit.close = false
 
-	return connectionClose, channelClose, nil
+	return connectionClose, nil
 }
 
 func (rabbit *Rabbit) Consume(name string, bufferSize int) (<-chan amqp.Delivery, error) {
@@ -272,12 +261,17 @@ func (rabbit *Rabbit) Consume(name string, bufferSize int) (<-chan amqp.Delivery
 		return nil, ErrConnectionClosed
 	}
 
-	err := rabbit.channel.Qos(bufferSize, 0, false)
+	channel, err := rabbit.connection.Channel()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open RabbitMQ channel: %w", err)
+	}
+
+	err = channel.Qos(bufferSize, 0, false)
 	if err != nil {
 		return nil, fmt.Errorf("error configuring consumer queue size: %w", err)
 	}
 
-	queue, err := rabbit.channel.Consume(name, "", false, false, false, false, nil)
+	queue, err := channel.Consume(name, "", false, false, false, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error registering consumer: %w", err)
 	}
