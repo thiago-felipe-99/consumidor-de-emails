@@ -4,14 +4,14 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/thiago-felipe-99/mail/publisher/rabbit"
+	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
 func createQueue(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		params := &struct {
 			Name       string `json:"name"`
-			MaxRetries int    `json:"maxRetries"`
+			MaxRetries int64  `json:"maxRetries"`
 		}{
 			MaxRetries: 10,
 		}

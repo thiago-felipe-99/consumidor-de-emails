@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/thiago-felipe-99/mail/publisher/http"
-	"github.com/thiago-felipe-99/mail/publisher/rabbit"
+	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
 func main() {
