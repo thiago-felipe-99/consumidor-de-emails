@@ -173,10 +173,10 @@ func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any
 
 	defer channel.Close()
 
-  err = channel.Confirm(false)
-  if err != nil {
-    return fmt.Errorf("error confirm channel: %w", err)
-  }
+	err = channel.Confirm(false)
+	if err != nil {
+		return fmt.Errorf("error confirm channel: %w", err)
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, rabbit.timeoutSendMessage)
 	defer cancel()

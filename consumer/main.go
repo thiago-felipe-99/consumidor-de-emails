@@ -26,7 +26,7 @@ func consumeMessages(rabbit *rabbit.Rabbit, configs *configurations, queue chan<
 	sleep := time.Second
 
 	for {
-    log.Printf("[INFO] - Creating the consumer")
+		log.Printf("[INFO] - Creating the consumer")
 
 		err := rabbit.CreateQueue(configs.Rabbit.Queue, configs.Rabbit.MaxRetries)
 		if err != nil {
@@ -56,7 +56,7 @@ func consumeMessages(rabbit *rabbit.Rabbit, configs *configurations, queue chan<
 			queue <- message
 		}
 
-    log.Printf("[INFO] - The queue was closed, restarting the consumer")
+		log.Printf("[INFO] - The queue was closed, restarting the consumer")
 	}
 }
 

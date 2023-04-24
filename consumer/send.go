@@ -258,9 +258,9 @@ func sendEmails(smtp *smtp, ready, failed []email) ([]email, []email) {
 
 	err = client.Send(messages...)
 	if err != nil {
-		for index, email := range ready {
-			if email.messageMail.HasSendError() {
-				ready[index].error = email.messageMail.SendError()
+		for index := len(ready) - 1; index >= 0; index-- {
+			if ready[index].messageMail.HasSendError() {
+				ready[index].error = ready[index].messageMail.SendError()
 				ready, failed = emailFailed(index, ready, failed)
 			}
 		}
