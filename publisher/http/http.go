@@ -1,3 +1,4 @@
+//nolint:wrapcheck
 package http
 
 import (
@@ -9,15 +10,13 @@ import (
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
-var queues = []string{}
-
-func createQueue(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
+func createQueue(rabbit *rabbit.Rabbit, queues []string) func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		body := &struct {
 			Name       string `json:"name"`
 			MaxRetries int64  `json:"maxRetries"`
 		}{
-			MaxRetries: 10,
+			MaxRetries: 10, //nolint:gomnd
 		}
 
 		err := handler.BodyParser(body)
@@ -63,6 +62,7 @@ func sendEmail(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
 		queue := handler.Params("name")
 
 		body := &email{}
+
 		err := handler.BodyParser(body)
 		if err != nil {
 			return err
@@ -81,11 +81,13 @@ func sendEmail(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
 }
 
 func CreateServer(rabbit *rabbit.Rabbit) *fiber.App {
+	queues := []string{}
+
 	app := fiber.New()
 
 	app.Use(recover.New())
 
-	app.Post("/email/queue", createQueue(rabbit))
+	app.Post("/email/queue", createQueue(rabbit, queues))
 	app.Post("/email/queue/:name/add", sendEmail(rabbit))
 
 	return app

@@ -26,17 +26,17 @@ type configurations struct {
 func getConfigurations() (*configurations, error) {
 	err := godotenv.Load()
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
+		return nil, fmt.Errorf("error load env file: %w", err)
 	}
 
 	quantidadeDeMensagens, err := strconv.Atoi(os.Getenv("MESSAGES_QUANTITY"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting MESSAGES_QUANTITY: %w", err)
 	}
 
 	rabbitMaxRetries, err := strconv.Atoi(os.Getenv("RABBIT_MAX_RETRIES"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting RABBIT_MAX_RETRIES: %w", err)
 	}
 
 	config := &configurations{
