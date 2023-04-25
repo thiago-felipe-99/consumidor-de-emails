@@ -2,11 +2,13 @@ FROM golang:1.20-alpine AS build
 
 WORKDIR /app
 
-COPY go.sum ./
-COPY go.mod ./
+COPY ./benchmarking/go.sum ./
+COPY ./benchmarking/go.mod ./
+COPY ./rabbit ../rabbit
+
 RUN go mod download
 
-COPY ./ ./
+COPY ./benchmarking ./
 
 RUN go build -o /benchmarking
 
