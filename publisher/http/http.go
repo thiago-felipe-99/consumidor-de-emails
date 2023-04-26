@@ -3,6 +3,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,32 +11,29 @@ import (
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
-func createQueue(rabbit *rabbit.Rabbit, queues []string) func(*fiber.Ctx) error {
-	return func(handler *fiber.Ctx) error {
-		body := &struct {
-			Name       string `json:"name"`
-			MaxRetries int64  `json:"maxRetries"`
-		}{
-			MaxRetries: 10, //nolint:gomnd
-		}
+var (
+	errQueueAlreadyExist = errors.New("queue already exist")
+	errQueueDontExist    = errors.New("queue dont exist")
+)
 
-		err := handler.BodyParser(body)
-		if err != nil {
-			return err
-		}
+type queues []string
 
-		err = rabbit.CreateQueue(body.Name, body.MaxRetries)
-		if err != nil {
-			log.Printf("[ERROR] - Error creating queue: %s", err)
-
-			return handler.Status(fiber.StatusInternalServerError).
-				SendString("error creating queue")
-		}
-
-		queues = append(queues, body.Name)
-
-		return nil
+func (queues *queues) add(name string) {
+	if queues.exist(name) {
+		return
 	}
+
+	*queues = append(*queues, name)
+}
+
+func (queues *queues) exist(name string) bool {
+	for _, queue := range *queues {
+		if queue == name {
+			return true
+		}
+	}
+
+	return false
 }
 
 type receiver struct {
@@ -57,9 +55,45 @@ type email struct {
 	Attachments    []string   `json:"attachments"`
 }
 
-func sendEmail(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
+func createQueue(rabbit *rabbit.Rabbit, queues queues) func(*fiber.Ctx) error {
+	return func(handler *fiber.Ctx) error {
+		body := &struct {
+			Name       string `json:"name"`
+			MaxRetries int64  `json:"maxRetries"`
+		}{
+			MaxRetries: 10, //nolint:gomnd
+		}
+
+		err := handler.BodyParser(body)
+		if err != nil {
+			return err
+		}
+
+		if queues.exist(body.Name) {
+			return handler.Status(fiber.StatusConflict).SendString(errQueueAlreadyExist.Error())
+		}
+
+		err = rabbit.CreateQueue(body.Name, body.MaxRetries)
+		if err != nil {
+			log.Printf("[ERROR] - Error creating queue: %s", err)
+
+			return handler.Status(fiber.StatusInternalServerError).
+				SendString("error creating queue")
+		}
+
+		queues.add(body.Name)
+
+		return nil
+	}
+}
+
+func sendEmail(rabbit *rabbit.Rabbit, queues queues) func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		queue := handler.Params("name")
+
+		if !queues.exist(queue) {
+			return handler.Status(fiber.StatusNotFound).SendString(errQueueDontExist.Error())
+		}
 
 		body := &email{}
 
@@ -81,14 +115,14 @@ func sendEmail(rabbit *rabbit.Rabbit) func(*fiber.Ctx) error {
 }
 
 func CreateServer(rabbit *rabbit.Rabbit) *fiber.App {
-	queues := []string{}
+	queues := queues{}
 
 	app := fiber.New()
 
 	app.Use(recover.New())
 
 	app.Post("/email/queue", createQueue(rabbit, queues))
-	app.Post("/email/queue/:name/add", sendEmail(rabbit))
+	app.Post("/email/queue/:name/add", sendEmail(rabbit, queues))
 
 	return app
 }
