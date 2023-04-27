@@ -1,5 +1,5 @@
 //nolint:wrapcheck
-package http
+package main
 
 import (
 	"github.com/ansrivas/fiberprometheus/v2"
@@ -44,7 +44,7 @@ func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, er
 	return translator, nil
 }
 
-func CreateServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App, error) {
+func createHTTPServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App, error) {
 	app := fiber.New()
 
 	prometheus := fiberprometheus.New("publisher")

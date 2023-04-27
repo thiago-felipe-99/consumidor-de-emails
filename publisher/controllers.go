@@ -1,5 +1,5 @@
 //nolint:wrapcheck
-package http
+package main
 
 import (
 	"context"

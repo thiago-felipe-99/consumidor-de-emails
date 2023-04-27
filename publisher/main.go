@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/thiago-felipe-99/mail/publisher/http"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -38,7 +37,7 @@ func main() {
 
 	go updateQueues(queues)
 
-	server, err := http.CreateServer(rabbitConnection, queues)
+	server, err := createHTTPServer(rabbitConnection, queues)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)
 
