@@ -2,10 +2,22 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/thiago-felipe-99/mail/publisher/http"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
+
+func updateQueues(queues *rabbit.Queues) {
+	for {
+		err := queues.UpdateQueues()
+		if err != nil {
+			log.Printf("[ERROR] - Error updating queues: %s", err)
+		}
+
+		time.Sleep(time.Second * 15) //nolint: gomnd
+	}
+}
 
 func main() {
 	rabbitConfig := rabbit.Config{
@@ -22,16 +34,13 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
-	queus, err := rabbit.NewQueues(rabbitConfig)
-	if err != nil {
-		log.Printf("[ERROR] - Error creating queues: %s", err)
+	queues := rabbit.NewQueues(rabbitConfig)
 
-		return
-	}
+	go updateQueues(queues)
 
-	server := http.CreateServer(rabbitConnection, queus)
+	server := http.CreateServer(rabbitConnection, queues)
 
-	err = server.Listen(":8080")
+	err := server.Listen(":8080")
 	if err != nil {
 		log.Printf("[ERROR] - Error listen HTTP server: %s", err)
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	rabbithole "github.com/michaelklishin/rabbit-hole/v2"
@@ -308,18 +309,27 @@ func New(config Config) *Rabbit {
 	return rabbit
 }
 
-type Queues []string
+type Queues struct {
+	mutex  sync.Mutex
+	queues []string
+	config Config
+}
 
 func (queues *Queues) Add(name string) {
 	if queues.Exist(name) {
 		return
 	}
 
-	*queues = append(*queues, name)
+	queues.mutex.Lock()
+	queues.queues = append(queues.queues, name)
+	queues.mutex.Unlock()
 }
 
 func (queues *Queues) Exist(name string) bool {
-	for _, queue := range *queues {
+	queues.mutex.Lock()
+	defer queues.mutex.Unlock()
+
+	for _, queue := range queues.queues {
 		if queue == name {
 			return true
 		}
@@ -328,24 +338,60 @@ func (queues *Queues) Exist(name string) bool {
 	return false
 }
 
-func NewQueues(configs Config) (Queues, error) {
-	uri := fmt.Sprintf("http://%s:%s", configs.Host, configs.PortAPI)
+func (queues *Queues) UpdateQueues() error {
+	uri := fmt.Sprintf("http://%s:%s", queues.config.Host, queues.config.PortAPI)
 
-	rmqc, err := rabbithole.NewClient(uri, configs.User, configs.Password)
+	client, err := rabbithole.NewClient(uri, queues.config.User, queues.config.Password)
 	if err != nil {
-		return nil, fmt.Errorf("error creating RabbitMQ API cliente: %w", err)
+		return fmt.Errorf("error creating RabbitMQ API cliente: %w", err)
 	}
 
-	exists, err := rmqc.ListQueuesIn(configs.Vhost)
+	queues.mutex.Lock()
+
+	currentQueues, err := client.ListQueuesIn(queues.config.Vhost)
 	if err != nil {
-		return nil, fmt.Errorf("error get current queues: %w", err)
+		queues.mutex.Unlock()
+
+		return fmt.Errorf("error get current queues: %w", err)
 	}
 
-	queues := Queues{}
+	// removing deleted queues
+	for index := len(queues.queues) - 1; index >= 0; index-- {
+		exist := false
 
-	for _, queue := range exists {
-		queues = append(queues, queue.Name)
+		for _, queue := range currentQueues {
+			if queues.queues[index] == queue.Name {
+				exist = true
+
+				break
+			}
+		}
+
+		if !exist {
+			last := len(queues.queues) - 1
+
+			queues.queues[index] = queues.queues[last]
+
+			queues.queues = queues.queues[:last]
+		}
 	}
 
-	return queues, nil
+	queues.mutex.Unlock()
+
+	for _, queue := range currentQueues {
+		queues.Add(queue.Name)
+	}
+
+	return nil
+}
+
+func (queues *Queues) Size() int {
+	return len(queues.queues)
+}
+
+func NewQueues(config Config) *Queues {
+	return &Queues{
+		queues: []string{},
+		config: config,
+	}
 }
