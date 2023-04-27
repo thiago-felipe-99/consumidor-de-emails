@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/swagger"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -57,6 +58,8 @@ func createHTTPServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App,
 		TimeFormat: "2006/01/02 15:04:05",
 	}))
 	app.Use(prometheus.Middleware)
+
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	validate := validator.New()
 

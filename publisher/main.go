@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	_ "github.com/thiago-felipe-99/mail/publisher/docs"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -18,6 +19,11 @@ func updateQueues(queues *rabbit.Queues) {
 	}
 }
 
+// @title Publisher Emails
+// @version 1.0
+// @host localhost:8080
+// @BasePath /
+// @description This a api to publisher emails on RabbitMQ.
 func main() {
 	rabbitConfig := rabbit.Config{
 		User:     "rabbit",
