@@ -15,8 +15,6 @@ var (
 	errQueueAlreadyExist = errors.New("queue already exist")
 	errQueueDontExist    = errors.New("queue dont exist")
 )
-
-
 type receiver struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
