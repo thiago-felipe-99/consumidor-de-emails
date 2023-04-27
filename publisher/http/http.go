@@ -2,6 +2,7 @@
 package http
 
 import (
+	"github.com/ansrivas/fiberprometheus"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/locales/pt"
 	"github.com/go-playground/locales/pt_BR"
@@ -11,6 +12,7 @@ import (
 	ptTranslations "github.com/go-playground/validator/v10/translations/pt"
 	pt_br_translations "github.com/go-playground/validator/v10/translations/pt_BR"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -44,7 +46,13 @@ func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, er
 func CreateServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App, error) {
 	app := fiber.New()
 
-	validate := validator.New()
+	prometheus := fiberprometheus.New("publisher")
+	prometheus.RegisterAt(app, "/metrics")
+
+	app.Use(prometheus.Middleware)
+	app.Use(recover.New())
+
+  validate := validator.New()
 
 	translator, err := createTranslator(validate)
 	if err != nil {
