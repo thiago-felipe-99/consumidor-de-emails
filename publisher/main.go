@@ -38,9 +38,14 @@ func main() {
 
 	go updateQueues(queues)
 
-	server := http.CreateServer(rabbitConnection, queues)
+	server, err := http.CreateServer(rabbitConnection, queues)
+	if err != nil {
+		log.Printf("[ERROR] - Error create server: %s", err)
 
-	err := server.Listen(":8080")
+		return
+	}
+
+	err = server.Listen(":8080")
 	if err != nil {
 		log.Printf("[ERROR] - Error listen HTTP server: %s", err)
 

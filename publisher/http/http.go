@@ -6,7 +6,14 @@ import (
 	"errors"
 	"log"
 
+	"github.com/go-playground/locales/en"
+	"github.com/go-playground/locales/pt"
+	"github.com/go-playground/locales/pt_BR"
+	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	en_translations "github.com/go-playground/validator/v10/translations/en"
+	ptTranslations "github.com/go-playground/validator/v10/translations/pt"
+	pt_br_translations "github.com/go-playground/validator/v10/translations/pt_BR"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/thiago-felipe-99/mail/rabbit"
@@ -38,9 +45,46 @@ type email struct {
 }
 
 type queue struct {
-	rabbit   *rabbit.Rabbit
-	queues   *rabbit.Queues
-	validate *validator.Validate
+	rabbit     *rabbit.Rabbit
+	queues     *rabbit.Queues
+	validate   *validator.Validate
+	translator *ut.UniversalTranslator
+	languages  []string
+}
+
+func (queue *queue) bodyParser(body any, handler *fiber.Ctx) (int, error) {
+	err := handler.BodyParser(body)
+	if err != nil {
+		return fiber.StatusBadRequest, errBodyValidate
+	}
+
+	err = queue.validate.Struct(body)
+	if err != nil {
+		validationErrs := validator.ValidationErrors{}
+
+		okay := errors.As(err, &validationErrs)
+		if !okay {
+			return fiber.StatusBadRequest, errBodyValidate
+		}
+
+		accept := handler.AcceptsLanguages(queue.languages...)
+		if accept == "" {
+			accept = queue.languages[0]
+		}
+
+		language, _ := queue.translator.GetTranslator(accept)
+
+		messages := validationErrs.Translate(language)
+
+		messageSend := ""
+		for _, message := range messages {
+			messageSend += "\n" + message
+		}
+
+		return fiber.StatusBadRequest, errors.New(messageSend) //nolint: goerr113
+	}
+
+	return 0, nil
 }
 
 func (queue *queue) create() func(*fiber.Ctx) error {
@@ -52,21 +96,9 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 			MaxRetries: 10, //nolint:gomnd
 		}
 
-		err := handler.BodyParser(body)
+		status, err := queue.bodyParser(body, handler)
 		if err != nil {
-			return err
-		}
-
-		err = queue.validate.Struct(body)
-		if err != nil {
-			validationErrs := validator.ValidationErrors{}
-
-			okay := errors.As(err, &validationErrs)
-			if !okay {
-				return errBodyValidate
-			}
-
-			return handler.Status(fiber.StatusBadRequest).SendString(err.Error())
+			return handler.Status(status).SendString(err.Error())
 		}
 
 		if queue.queues.Exist(body.Name) {
@@ -97,21 +129,9 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 
 		body := &email{}
 
-		err := handler.BodyParser(body)
+		status, err := queue.bodyParser(body, handler)
 		if err != nil {
-			return err
-		}
-
-		err = queue.validate.Struct(body)
-		if err != nil {
-			validationErrs := validator.ValidationErrors{}
-
-			okay := errors.As(err, &validationErrs)
-			if !okay {
-				return errBodyValidate
-			}
-
-			return handler.Status(fiber.StatusBadRequest).SendString(err.Error())
+			return handler.Status(status).SendString(err.Error())
 		}
 
 		err = queue.rabbit.SendMessage(context.Background(), name, body)
@@ -126,19 +146,46 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 	}
 }
 
-func CreateServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) *fiber.App {
+func CreateServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App, error) {
 	app := fiber.New()
 
 	app.Use(recover.New())
 
+	validate := validator.New()
+
+	translator := ut.New(en.New(), pt.New(), pt_BR.New())
+
+	enTrans, _ := translator.GetTranslator("en")
+
+	err := en_translations.RegisterDefaultTranslations(validate, enTrans)
+	if err != nil {
+		return nil, err
+	}
+
+	ptTrans, _ := translator.GetTranslator("pt")
+
+	err = ptTranslations.RegisterDefaultTranslations(validate, ptTrans)
+	if err != nil {
+		return nil, err
+	}
+
+	ptBRTrans, _ := translator.GetTranslator("pt_BR")
+
+	err = pt_br_translations.RegisterDefaultTranslations(validate, ptBRTrans)
+	if err != nil {
+		return nil, err
+	}
+
 	queue := queue{
-		rabbit:   rabbit,
-		queues:   queues,
-		validate: validator.New(),
+		rabbit:     rabbit,
+		queues:     queues,
+		validate:   validate,
+		translator: translator,
+		languages:  []string{"en", "pt_BR", "pt"},
 	}
 
 	app.Post("/email/queue", queue.create())
 	app.Post("/email/queue/:name/add", queue.send())
 
-	return app
+	return app, nil
 }
