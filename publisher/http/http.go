@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/thiago-felipe-99/mail/rabbit"
@@ -14,31 +15,38 @@ import (
 var (
 	errQueueAlreadyExist = errors.New("queue already exist")
 	errQueueDontExist    = errors.New("queue dont exist")
+	errBodyValidate      = errors.New("unable to parse body")
 )
 
 type receiver struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name  string `json:"name"  validate:"required"`
+	Email string `json:"email" validate:"required,email"`
 }
 
 type template struct {
-	Name string            `json:"name"`
+	Name string            `json:"name" validate:"required"`
 	Data map[string]string `json:"data"`
 }
 
 type email struct {
-	Receivers      []receiver `json:"receivers"`
-	BlindReceivers []receiver `json:"blindReceivers"`
-	Subject        string     `json:"subject"`
-	Message        string     `json:"message"`
-	Template       template   `json:"template"`
+	Receivers      []receiver `json:"receivers"      validate:"required_without=BlindReceivers"`
+	BlindReceivers []receiver `json:"blindReceivers" validate:"required_without=Receivers"`
+	Subject        string     `json:"subject"        validate:"required"`
+	Message        string     `json:"message"        validate:"required_without=Template,excluded_with=Template"`
+	Template       *template  `json:"template"       validate:"required_without=Message,excluded_with=Message"`
 	Attachments    []string   `json:"attachments"`
 }
 
-func createQueue(rabbit *rabbit.Rabbit, queues *rabbit.Queues) func(*fiber.Ctx) error {
+type queue struct {
+	rabbit   *rabbit.Rabbit
+	queues   *rabbit.Queues
+	validate *validator.Validate
+}
+
+func (queue *queue) create() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		body := &struct {
-			Name       string `json:"name"`
+			Name       string `json:"name" validate:"required"`
 			MaxRetries int64  `json:"maxRetries"`
 		}{
 			MaxRetries: 10, //nolint:gomnd
@@ -49,11 +57,23 @@ func createQueue(rabbit *rabbit.Rabbit, queues *rabbit.Queues) func(*fiber.Ctx) 
 			return err
 		}
 
-		if queues.Exist(body.Name) {
+		err = queue.validate.Struct(body)
+		if err != nil {
+			validationErrs := validator.ValidationErrors{}
+
+			okay := errors.As(err, &validationErrs)
+			if !okay {
+				return errBodyValidate
+			}
+
+			return handler.Status(fiber.StatusBadRequest).SendString(err.Error())
+		}
+
+		if queue.queues.Exist(body.Name) {
 			return handler.Status(fiber.StatusConflict).SendString(errQueueAlreadyExist.Error())
 		}
 
-		err = rabbit.CreateQueue(body.Name, body.MaxRetries)
+		err = queue.rabbit.CreateQueue(body.Name, body.MaxRetries)
 		if err != nil {
 			log.Printf("[ERROR] - Error creating queue: %s", err)
 
@@ -61,17 +81,17 @@ func createQueue(rabbit *rabbit.Rabbit, queues *rabbit.Queues) func(*fiber.Ctx) 
 				SendString("error creating queue")
 		}
 
-		queues.Add(body.Name)
+		queue.queues.Add(body.Name)
 
 		return nil
 	}
 }
 
-func sendEmail(rabbit *rabbit.Rabbit, queues *rabbit.Queues) func(*fiber.Ctx) error {
+func (queue *queue) send() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
-		queue := handler.Params("name")
+		name := handler.Params("name")
 
-		if !queues.Exist(queue) {
+		if !queue.queues.Exist(name) {
 			return handler.Status(fiber.StatusNotFound).SendString(errQueueDontExist.Error())
 		}
 
@@ -82,7 +102,19 @@ func sendEmail(rabbit *rabbit.Rabbit, queues *rabbit.Queues) func(*fiber.Ctx) er
 			return err
 		}
 
-		err = rabbit.SendMessage(context.Background(), queue, body)
+		err = queue.validate.Struct(body)
+		if err != nil {
+			validationErrs := validator.ValidationErrors{}
+
+			okay := errors.As(err, &validationErrs)
+			if !okay {
+				return errBodyValidate
+			}
+
+			return handler.Status(fiber.StatusBadRequest).SendString(err.Error())
+		}
+
+		err = queue.rabbit.SendMessage(context.Background(), name, body)
 		if err != nil {
 			log.Printf("[ERROR] - Error creating queue: %s", err)
 
@@ -99,8 +131,14 @@ func CreateServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) *fiber.App {
 
 	app.Use(recover.New())
 
-	app.Post("/email/queue", createQueue(rabbit, queues))
-	app.Post("/email/queue/:name/add", sendEmail(rabbit, queues))
+	queue := queue{
+		rabbit:   rabbit,
+		queues:   queues,
+		validate: validator.New(),
+	}
+
+	app.Post("/email/queue", queue.create())
+	app.Post("/email/queue/:name/add", queue.send())
 
 	return app
 }
