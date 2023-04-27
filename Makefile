@@ -7,3 +7,5 @@ tidy:
 	cd ./consumer/ && go mod tidy
 	cd ./publisher/ && go mod tidy
 	cd ./rabbit && go mod tidy
+
+all: lint tidy
