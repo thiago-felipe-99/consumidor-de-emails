@@ -16,25 +16,6 @@ var (
 	errQueueDontExist    = errors.New("queue dont exist")
 )
 
-type queues []string
-
-func (queues *queues) add(name string) {
-	if queues.exist(name) {
-		return
-	}
-
-	*queues = append(*queues, name)
-}
-
-func (queues *queues) exist(name string) bool {
-	for _, queue := range *queues {
-		if queue == name {
-			return true
-		}
-	}
-
-	return false
-}
 
 type receiver struct {
 	Name  string `json:"name"`
@@ -55,7 +36,7 @@ type email struct {
 	Attachments    []string   `json:"attachments"`
 }
 
-func createQueue(rabbit *rabbit.Rabbit, queues queues) func(*fiber.Ctx) error {
+func createQueue(rabbit *rabbit.Rabbit, queues rabbit.Queues) func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		body := &struct {
 			Name       string `json:"name"`
@@ -69,7 +50,7 @@ func createQueue(rabbit *rabbit.Rabbit, queues queues) func(*fiber.Ctx) error {
 			return err
 		}
 
-		if queues.exist(body.Name) {
+		if queues.Exist(body.Name) {
 			return handler.Status(fiber.StatusConflict).SendString(errQueueAlreadyExist.Error())
 		}
 
@@ -81,17 +62,17 @@ func createQueue(rabbit *rabbit.Rabbit, queues queues) func(*fiber.Ctx) error {
 				SendString("error creating queue")
 		}
 
-		queues.add(body.Name)
+		queues.Add(body.Name)
 
 		return nil
 	}
 }
 
-func sendEmail(rabbit *rabbit.Rabbit, queues queues) func(*fiber.Ctx) error {
+func sendEmail(rabbit *rabbit.Rabbit, queues rabbit.Queues) func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		queue := handler.Params("name")
 
-		if !queues.exist(queue) {
+		if !queues.Exist(queue) {
 			return handler.Status(fiber.StatusNotFound).SendString(errQueueDontExist.Error())
 		}
 
@@ -114,9 +95,7 @@ func sendEmail(rabbit *rabbit.Rabbit, queues queues) func(*fiber.Ctx) error {
 	}
 }
 
-func CreateServer(rabbit *rabbit.Rabbit) *fiber.App {
-	queues := queues{}
-
+func CreateServer(rabbit *rabbit.Rabbit, queues rabbit.Queues) *fiber.App {
 	app := fiber.New()
 
 	app.Use(recover.New())

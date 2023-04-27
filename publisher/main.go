@@ -13,6 +13,7 @@ func main() {
 		Password: "rabbit",
 		Host:     "localhost",
 		Port:     "5672",
+		PortAPI:  "15672",
 		Vhost:    "email",
 	}
 
@@ -21,9 +22,16 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
-	server := http.CreateServer(rabbitConnection)
+	queus, err := rabbit.NewQueues(rabbitConfig)
+	if err != nil {
+		log.Printf("[ERROR] - Error creating queues: %s", err)
 
-	err := server.Listen(":8080")
+		return
+	}
+
+	server := http.CreateServer(rabbitConnection, queus)
+
+	err = server.Listen(":8080")
 	if err != nil {
 		log.Printf("[ERROR] - Error listen HTTP server: %s", err)
 

@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	rabbithole "github.com/michaelklishin/rabbit-hole/v2"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -41,6 +42,7 @@ type Config struct {
 	Password string
 	Host     string
 	Port     string
+	PortAPI  string
 	Vhost    string
 }
 
@@ -304,4 +306,46 @@ func New(config Config) *Rabbit {
 	}
 
 	return rabbit
+}
+
+type Queues []string
+
+func (queues *Queues) Add(name string) {
+	if queues.Exist(name) {
+		return
+	}
+
+	*queues = append(*queues, name)
+}
+
+func (queues *Queues) Exist(name string) bool {
+	for _, queue := range *queues {
+		if queue == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func NewQueues(configs Config) (Queues, error) {
+	uri := fmt.Sprintf("http://%s:%s", configs.Host, configs.PortAPI)
+
+	rmqc, err := rabbithole.NewClient(uri, configs.User, configs.Password)
+	if err != nil {
+		return nil, fmt.Errorf("error creating RabbitMQ API cliente: %w", err)
+	}
+
+	exists, err := rmqc.ListQueuesIn(configs.Vhost)
+	if err != nil {
+		return nil, fmt.Errorf("error get current queues: %w", err)
+	}
+
+	queues := Queues{}
+
+	for _, queue := range exists {
+		queues = append(queues, queue.Name)
+	}
+
+	return queues, nil
 }
