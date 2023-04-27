@@ -1,9 +1,141 @@
 basePath: /
+definitions:
+  main.emailBody:
+    properties:
+      attachments:
+        items:
+          type: string
+        type: array
+      blindReceivers:
+        items:
+          $ref: '#/definitions/main.receiver'
+        type: array
+      message:
+        type: string
+      receivers:
+        items:
+          $ref: '#/definitions/main.receiver'
+        type: array
+      subject:
+        type: string
+      template:
+        $ref: '#/definitions/main.template'
+    required:
+    - subject
+    type: object
+  main.queueBody:
+    properties:
+      maxRetries:
+        type: integer
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  main.receiver:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+    required:
+    - email
+    - name
+    type: object
+  main.sent:
+    properties:
+      message:
+        type: string
+    type: object
+  main.template:
+    properties:
+      data:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+    required:
+    - name
+    type: object
 host: localhost:8080
 info:
   contact: {}
-  description: This a api to publisher emails on RabbitMQ.
+  description: This is an api that publishes emails in RabbitMQ.
   title: Publisher Emails
   version: "1.0"
-paths: {}
+paths:
+  /email/queue:
+    post:
+      consumes:
+      - application/json
+      description: Creating a RabbitMQ queue.
+      parameters:
+      - description: queue params
+        in: body
+        name: queue
+        required: true
+        schema:
+          $ref: '#/definitions/main.queueBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: create queue successfully
+          schema:
+            $ref: '#/definitions/main.sent'
+        "400":
+          description: an invalid queue param was sent
+          schema:
+            $ref: '#/definitions/main.sent'
+        "409":
+          description: queue already exist
+          schema:
+            $ref: '#/definitions/main.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/main.sent'
+      summary: Creating queue
+      tags:
+      - queue
+  /email/queue/{name}/send:
+    post:
+      consumes:
+      - application/json
+      description: Sends an email to the RabbitMQ queue.
+      parameters:
+      - description: queue name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: email
+        in: body
+        name: queue
+        required: true
+        schema:
+          $ref: '#/definitions/main.emailBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: email sent successfully
+          schema:
+            $ref: '#/definitions/main.sent'
+        "400":
+          description: an invalid email param was sent
+          schema:
+            $ref: '#/definitions/main.sent'
+        "404":
+          description: queue does not exist
+          schema:
+            $ref: '#/definitions/main.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/main.sent'
+      summary: Sends email
+      tags:
+      - queue
 swagger: "2.0"

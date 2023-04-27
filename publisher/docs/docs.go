@@ -15,7 +15,210 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
-    "paths": {}
+    "paths": {
+        "/email/queue": {
+            "post": {
+                "description": "Creating a RabbitMQ queue.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Creating queue",
+                "parameters": [
+                    {
+                        "description": "queue params",
+                        "name": "queue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.queueBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "create queue successfully",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid queue param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "queue already exist",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/queue/{name}/send": {
+            "post": {
+                "description": "Sends an email to the RabbitMQ queue.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Sends email",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "queue name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "email",
+                        "name": "queue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.emailBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "email sent successfully",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid email param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "queue does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "main.emailBody": {
+            "type": "object",
+            "required": [
+                "subject"
+            ],
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "blindReceivers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.receiver"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "receivers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/main.receiver"
+                    }
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "template": {
+                    "$ref": "#/definitions/main.template"
+                }
+            }
+        },
+        "main.queueBody": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "maxRetries": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.receiver": {
+            "type": "object",
+            "required": [
+                "email",
+                "name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.sent": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "main.template": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        }
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
@@ -25,7 +228,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "Publisher Emails",
-	Description:      "This a api to publisher emails on RabbitMQ.",
+	Description:      "This is an api that publishes emails in RabbitMQ.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

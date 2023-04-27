@@ -19,11 +19,11 @@ func updateQueues(queues *rabbit.Queues) {
 	}
 }
 
-// @title Publisher Emails
-// @version 1.0
-// @host localhost:8080
-// @BasePath /
-// @description This a api to publisher emails on RabbitMQ.
+// @title			Publisher Emails
+// @version		1.0
+// @host			localhost:8080
+// @BasePath		/
+// @description	This is an api that publishes emails in RabbitMQ.
 func main() {
 	rabbitConfig := rabbit.Config{
 		User:     "rabbit",
