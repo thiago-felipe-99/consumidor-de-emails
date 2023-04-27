@@ -2,7 +2,7 @@
 package http
 
 import (
-	"github.com/ansrivas/fiberprometheus"
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/locales/pt"
 	"github.com/go-playground/locales/pt_BR"
@@ -52,7 +52,7 @@ func CreateServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App, err
 	app.Use(prometheus.Middleware)
 	app.Use(recover.New())
 
-  validate := validator.New()
+	validate := validator.New()
 
 	translator, err := createTranslator(validate)
 	if err != nil {
