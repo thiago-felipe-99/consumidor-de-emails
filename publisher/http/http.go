@@ -12,6 +12,7 @@ import (
 	ptTranslations "github.com/go-playground/validator/v10/translations/pt"
 	pt_br_translations "github.com/go-playground/validator/v10/translations/pt_BR"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
@@ -49,8 +50,13 @@ func CreateServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App, err
 	prometheus := fiberprometheus.New("publisher")
 	prometheus.RegisterAt(app, "/metrics")
 
-	app.Use(prometheus.Middleware)
 	app.Use(recover.New())
+	app.Use(logger.New(logger.Config{
+		//nolint:lll
+		Format:     "${time} [INFO] - Finished request | ${ip} | ${status} | ${latency} | ${method} | ${path} | ${bytesSent} | ${bytesReceived} | ${error}\n",
+		TimeFormat: "2006/01/02 15:04:05",
+	}))
+	app.Use(prometheus.Middleware)
 
 	validate := validator.New()
 
