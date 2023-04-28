@@ -68,7 +68,7 @@ func createHTTPServer(rabbit *rabbit.Rabbit, database *database) (*fiber.App, er
 		return nil, err
 	}
 
-	queue := queue{
+	queue := queueController{
 		rabbit:     rabbit,
 		database:   database,
 		validate:   validate,

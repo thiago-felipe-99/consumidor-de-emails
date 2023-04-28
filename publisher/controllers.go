@@ -44,25 +44,22 @@ type email struct {
 	Attachments    []string   `json:"attachments"    bson:"attachments"`
 }
 
-type queue struct {
+type queueController struct {
 	rabbit     *rabbit.Rabbit
 	validate   *validator.Validate
+	database   *database
 	translator *ut.UniversalTranslator
 	languages  []string
-	database   *database
+	core       *queueCore
 }
 
-func dlxName(name string) string {
-	return name + "-dlx"
-}
-
-func (queue *queue) bodyParser(body any, handler *fiber.Ctx) error {
+func (controller *queueController) bodyParser(body any, handler *fiber.Ctx) error {
 	err := handler.BodyParser(body)
 	if err != nil {
 		return errBodyValidate
 	}
 
-	err = queue.validate.Struct(body)
+	err = controller.validate.Struct(body)
 	if err != nil {
 		validationErrs := validator.ValidationErrors{}
 
@@ -71,12 +68,12 @@ func (queue *queue) bodyParser(body any, handler *fiber.Ctx) error {
 			return errBodyValidate
 		}
 
-		accept := handler.AcceptsLanguages(queue.languages...)
+		accept := handler.AcceptsLanguages(controller.languages...)
 		if accept == "" {
-			accept = queue.languages[0]
+			accept = controller.languages[0]
 		}
 
-		language, _ := queue.translator.GetTranslator(accept)
+		language, _ := controller.translator.GetTranslator(accept)
 
 		messages := validationErrs.Translate(language)
 
@@ -91,7 +88,7 @@ func (queue *queue) bodyParser(body any, handler *fiber.Ctx) error {
 	return nil
 }
 
-type queueBody struct {
+type queueModel struct {
 	Name       string `json:"name"       validate:"required"`
 	MaxRetries int64  `json:"maxRetries"`
 }
@@ -109,50 +106,37 @@ type queueBody struct {
 // @Param			queue	body		queue	true	"queue params"
 // @Router			/email/queue [post]
 // @Description	Creating a RabbitMQ queue with DLX.
-func (queue *queue) create() func(*fiber.Ctx) error {
+func (controller *queueController) create() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
-		body := &queueBody{
+		body := &queueModel{
 			MaxRetries: 10, //nolint:gomnd
 		}
 
-		err := queue.bodyParser(body, handler)
+		err := handler.BodyParser(body)
 		if err != nil {
 			return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 		}
 
-		name, dlx := body.Name, dlxName(body.Name)
-
-		queueExist, err := queue.database.existQueue(name)
+		err = controller.core.create(*body)
 		if err != nil {
-			log.Printf("[ERROR] - Error checking queue: %s", err)
+			if errors.Is(err, errQueueAlreadyExist) {
+				return handler.Status(fiber.StatusConflict).JSON(sent{errQueueAlreadyExist.Error()})
+			}
 
-			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error checking queue"})
-		}
+			modelInvalid := modelInvalidError{}
+			if okay := errors.As(err, &modelInvalid); okay {
+				accept := handler.AcceptsLanguages(controller.languages...)
+				if accept == "" {
+					accept = controller.languages[0]
+				}
 
-		dlxExist, err := queue.database.existQueue(dlx)
-		if err != nil {
-			log.Printf("[ERROR] - Error checking queue: %s", err)
+				language, _ := controller.translator.GetTranslator(accept)
 
-			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error checking queue"})
-		}
+				return handler.Status(fiber.StatusBadRequest).
+					JSON(sent{modelInvalid.Translate(language)})
+			}
 
-		if queueExist || dlxExist {
-			return handler.Status(fiber.StatusConflict).JSON(sent{errQueueAlreadyExist.Error()})
-		}
-
-		err = queue.rabbit.CreateQueueWithDLX(name, dlx, body.MaxRetries)
-		if err != nil {
 			log.Printf("[ERROR] - Error creating queue: %s", err)
-
-			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error creating queue"})
-		}
-
-		err = queue.database.addQueue(name, dlx, body.MaxRetries)
-		if err != nil {
-			log.Printf("[ERROR] - Error adding queue on database: %s", err)
 
 			return handler.Status(fiber.StatusInternalServerError).
 				JSON(sent{"error creating queue"})
@@ -172,9 +156,9 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue [get]
 // @Description	Getting all RabbitMQ queues.
-func (queue *queue) getAll() func(*fiber.Ctx) error {
+func (controller *queueController) getAll() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
-		queues, err := queue.database.getQueues()
+		queues, err := controller.database.getQueues()
 		if err != nil {
 			log.Printf("[ERROR] - Error getting all queues: %s", err)
 
@@ -197,11 +181,11 @@ func (queue *queue) getAll() func(*fiber.Ctx) error {
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue/{name} [delete]
 // @Description	Delete a queue with DLX.
-func (queue *queue) delete() func(*fiber.Ctx) error {
+func (controller *queueController) delete() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		name := handler.Params("name")
 
-		exist, err := queue.database.existQueue(name)
+		exist, err := controller.database.existQueue(name)
 		if err != nil {
 			log.Printf("[ERROR] - Error checking queue: %s", err)
 
@@ -213,7 +197,7 @@ func (queue *queue) delete() func(*fiber.Ctx) error {
 			return handler.Status(fiber.StatusNotFound).JSON(sent{errQueueDontExist.Error()})
 		}
 
-		err = queue.rabbit.DeleteQueueWithDLX(name, dlxName(name))
+		err = controller.rabbit.DeleteQueueWithDLX(name, dlxName(name))
 		if err != nil {
 			log.Printf("[ERROR] - Error deleting queue from RabbitMQ: %s", err)
 
@@ -221,7 +205,7 @@ func (queue *queue) delete() func(*fiber.Ctx) error {
 				JSON(sent{"error deleting queue from RabbitMQ"})
 		}
 
-		err = queue.database.deleteQueue(name)
+		err = controller.database.deleteQueue(name)
 		if err != nil {
 			log.Printf("[ERROR] - Error deleting queue: %s", err)
 
@@ -247,11 +231,11 @@ func (queue *queue) delete() func(*fiber.Ctx) error {
 // @Param			queue	body	email	true	"email"
 // @Router			/email/queue/{name}/send [post]
 // @Description	Sends an email to the RabbitMQ queue.
-func (queue *queue) send() func(*fiber.Ctx) error {
+func (controller *queueController) send() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		name := handler.Params("name")
 
-		queueExist, err := queue.database.existQueue(name)
+		queueExist, err := controller.database.existQueue(name)
 		if err != nil {
 			log.Printf("[ERROR] - Error checking queue: %s", err)
 
@@ -265,12 +249,12 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 
 		body := &email{}
 
-		err = queue.bodyParser(body, handler)
+		err = controller.bodyParser(body, handler)
 		if err != nil {
 			return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 		}
 
-		err = queue.rabbit.SendMessage(context.Background(), name, body)
+		err = controller.rabbit.SendMessage(context.Background(), name, body)
 		if err != nil {
 			log.Printf("[ERROR] - Error sending email: %s", err)
 
@@ -278,7 +262,7 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 				JSON(sent{"error send email"})
 		}
 
-		err = queue.database.saveEmail(*body)
+		err = controller.database.saveEmail(*body)
 		if err != nil {
 			log.Printf("[ERROR] - Error saving email: %s", err)
 
