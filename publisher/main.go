@@ -34,6 +34,22 @@ func main() {
 		return
 	}
 
+	queues, err := database.getQueues()
+	if err != nil {
+		log.Printf("[ERROR] - Error getting queues: %s", err)
+
+		return
+	}
+
+	for _, queue := range queues {
+		err := rabbitConnection.CreateQueueWithDLX(queue.Name, queue.DLX, queue.MaxRetries)
+		if err != nil {
+			log.Printf("[ERROR] - Error creating queue: %s", err)
+
+			return
+		}
+	}
+
 	server, err := createHTTPServer(rabbitConnection, database)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)

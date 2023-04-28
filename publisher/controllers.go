@@ -142,7 +142,7 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 				JSON(sent{"error creating queue"})
 		}
 
-		err = queue.database.addQueue(name, dlx)
+		err = queue.database.addQueue(name, dlx, body.MaxRetries)
 		if err != nil {
 			log.Printf("[ERROR] - Error adding queue on database: %s", err)
 

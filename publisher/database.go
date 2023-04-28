@@ -12,18 +12,19 @@ import (
 )
 
 type queueData struct {
-	ID        uuid.UUID `bson:"_id"`
-	Name      string    `bson:"name"`
-	DLX       string    `bson:"dlx"`
-	CreatedAt time.Time `bson:"created_at"`
+	ID         uuid.UUID `bson:"_id"`
+	Name       string    `bson:"name"`
+	DLX        string    `bson:"dlx"`
+	MaxRetries int64     `bson:"max_retries"`
+	CreatedAt  time.Time `bson:"created_at"`
 }
 
 type database struct {
 	db *mongo.Database
 }
 
-func (database *database) addQueue(names, dlx string) error {
-	queue := queueData{uuid.New(), names, dlx, time.Now()}
+func (database *database) addQueue(names, dlx string, maxRetries int64) error {
+	queue := queueData{uuid.New(), names, dlx, maxRetries, time.Now()}
 
 	_, err := database.db.Collection("queues").InsertOne(context.Background(), queue)
 	if err != nil {
@@ -31,6 +32,22 @@ func (database *database) addQueue(names, dlx string) error {
 	}
 
 	return nil
+}
+
+func (database *database) getQueues() ([]queueData, error) {
+	queues := []queueData{}
+
+	cursor, err := database.db.Collection("queues").Find(context.Background(), bson.D{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting queues: %w", err)
+	}
+
+	err = cursor.All(context.Background(), &queues)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing queues: %w", err)
+	}
+
+	return queues, nil
 }
 
 func (database *database) existQueue(name string) (bool, error) {
