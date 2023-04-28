@@ -120,14 +120,18 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 
 		queueExist, err := queue.database.existQueue(name)
 		if err != nil {
+			log.Printf("[ERROR] - Error checking queue: %s", err)
+
 			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error verifying queue"})
+				JSON(sent{"error checking queue"})
 		}
 
 		dlxExist, err := queue.database.existQueue(dlx)
 		if err != nil {
+			log.Printf("[ERROR] - Error checking queue: %s", err)
+
 			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error verifying queue"})
+				JSON(sent{"error checking queue"})
 		}
 
 		if queueExist || dlxExist {
@@ -154,6 +158,30 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 	}
 }
 
+// Getting all RabbitMQ queues
+//
+// @Summary		Get queues
+// @Tags			queue
+// @Accept			json
+// @Produce		json
+// @Success		200		{array}	queueData "all queues"
+// @Failure		500		{object}	sent "internal server error"
+// @Router			/email/queue [get]
+// @Description	Getting all RabbitMQ queues.
+func (queue *queue) getAll() func(*fiber.Ctx) error {
+	return func(handler *fiber.Ctx) error {
+		queues, err := queue.database.getQueues()
+		if err != nil {
+			log.Printf("[ERROR] - Error getting all queues: %s", err)
+
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error getting queue."})
+		}
+
+		return handler.JSON(queues)
+	}
+}
+
 // Sends an email to the RabbitMQ queue
 //
 // @Summary		Sends email
@@ -174,6 +202,8 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 
 		queueExist, err := queue.database.existQueue(name)
 		if err != nil {
+			log.Printf("[ERROR] - Error checking queue: %s", err)
+
 			return handler.Status(fiber.StatusInternalServerError).
 				JSON(sent{"error verifying queue"})
 		}

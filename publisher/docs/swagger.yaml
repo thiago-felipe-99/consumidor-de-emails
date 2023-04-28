@@ -25,6 +25,17 @@ definitions:
     type: object
   main.queue:
     type: object
+  main.queueData:
+    properties:
+      createdAt:
+        type: string
+      dlx:
+        type: string
+      maxRetries:
+        type: integer
+      name:
+        type: string
+    type: object
   main.receiver:
     properties:
       email:
@@ -59,6 +70,26 @@ info:
   version: "1.0"
 paths:
   /email/queue:
+    get:
+      consumes:
+      - application/json
+      description: Getting all RabbitMQ queues.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: all queues
+          schema:
+            items:
+              $ref: '#/definitions/main.queueData'
+            type: array
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/main.sent'
+      summary: Get queues
+      tags:
+      - queue
     post:
       consumes:
       - application/json

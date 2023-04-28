@@ -12,11 +12,11 @@ import (
 )
 
 type queueData struct {
-	ID         uuid.UUID `bson:"_id"`
-	Name       string    `bson:"name"`
-	DLX        string    `bson:"dlx"`
-	MaxRetries int64     `bson:"max_retries"`
-	CreatedAt  time.Time `bson:"created_at"`
+	ID         uuid.UUID `json:"-"          bson:"_id"`
+	Name       string    `json:"name"       bson:"name"`
+	DLX        string    `json:"dlx"        bson:"dlx"`
+	MaxRetries int64     `json:"maxRetries" bson:"max_retries"`
+	CreatedAt  time.Time `json:"createdAt"  bson:"created_at"`
 }
 
 type database struct {

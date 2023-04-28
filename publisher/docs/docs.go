@@ -17,6 +17,36 @@ const docTemplate = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/email/queue": {
+            "get": {
+                "description": "Getting all RabbitMQ queues.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Get queues",
+                "responses": {
+                    "200": {
+                        "description": "all queues",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.queueData"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Creating a RabbitMQ queue.",
                 "consumes": [
@@ -166,6 +196,23 @@ const docTemplate = `{
         },
         "main.queue": {
             "type": "object"
+        },
+        "main.queueData": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "dlx": {
+                    "type": "string"
+                },
+                "maxRetries": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
         },
         "main.receiver": {
             "type": "object",

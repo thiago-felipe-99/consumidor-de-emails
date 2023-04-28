@@ -76,6 +76,7 @@ func createHTTPServer(rabbit *rabbit.Rabbit, database *database) (*fiber.App, er
 		languages:  []string{"en", "pt_BR", "pt"},
 	}
 
+	app.Get("/email/queue", queue.getAll())
 	app.Post("/email/queue", queue.create())
 	app.Post("/email/queue/:name/send", queue.send())
 
