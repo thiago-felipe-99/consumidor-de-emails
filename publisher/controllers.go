@@ -52,6 +52,10 @@ type queue struct {
 	database   *database
 }
 
+func dlxName(name string) string {
+	return name + "-dlx"
+}
+
 func (queue *queue) bodyParser(body any, handler *fiber.Ctx) error {
 	err := handler.BodyParser(body)
 	if err != nil {
@@ -92,7 +96,7 @@ type queueBody struct {
 	MaxRetries int64  `json:"maxRetries"`
 }
 
-// Creating a RabbitMQ queue
+// Creating a RabbitMQ queue with DLX
 //
 // @Summary		Creating queue
 // @Tags			queue
@@ -104,7 +108,7 @@ type queueBody struct {
 // @Failure		500		{object}	sent "internal server error"
 // @Param			queue	body		queue	true	"queue params"
 // @Router			/email/queue [post]
-// @Description	Creating a RabbitMQ queue.
+// @Description	Creating a RabbitMQ queue with DLX.
 func (queue *queue) create() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		body := &queueBody{
@@ -116,7 +120,7 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 			return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 		}
 
-		name, dlx := body.Name, body.Name+"-dlx"
+		name, dlx := body.Name, dlxName(body.Name)
 
 		queueExist, err := queue.database.existQueue(name)
 		if err != nil {
@@ -175,10 +179,57 @@ func (queue *queue) getAll() func(*fiber.Ctx) error {
 			log.Printf("[ERROR] - Error getting all queues: %s", err)
 
 			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error getting queue."})
+				JSON(sent{"error getting queue"})
 		}
 
 		return handler.JSON(queues)
+	}
+}
+
+// Delete a queue with DLX
+//
+// @Summary		Delete queues
+// @Tags			queue
+// @Accept			json
+// @Produce		json
+// @Success		204		{array}	queueData "queue deleted"
+// @Failure		404		{object}	sent "queue dont exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Router			/email/queue/{name} [delete]
+// @Description	Delete a queue with DLX.
+func (queue *queue) delete() func(*fiber.Ctx) error {
+	return func(handler *fiber.Ctx) error {
+		name := handler.Params("name")
+
+		exist, err := queue.database.existQueue(name)
+		if err != nil {
+			log.Printf("[ERROR] - Error checking queue: %s", err)
+
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error checking queue"})
+		}
+
+		if !exist {
+			return handler.Status(fiber.StatusNotFound).JSON(sent{errQueueDontExist.Error()})
+		}
+
+		err = queue.rabbit.DeleteQueueWithDLX(name, dlxName(name))
+		if err != nil {
+			log.Printf("[ERROR] - Error deleting queue from RabbitMQ: %s", err)
+
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error deleting queue from RabbitMQ"})
+		}
+
+		err = queue.database.deleteQueue(name)
+		if err != nil {
+			log.Printf("[ERROR] - Error deleting queue: %s", err)
+
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error deleting queue"})
+		}
+
+		return handler.JSON(sent{"queue deleted"})
 	}
 }
 

@@ -41,7 +41,7 @@
                 }
             },
             "post": {
-                "description": "Creating a RabbitMQ queue.",
+                "description": "Creating a RabbitMQ queue with DLX.",
                 "consumes": [
                     "application/json"
                 ],
@@ -78,6 +78,44 @@
                     },
                     "409": {
                         "description": "queue already exist",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/main.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/queue/{name}": {
+            "delete": {
+                "description": "Delete a queue with DLX.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Delete queues",
+                "responses": {
+                    "204": {
+                        "description": "queue deleted",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.queueData"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "queue dont exist",
                         "schema": {
                             "$ref": "#/definitions/main.sent"
                         }

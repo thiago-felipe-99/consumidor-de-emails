@@ -78,6 +78,7 @@ func createHTTPServer(rabbit *rabbit.Rabbit, database *database) (*fiber.App, er
 
 	app.Get("/email/queue", queue.getAll())
 	app.Post("/email/queue", queue.create())
+	app.Delete("/email/queue/:name", queue.delete())
 	app.Post("/email/queue/:name/send", queue.send())
 
 	return app, nil

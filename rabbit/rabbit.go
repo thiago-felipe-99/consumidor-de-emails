@@ -46,10 +46,9 @@ type Config struct {
 }
 
 type Rabbit struct {
-	url                   string
-	maxPublishRetries     int
-	maxCreateQueueRetries int
-	timeoutSendMessage    time.Duration
+	url                string
+	maxRetries         int
+	timeoutSendMessage time.Duration
 
 	close      bool
 	connection *amqp.Connection
@@ -105,7 +104,7 @@ func (rabbit *Rabbit) CreateQueueWithDLX(name string, dlx string, maxRetries int
 		return rabbit.createQueueWithDLX(name, dlx, maxRetries)
 	}
 
-	return rabbit.retries(rabbit.maxCreateQueueRetries, errsReturn, createQueue)
+	return rabbit.retries(rabbit.maxRetries, errsReturn, createQueue)
 }
 
 func (rabbit *Rabbit) createQueueWithDLX(name string, dlx string, maxRetries int64) error {
@@ -150,6 +149,42 @@ func (rabbit *Rabbit) createQueueWithDLX(name string, dlx string, maxRetries int
 	return nil
 }
 
+func (rabbit *Rabbit) DeleteQueueWithDLX(name string, dlx string) error {
+	errsReturn := []error{}
+
+	deleteQueue := func() error {
+		return rabbit.deleteQueueWithDLX(name, dlx)
+	}
+
+	return rabbit.retries(rabbit.maxRetries, errsReturn, deleteQueue)
+}
+
+func (rabbit *Rabbit) deleteQueueWithDLX(name string, dlx string) error {
+	channel, err := rabbit.connection.Channel()
+	if err != nil {
+		return fmt.Errorf("failed to open RabbitMQ channel: %w", err)
+	}
+
+	defer channel.Close()
+
+	err = channel.ExchangeDelete(dlx, false, false)
+	if err != nil {
+		return fmt.Errorf("error deleting dlx exchange: %w", err)
+	}
+
+	_, err = channel.QueueDelete(dlx, false, false, false)
+	if err != nil {
+		return fmt.Errorf("error deleting dlx queue: %w", err)
+	}
+
+	_, err = channel.QueueDelete(name, false, false, false)
+	if err != nil {
+		return fmt.Errorf("error deleting queue: %w", err)
+	}
+
+	return nil
+}
+
 func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any) error {
 	errsReturn := []error{ErrEncondingMessage}
 
@@ -157,7 +192,7 @@ func (rabbit *Rabbit) SendMessage(ctx context.Context, queue string, message any
 		return rabbit.sendMessage(ctx, queue, message)
 	}
 
-	return rabbit.retries(rabbit.maxPublishRetries, errsReturn, sendMessage)
+	return rabbit.retries(rabbit.maxRetries, errsReturn, sendMessage)
 }
 
 func (rabbit *Rabbit) sendMessage(ctx context.Context, queue string, message any) error {
@@ -292,11 +327,10 @@ func New(config Config) *Rabbit {
 
 	//nolint: gomnd
 	rabbit := &Rabbit{
-		url:                   url,
-		maxPublishRetries:     5,
-		maxCreateQueueRetries: 3,
-		timeoutSendMessage:    5 * time.Second,
-		close:                 true,
+		url:                url,
+		maxRetries:         3,
+		timeoutSendMessage: 5 * time.Second,
+		close:              true,
 	}
 
 	return rabbit

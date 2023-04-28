@@ -66,6 +66,17 @@ func (database *database) existQueue(name string) (bool, error) {
 	return count >= 1, nil
 }
 
+func (database *database) deleteQueue(name string) error {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	result := database.db.Collection("queues").FindOneAndDelete(context.Background(), filter)
+	if result.Err() != nil {
+		return fmt.Errorf("error deleting queue: %w", result.Err())
+	}
+
+	return nil
+}
+
 func (database *database) saveEmail(email email) error {
 	email.ID = uuid.New()
 

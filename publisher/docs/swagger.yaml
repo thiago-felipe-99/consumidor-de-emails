@@ -93,7 +93,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creating a RabbitMQ queue.
+      description: Creating a RabbitMQ queue with DLX.
       parameters:
       - description: queue params
         in: body
@@ -121,6 +121,31 @@ paths:
           schema:
             $ref: '#/definitions/main.sent'
       summary: Creating queue
+      tags:
+      - queue
+  /email/queue/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a queue with DLX.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: queue deleted
+          schema:
+            items:
+              $ref: '#/definitions/main.queueData'
+            type: array
+        "404":
+          description: queue dont exist
+          schema:
+            $ref: '#/definitions/main.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/main.sent'
+      summary: Delete queues
       tags:
       - queue
   /email/queue/{name}/send:
