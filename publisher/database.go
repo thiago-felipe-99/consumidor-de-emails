@@ -49,6 +49,17 @@ func (database *database) existQueue(name string) (bool, error) {
 	return count >= 1, nil
 }
 
+func (database *database) saveEmail(email email) error {
+	email.ID = uuid.New()
+
+	_, err := database.db.Collection("emails_sent").InsertOne(context.Background(), email)
+	if err != nil {
+		return fmt.Errorf("error adding queue on database: %w", err)
+	}
+
+	return nil
+}
+
 func newDatabase() (*database, error) {
 	uri := "mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100"
 

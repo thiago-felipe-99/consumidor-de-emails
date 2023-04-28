@@ -9,6 +9,7 @@ import (
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -19,26 +20,28 @@ var (
 )
 
 type sent struct {
-	Message string `json:"message"`
+	Message string `json:"message" bson:"message"`
 }
 
 type receiver struct {
-	Name  string `json:"name"  validate:"required"`
-	Email string `json:"email" validate:"required,email"`
+	Name  string `json:"name"  bson:"name"  validate:"required"`
+	Email string `json:"email" bson:"email" validate:"required,email"`
 }
 
 type template struct {
-	Name string            `json:"name" validate:"required"`
-	Data map[string]string `json:"data"`
+	Name string            `json:"name" bson:"name" validate:"required"`
+	Data map[string]string `json:"data" bson:"data"`
 }
 
+//nolint:lll
 type email struct {
-	Receivers      []receiver `json:"receivers"      validate:"required_without=BlindReceivers"`
-	BlindReceivers []receiver `json:"blindReceivers" validate:"required_without=Receivers"`
-	Subject        string     `json:"subject"        validate:"required"`
-	Message        string     `json:"message"        validate:"required_without=Template,excluded_with=Template"`
-	Template       *template  `json:"template"       validate:"required_without=Message,excluded_with=Message"`
-	Attachments    []string   `json:"attachments"`
+	ID             uuid.UUID  `json:"-"              bson:"_id"`
+	Receivers      []receiver `json:"receivers"      bson:"receivers"       validate:"required_without=BlindReceivers"`
+	BlindReceivers []receiver `json:"blindReceivers" bson:"blind_receivers" validate:"required_without=Receivers"`
+	Subject        string     `json:"subject"        bson:"subject"         validate:"required"`
+	Message        string     `json:"message"        bson:"message"         validate:"required_without=Template,excluded_with=Template"`
+	Template       *template  `json:"template"       bson:"template"        validate:"required_without=Message,excluded_with=Message"`
+	Attachments    []string   `json:"attachments"    bson:"attachments"`
 }
 
 type queue struct {
@@ -188,10 +191,18 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 
 		err = queue.rabbit.SendMessage(context.Background(), name, body)
 		if err != nil {
-			log.Printf("[ERROR] - Error creating queue: %s", err)
+			log.Printf("[ERROR] - Error sending email: %s", err)
 
 			return handler.Status(fiber.StatusInternalServerError).
 				JSON(sent{"error send email"})
+		}
+
+		err = queue.database.saveEmail(*body)
+		if err != nil {
+			log.Printf("[ERROR] - Error saving email: %s", err)
+
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error savving email"})
 		}
 
 		return handler.JSON(sent{"email sent"})
