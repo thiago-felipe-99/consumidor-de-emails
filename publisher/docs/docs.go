@@ -36,7 +36,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.queueBody"
+                            "$ref": "#/definitions/main.queue"
                         }
                     }
                 ],
@@ -95,7 +95,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.emailBody"
+                            "$ref": "#/definitions/main.email"
                         }
                     }
                 ],
@@ -129,7 +129,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.emailBody": {
+        "main.email": {
             "type": "object",
             "required": [
                 "subject"
@@ -164,19 +164,8 @@ const docTemplate = `{
                 }
             }
         },
-        "main.queueBody": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "maxRetries": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
+        "main.queue": {
+            "type": "object"
         },
         "main.receiver": {
             "type": "object",

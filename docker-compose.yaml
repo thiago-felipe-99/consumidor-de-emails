@@ -44,15 +44,15 @@ services:
     environment:
       - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
   database:
-    image: postgres:15
+    image: mongo:5
     environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=postgres
+      - MONGO_INITDB_ROOT_USERNAME=mongo
+      - MONGO_INITDB_ROOT_PASSWORD=mongo
+      - MONGO_INITDB_DATABASE=email
     ports:
-      - 5432:5432/tcp
+      - 27017:27017/tcp
     volumes:
-      - database:/var/lib/postgresql/data
+      - database:/data/db
 volumes:
   minio: {}
   prometheus: {}

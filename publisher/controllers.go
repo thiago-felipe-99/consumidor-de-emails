@@ -32,7 +32,7 @@ type template struct {
 	Data map[string]string `json:"data"`
 }
 
-type emailBody struct {
+type email struct {
 	Receivers      []receiver `json:"receivers"      validate:"required_without=BlindReceivers"`
 	BlindReceivers []receiver `json:"blindReceivers" validate:"required_without=Receivers"`
 	Subject        string     `json:"subject"        validate:"required"`
@@ -99,7 +99,7 @@ type queueBody struct {
 // @Failure		400		{object}	sent "an invalid queue param was sent"
 // @Failure		409		{object}	sent "queue already exist"
 // @Failure		500		{object}	sent "internal server error"
-// @Param			queue	body		queueBody	true	"queue params"
+// @Param			queue	body		queue	true	"queue params"
 // @Router			/email/queue [post]
 // @Description	Creating a RabbitMQ queue.
 func (queue *queue) create() func(*fiber.Ctx) error {
@@ -115,7 +115,19 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 
 		name, dlx := body.Name, body.Name+"-dlx"
 
-		if queue.database.exist(name) || queue.database.exist(dlx) {
+		queueExist, err := queue.database.existQueue(name)
+		if err != nil {
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error verifying queue"})
+		}
+
+		dlxExist, err := queue.database.existQueue(dlx)
+		if err != nil {
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error verifying queue"})
+		}
+
+		if queueExist || dlxExist {
 			return handler.Status(fiber.StatusConflict).JSON(sent{errQueueAlreadyExist.Error()})
 		}
 
@@ -135,7 +147,7 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 				JSON(sent{"error creating queue"})
 		}
 
-		return handler.Status(fiber.StatusCreated).JSON(sent{"Queue created"})
+		return handler.Status(fiber.StatusCreated).JSON(sent{"queue created"})
 	}
 }
 
@@ -150,20 +162,26 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 // @Failure		404		{object}	sent "queue does not exist"
 // @Failure		500		{object}	sent "internal server error"
 // @Param			name	path	string		true	"queue name"
-// @Param			queue	body	emailBody	true	"email"
+// @Param			queue	body	email	true	"email"
 // @Router			/email/queue/{name}/send [post]
 // @Description	Sends an email to the RabbitMQ queue.
 func (queue *queue) send() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		name := handler.Params("name")
 
-		if !queue.database.exist(name) {
+		queueExist, err := queue.database.existQueue(name)
+		if err != nil {
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error verifying queue"})
+		}
+
+		if !queueExist {
 			return handler.Status(fiber.StatusNotFound).JSON(sent{errQueueDontExist.Error()})
 		}
 
-		body := &emailBody{}
+		body := &email{}
 
-		err := queue.bodyParser(body, handler)
+		err = queue.bodyParser(body, handler)
 		if err != nil {
 			return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 		}
@@ -173,9 +191,9 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 			log.Printf("[ERROR] - Error creating queue: %s", err)
 
 			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error creating queue"})
+				JSON(sent{"error send email"})
 		}
 
-		return handler.JSON(sent{"Email sent"})
+		return handler.JSON(sent{"email sent"})
 	}
 }

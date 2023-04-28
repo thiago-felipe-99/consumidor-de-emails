@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  main.emailBody:
+  main.email:
     properties:
       attachments:
         items:
@@ -23,14 +23,7 @@ definitions:
     required:
     - subject
     type: object
-  main.queueBody:
-    properties:
-      maxRetries:
-        type: integer
-      name:
-        type: string
-    required:
-    - name
+  main.queue:
     type: object
   main.receiver:
     properties:
@@ -76,7 +69,7 @@ paths:
         name: queue
         required: true
         schema:
-          $ref: '#/definitions/main.queueBody'
+          $ref: '#/definitions/main.queue'
       produces:
       - application/json
       responses:
@@ -115,7 +108,7 @@ paths:
         name: queue
         required: true
         schema:
-          $ref: '#/definitions/main.emailBody'
+          $ref: '#/definitions/main.email'
       produces:
       - application/json
       responses:

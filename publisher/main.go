@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	_ "github.com/lib/pq"
 	_ "github.com/thiago-felipe-99/mail/publisher/docs"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
