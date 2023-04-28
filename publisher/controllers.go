@@ -43,10 +43,10 @@ type emailBody struct {
 
 type queue struct {
 	rabbit     *rabbit.Rabbit
-	queues     *rabbit.Queues
 	validate   *validator.Validate
 	translator *ut.UniversalTranslator
 	languages  []string
+	database   *database
 }
 
 func (queue *queue) bodyParser(body any, handler *fiber.Ctx) error {
@@ -113,11 +113,13 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 			return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 		}
 
-		if queue.queues.Exist(body.Name) {
+		name, dlx := body.Name, body.Name+"-dlx"
+
+		if queue.database.exist(name) || queue.database.exist(dlx) {
 			return handler.Status(fiber.StatusConflict).JSON(sent{errQueueAlreadyExist.Error()})
 		}
 
-		err = queue.rabbit.CreateQueue(body.Name, body.MaxRetries)
+		err = queue.rabbit.CreateQueueWithDLX(name, dlx, body.MaxRetries)
 		if err != nil {
 			log.Printf("[ERROR] - Error creating queue: %s", err)
 
@@ -125,7 +127,13 @@ func (queue *queue) create() func(*fiber.Ctx) error {
 				JSON(sent{"error creating queue"})
 		}
 
-		queue.queues.Add(body.Name)
+		err = queue.database.addQueue(name, dlx)
+		if err != nil {
+			log.Printf("[ERROR] - Error adding queue on database: %s", err)
+
+			return handler.Status(fiber.StatusInternalServerError).
+				JSON(sent{"error creating queue"})
+		}
 
 		return handler.Status(fiber.StatusCreated).JSON(sent{"Queue created"})
 	}
@@ -149,7 +157,7 @@ func (queue *queue) send() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
 		name := handler.Params("name")
 
-		if !queue.queues.Exist(name) {
+		if !queue.database.exist(name) {
 			return handler.Status(fiber.StatusNotFound).JSON(sent{errQueueDontExist.Error()})
 		}
 

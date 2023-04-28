@@ -33,6 +33,7 @@ type rabbitConfig struct {
 	Port       int    `config:"port"        validate:"required"`
 	Vhost      string `config:"vhost"       validate:"required"`
 	Queue      string `config:"queue"       validate:"required"`
+	QueueDLX   string `config:"queue_dlx"   validate:"required"`
 	MaxRetries int64  `config:"max_retries" validate:"required"`
 }
 

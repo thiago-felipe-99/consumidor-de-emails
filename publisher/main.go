@@ -2,22 +2,11 @@ package main
 
 import (
 	"log"
-	"time"
 
+	_ "github.com/lib/pq"
 	_ "github.com/thiago-felipe-99/mail/publisher/docs"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
-
-func updateQueues(queues *rabbit.Queues) {
-	for {
-		err := queues.UpdateQueues()
-		if err != nil {
-			log.Printf("[ERROR] - Error updating queues: %s", err)
-		}
-
-		time.Sleep(time.Second * 15) //nolint: gomnd
-	}
-}
 
 // @title			Publisher Emails
 // @version		1.0
@@ -39,11 +28,14 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
-	queues := rabbit.NewQueues(rabbitConfig)
+	database, err := newDatabase()
+	if err != nil {
+		log.Printf("[ERROR] - Error creating datase: %s", err)
 
-	go updateQueues(queues)
+		return
+	}
 
-	server, err := createHTTPServer(rabbitConnection, queues)
+	server, err := createHTTPServer(rabbitConnection, database)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)
 

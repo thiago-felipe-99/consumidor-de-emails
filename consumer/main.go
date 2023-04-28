@@ -28,7 +28,11 @@ func consumeMessages(rabbit *rabbit.Rabbit, configs *configurations, queue chan<
 	for {
 		log.Printf("[INFO] - Creating the consumer")
 
-		err := rabbit.CreateQueue(configs.Rabbit.Queue, configs.Rabbit.MaxRetries)
+		err := rabbit.CreateQueueWithDLX(
+			configs.Rabbit.Queue,
+			configs.Rabbit.QueueDLX,
+			configs.Rabbit.MaxRetries,
+		)
 		if err != nil {
 			log.Printf("[ERROR] - Erro creating consumer: %s", err)
 

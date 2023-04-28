@@ -45,18 +45,18 @@ func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, er
 	return translator, nil
 }
 
-func createHTTPServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App, error) {
+func createHTTPServer(rabbit *rabbit.Rabbit, database *database) (*fiber.App, error) {
 	app := fiber.New()
 
 	prometheus := fiberprometheus.New("publisher")
 	prometheus.RegisterAt(app, "/metrics")
 
-	app.Use(recover.New())
 	app.Use(logger.New(logger.Config{
 		//nolint:lll
 		Format:     "${time} [INFO] - Finished request | ${ip} | ${status} | ${latency} | ${method} | ${path} | ${bytesSent} | ${bytesReceived} | ${error}\n",
 		TimeFormat: "2006/01/02 15:04:05",
 	}))
+	app.Use(recover.New())
 	app.Use(prometheus.Middleware)
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
@@ -70,7 +70,7 @@ func createHTTPServer(rabbit *rabbit.Rabbit, queues *rabbit.Queues) (*fiber.App,
 
 	queue := queue{
 		rabbit:     rabbit,
-		queues:     queues,
+		database:   database,
 		validate:   validate,
 		translator: translator,
 		languages:  []string{"en", "pt_BR", "pt"},

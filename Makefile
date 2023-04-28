@@ -39,4 +39,4 @@ run_publisher: docs_publisher tidy_publisher
 	go run ./publisher/
 
 .PHONY: all
-all: docs lint tidy
+all: docs_publisher lint tidy

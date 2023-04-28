@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
-	rabbithole "github.com/michaelklishin/rabbit-hole/v2"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -100,25 +98,23 @@ func (rabbit *Rabbit) retries(maxRetries int, errsReturn []error, try func() err
 	return errMaxRetries
 }
 
-func (rabbit *Rabbit) CreateQueue(name string, maxRetries int64) error {
+func (rabbit *Rabbit) CreateQueueWithDLX(name string, dlx string, maxRetries int64) error {
 	errsReturn := []error{}
 
 	createQueue := func() error {
-		return rabbit.createQueue(name, maxRetries)
+		return rabbit.createQueueWithDLX(name, dlx, maxRetries)
 	}
 
 	return rabbit.retries(rabbit.maxCreateQueueRetries, errsReturn, createQueue)
 }
 
-func (rabbit *Rabbit) createQueue(name string, maxRetries int64) error {
+func (rabbit *Rabbit) createQueueWithDLX(name string, dlx string, maxRetries int64) error {
 	if rabbit.close {
 		return ErrConnectionClosed
 	}
 
-	dlx := name + "-dlx"
-
 	queueArgs := amqp.Table{
-		"x-dead-letter-exchange":    name + "-dlx",
+		"x-dead-letter-exchange":    dlx,
 		"x-dead-letter-routing-key": "dead-message",
 		"x-delivery-limit":          maxRetries,
 		"x-queue-type":              "quorum",
@@ -238,10 +234,7 @@ func (rabbit *Rabbit) HandleConnection() {
 
 		recreatDelay = time.Second
 
-		err, okay := <-connectionClose
-		if !okay {
-			log.Printf("[ERROR] - Error when connection was closed: %s", err)
-		}
+		<-connectionClose
 
 		log.Printf("[INFO] - Connection was closed, recreating connection")
 	}
@@ -307,91 +300,4 @@ func New(config Config) *Rabbit {
 	}
 
 	return rabbit
-}
-
-type Queues struct {
-	mutex  sync.Mutex
-	queues []string
-	config Config
-}
-
-func (queues *Queues) Add(name string) {
-	if queues.Exist(name) {
-		return
-	}
-
-	queues.mutex.Lock()
-	queues.queues = append(queues.queues, name)
-	queues.mutex.Unlock()
-}
-
-func (queues *Queues) Exist(name string) bool {
-	queues.mutex.Lock()
-	defer queues.mutex.Unlock()
-
-	for _, queue := range queues.queues {
-		if queue == name {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (queues *Queues) UpdateQueues() error {
-	uri := fmt.Sprintf("http://%s:%s", queues.config.Host, queues.config.PortAPI)
-
-	client, err := rabbithole.NewClient(uri, queues.config.User, queues.config.Password)
-	if err != nil {
-		return fmt.Errorf("error creating RabbitMQ API cliente: %w", err)
-	}
-
-	queues.mutex.Lock()
-
-	currentQueues, err := client.ListQueuesIn(queues.config.Vhost)
-	if err != nil {
-		queues.mutex.Unlock()
-
-		return fmt.Errorf("error get current queues: %w", err)
-	}
-
-	// removing deleted queues
-	for index := len(queues.queues) - 1; index >= 0; index-- {
-		exist := false
-
-		for _, queue := range currentQueues {
-			if queues.queues[index] == queue.Name {
-				exist = true
-
-				break
-			}
-		}
-
-		if !exist {
-			last := len(queues.queues) - 1
-
-			queues.queues[index] = queues.queues[last]
-
-			queues.queues = queues.queues[:last]
-		}
-	}
-
-	queues.mutex.Unlock()
-
-	for _, queue := range currentQueues {
-		queues.Add(queue.Name)
-	}
-
-	return nil
-}
-
-func (queues *Queues) Size() int {
-	return len(queues.queues)
-}
-
-func NewQueues(config Config) *Queues {
-	return &Queues{
-		queues: []string{},
-		config: config,
-	}
 }

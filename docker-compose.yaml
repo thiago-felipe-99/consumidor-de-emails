@@ -37,13 +37,24 @@ services:
       - prometheus:/prometheus
   grafana:
     image: grafana/grafana-oss
+    ports:
+      - 3000:3000/tcp
     volumes:
       - grafana:/var/lib/grafana
-    ports:
-      - 3000:3000
     environment:
       - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
+  database:
+    image: postgres:15
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - 5432:5432/tcp
+    volumes:
+      - database:/var/lib/postgresql/data
 volumes:
   minio: {}
   prometheus: {}
   grafana: {}
+  database: {}
