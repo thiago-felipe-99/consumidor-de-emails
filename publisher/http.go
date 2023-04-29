@@ -69,17 +69,19 @@ func createHTTPServer(rabbit *rabbit.Rabbit, database *database) (*fiber.App, er
 	}
 
 	queue := queueController{
-		rabbit:     rabbit,
-		database:   database,
-		validate:   validate,
+		core: &queueCore{
+			rabbit:    rabbit,
+			database:  database,
+			validator: validate,
+		},
 		translator: translator,
 		languages:  []string{"en", "pt_BR", "pt"},
 	}
 
-	app.Get("/email/queue", queue.getAll())
-	app.Post("/email/queue", queue.create())
-	app.Delete("/email/queue/:name", queue.delete())
-	app.Post("/email/queue/:name/send", queue.send())
+	app.Get("/email/queue", queue.getAll)
+	app.Post("/email/queue", queue.create)
+	app.Delete("/email/queue/:name", queue.delete)
+	app.Post("/email/queue/:name/send", queue.sendEmail)
 
 	return app, nil
 }

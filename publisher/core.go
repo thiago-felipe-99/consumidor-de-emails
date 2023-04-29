@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -16,9 +17,9 @@ func dlxName(name string) string {
 }
 
 type queueCore struct {
-	rabbit   *rabbit.Rabbit
-	validate *validator.Validate
-	database *database
+	rabbit    *rabbit.Rabbit
+	validator *validator.Validate
+	database  *database
 }
 
 type modelInvalidError struct {
@@ -34,14 +35,14 @@ func (err modelInvalidError) Translate(language ut.Translator) string {
 
 	messageSend := ""
 	for _, message := range messages {
-		messageSend += "\n" + message
+		messageSend += ", " + message
 	}
 
-	return messageSend
+	return messageSend[2:]
 }
 
-func (core *queueCore) create(queue queueBody) error {
-	err := core.validate.Struct(queue)
+func (core *queueCore) validate(data any) error {
+	err := core.validator.Struct(data)
 	if err != nil {
 		validationErrs := validator.ValidationErrors{}
 
@@ -50,7 +51,16 @@ func (core *queueCore) create(queue queueBody) error {
 			return errBodyValidate
 		}
 
-		return &modelInvalidError{validationErrs}
+		return modelInvalidError{validationErrs}
+	}
+
+	return nil
+}
+
+func (core *queueCore) create(queue queueBody) error {
+	err := core.validate(queue)
+	if err != nil {
+		return err
 	}
 
 	name, dlx := queue.Name, dlxName(queue.Name)
@@ -113,6 +123,38 @@ func (core *queueCore) delete(name string) error {
 	err = core.database.deleteQueue(name)
 	if err != nil {
 		return fmt.Errorf("error deleting queue from database: %w", err)
+	}
+
+	return nil
+}
+
+func (core *queueCore) sendEmail(queue string, email emailModel) error {
+	if len(queue) == 0 {
+		return errInvalidName
+	}
+
+	err := core.validate(email)
+	if err != nil {
+		return err
+	}
+
+	queueExist, err := core.database.existQueue(queue)
+	if err != nil {
+		return fmt.Errorf("error checking queue: %w", err)
+	}
+
+	if !queueExist {
+		return errQueueDontExist
+	}
+
+	err = core.rabbit.SendMessage(context.Background(), queue, email)
+	if err != nil {
+		return fmt.Errorf("error sending email: %w", err)
+	}
+
+	err = core.database.saveEmail(email)
+	if err != nil {
+		return fmt.Errorf("error saving email: %w", err)
 	}
 
 	return nil

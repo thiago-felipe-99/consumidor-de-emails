@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  main.email:
+  main.emailModel:
     properties:
       attachments:
         items:
@@ -9,12 +9,14 @@ definitions:
       blindReceivers:
         items:
           $ref: '#/definitions/main.receiver'
+        minItems: 1
         type: array
       message:
         type: string
       receivers:
         items:
           $ref: '#/definitions/main.receiver'
+        minItems: 1
         type: array
       subject:
         type: string
@@ -153,7 +155,7 @@ paths:
       summary: Delete queues
       tags:
       - queue
-  /email/queue/{name}/send:
+  /email/queue/{name}/sendEmail:
     post:
       consumes:
       - application/json
@@ -169,7 +171,7 @@ paths:
         name: queue
         required: true
         schema:
-          $ref: '#/definitions/main.email'
+          $ref: '#/definitions/main.emailModel'
       produces:
       - application/json
       responses:

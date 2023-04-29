@@ -133,7 +133,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/email/queue/{name}/send": {
+        "/email/queue/{name}/sendEmail": {
             "post": {
                 "description": "Sends an email to the RabbitMQ queue.",
                 "consumes": [
@@ -160,7 +160,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.email"
+                            "$ref": "#/definitions/main.emailModel"
                         }
                     }
                 ],
@@ -194,7 +194,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.email": {
+        "main.emailModel": {
             "type": "object",
             "required": [
                 "subject"
@@ -208,6 +208,7 @@ const docTemplate = `{
                 },
                 "blindReceivers": {
                     "type": "array",
+                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/main.receiver"
                     }
@@ -217,6 +218,7 @@ const docTemplate = `{
                 },
                 "receivers": {
                     "type": "array",
+                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/main.receiver"
                     }

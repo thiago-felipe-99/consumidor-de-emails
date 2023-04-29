@@ -11,14 +11,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type queueModel struct {
-	ID         uuid.UUID `json:"-"          bson:"_id"`
-	Name       string    `json:"name"       bson:"name"`
-	DLX        string    `json:"dlx"        bson:"dlx"`
-	MaxRetries int64     `json:"maxRetries" bson:"max_retries"`
-	CreatedAt  time.Time `json:"createdAt"  bson:"created_at"`
-}
-
 type database struct {
 	db *mongo.Database
 }
@@ -77,7 +69,7 @@ func (database *database) deleteQueue(name string) error {
 	return nil
 }
 
-func (database *database) saveEmail(email email) error {
+func (database *database) saveEmail(email emailModel) error {
 	email.ID = uuid.New()
 
 	_, err := database.db.Collection("emails_sent").InsertOne(context.Background(), email)
