@@ -35,7 +35,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/main.queueData"
+                                "$ref": "#/definitions/main.queueModel"
                             }
                         }
                     },
@@ -66,7 +66,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.queue"
+                            "$ref": "#/definitions/main.queueBody"
                         }
                     }
                 ],
@@ -115,10 +115,7 @@ const docTemplate = `{
                     "204": {
                         "description": "queue deleted",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/main.queueData"
-                            }
+                            "type": "onject"
                         }
                     },
                     "404": {
@@ -232,10 +229,21 @@ const docTemplate = `{
                 }
             }
         },
-        "main.queue": {
-            "type": "object"
+        "main.queueBody": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "maxRetries": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
         },
-        "main.queueData": {
+        "main.queueModel": {
             "type": "object",
             "properties": {
                 "createdAt": {

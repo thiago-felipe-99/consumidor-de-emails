@@ -28,7 +28,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/main.queueData"
+                                "$ref": "#/definitions/main.queueModel"
                             }
                         }
                     },
@@ -59,7 +59,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.queue"
+                            "$ref": "#/definitions/main.queueBody"
                         }
                     }
                 ],
@@ -108,10 +108,7 @@
                     "204": {
                         "description": "queue deleted",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/main.queueData"
-                            }
+                            "type": "onject"
                         }
                     },
                     "404": {
@@ -225,10 +222,21 @@
                 }
             }
         },
-        "main.queue": {
-            "type": "object"
+        "main.queueBody": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "maxRetries": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
         },
-        "main.queueData": {
+        "main.queueModel": {
             "type": "object",
             "properties": {
                 "createdAt": {

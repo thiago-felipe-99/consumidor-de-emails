@@ -23,9 +23,16 @@ definitions:
     required:
     - subject
     type: object
-  main.queue:
+  main.queueBody:
+    properties:
+      maxRetries:
+        type: integer
+      name:
+        type: string
+    required:
+    - name
     type: object
-  main.queueData:
+  main.queueModel:
     properties:
       createdAt:
         type: string
@@ -81,7 +88,7 @@ paths:
           description: all queues
           schema:
             items:
-              $ref: '#/definitions/main.queueData'
+              $ref: '#/definitions/main.queueModel'
             type: array
         "500":
           description: internal server error
@@ -100,7 +107,7 @@ paths:
         name: queue
         required: true
         schema:
-          $ref: '#/definitions/main.queue'
+          $ref: '#/definitions/main.queueBody'
       produces:
       - application/json
       responses:
@@ -134,9 +141,7 @@ paths:
         "204":
           description: queue deleted
           schema:
-            items:
-              $ref: '#/definitions/main.queueData'
-            type: array
+            type: onject
         "404":
           description: queue dont exist
           schema:

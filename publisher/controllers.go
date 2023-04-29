@@ -88,7 +88,7 @@ func (controller *queueController) bodyParser(body any, handler *fiber.Ctx) erro
 	return nil
 }
 
-type queueModel struct {
+type queueBody struct {
 	Name       string `json:"name"       validate:"required"`
 	MaxRetries int64  `json:"maxRetries"`
 }
@@ -103,12 +103,12 @@ type queueModel struct {
 // @Failure		400		{object}	sent "an invalid queue param was sent"
 // @Failure		409		{object}	sent "queue already exist"
 // @Failure		500		{object}	sent "internal server error"
-// @Param			queue	body		queue	true	"queue params"
+// @Param			queue	body		queueBody	true	"queue params"
 // @Router			/email/queue [post]
 // @Description	Creating a RabbitMQ queue with DLX.
 func (controller *queueController) create() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
-		body := &queueModel{
+		body := &queueBody{
 			MaxRetries: 10, //nolint:gomnd
 		}
 
@@ -152,13 +152,13 @@ func (controller *queueController) create() func(*fiber.Ctx) error {
 // @Tags			queue
 // @Accept			json
 // @Produce		json
-// @Success		200		{array}	queueData "all queues"
+// @Success		200		{array}	queueModel "all queues"
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue [get]
 // @Description	Getting all RabbitMQ queues.
 func (controller *queueController) getAll() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
-		queues, err := controller.database.getQueues()
+		queues, err := controller.core.getAll()
 		if err != nil {
 			log.Printf("[ERROR] - Error getting all queues: %s", err)
 
@@ -176,7 +176,7 @@ func (controller *queueController) getAll() func(*fiber.Ctx) error {
 // @Tags			queue
 // @Accept			json
 // @Produce		json
-// @Success		204		{array}	queueData "queue deleted"
+// @Success		204		{onject}	sent "queue deleted"
 // @Failure		404		{object}	sent "queue dont exist"
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue/{name} [delete]
@@ -207,7 +207,7 @@ func (controller *queueController) delete() func(*fiber.Ctx) error {
 
 		err = controller.database.deleteQueue(name)
 		if err != nil {
-			log.Printf("[ERROR] - Error deleting queue: %s", err)
+			log.Printf("[ERROR] - Error deleting queue from database: %s", err)
 
 			return handler.Status(fiber.StatusInternalServerError).
 				JSON(sent{"error deleting queue"})

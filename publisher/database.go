@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type queueData struct {
+type queueModel struct {
 	ID         uuid.UUID `json:"-"          bson:"_id"`
 	Name       string    `json:"name"       bson:"name"`
 	DLX        string    `json:"dlx"        bson:"dlx"`
@@ -24,7 +24,7 @@ type database struct {
 }
 
 func (database *database) addQueue(names, dlx string, maxRetries int64) error {
-	queue := queueData{uuid.New(), names, dlx, maxRetries, time.Now()}
+	queue := queueModel{uuid.New(), names, dlx, maxRetries, time.Now()}
 
 	_, err := database.db.Collection("queues").InsertOne(context.Background(), queue)
 	if err != nil {
@@ -34,8 +34,8 @@ func (database *database) addQueue(names, dlx string, maxRetries int64) error {
 	return nil
 }
 
-func (database *database) getQueues() ([]queueData, error) {
-	queues := []queueData{}
+func (database *database) getQueues() ([]queueModel, error) {
+	queues := []queueModel{}
 
 	cursor, err := database.db.Collection("queues").Find(context.Background(), bson.D{})
 	if err != nil {

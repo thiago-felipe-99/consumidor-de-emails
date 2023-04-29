@@ -38,7 +38,7 @@ func (err modelInvalidError) Translate(language ut.Translator) string {
 	return messageSend
 }
 
-func (core *queueCore) create(queue queueModel) error {
+func (core *queueCore) create(queue queueBody) error {
 	err := core.validate.Struct(queue)
 	if err != nil {
 		validationErrs := validator.ValidationErrors{}
@@ -78,4 +78,13 @@ func (core *queueCore) create(queue queueModel) error {
 	}
 
 	return nil
+}
+
+func (core *queueCore) getAll() ([]queueModel, error) {
+	queues, err := core.database.getQueues()
+	if err != nil {
+		return nil, fmt.Errorf("error getting all queues: %w", err)
+	}
+
+	return queues, nil
 }
