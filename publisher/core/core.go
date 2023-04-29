@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	ErrInvalidName       = errors.New("was sent a invalid name")
-	ErrQueueAlreadyExist = errors.New("queue already exist")
-	ErrQueueDontExist    = errors.New("queue does not exist")
-	ErrBodyValidate      = errors.New("unable to parse body")
+	ErrInvalidName              = errors.New("was sent a invalid name")
+	ErrQueueAlreadyExist        = errors.New("queue already exist")
+	ErrQueueDontExist           = errors.New("queue does not exist")
+	ErrBodyValidate             = errors.New("unable to parse body")
+	ErrTemplateNameAlreadyExist = errors.New("template name already exist")
 )
 
 func dlxName(name string) string {
@@ -182,3 +183,14 @@ func NewQueue(rabbit *rabbit.Rabbit, database *data.Queue, validate *validator.V
 		database:  database,
 	}
 }
+
+type Template struct {
+  // minio 
+	validator *validator.Validate
+	database  *data.Template
+}
+
+func (core *Template) Create(partial model.TemplatePartial) error {
+  return nil
+}
+

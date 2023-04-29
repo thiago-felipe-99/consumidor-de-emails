@@ -46,11 +46,6 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 
 	err = controller.core.Create(*body)
 	if err != nil {
-		if errors.Is(err, core.ErrQueueAlreadyExist) {
-			return handler.Status(fiber.StatusConflict).
-				JSON(sent{core.ErrQueueAlreadyExist.Error()})
-		}
-
 		modelInvalid := core.ModelInvalidError{}
 		if okay := errors.As(err, &modelInvalid); okay {
 			accept := handler.AcceptsLanguages(controller.languages...)
@@ -62,6 +57,11 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 
 			return handler.Status(fiber.StatusBadRequest).
 				JSON(sent{modelInvalid.Translate(language)})
+		}
+
+		if errors.Is(err, core.ErrQueueAlreadyExist) {
+			return handler.Status(fiber.StatusConflict).
+				JSON(sent{core.ErrQueueAlreadyExist.Error()})
 		}
 
 		log.Printf("[ERROR] - Error creating queue: %s", err)
@@ -146,10 +146,6 @@ func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
 
 	err = controller.core.SendEmail(handler.Params("name"), *body)
 	if err != nil {
-		if errors.Is(err, core.ErrQueueDontExist) {
-			return handler.Status(fiber.StatusNotFound).JSON(sent{core.ErrQueueDontExist.Error()})
-		}
-
 		modelInvalid := core.ModelInvalidError{}
 		if okay := errors.As(err, &modelInvalid); okay {
 			accept := handler.AcceptsLanguages(controller.languages...)
@@ -163,6 +159,10 @@ func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
 				JSON(sent{modelInvalid.Translate(language)})
 		}
 
+		if errors.Is(err, core.ErrQueueDontExist) {
+			return handler.Status(fiber.StatusNotFound).JSON(sent{core.ErrQueueDontExist.Error()})
+		}
+
 		log.Printf("[ERROR] - Error sending email: %s", err)
 
 		return handler.Status(fiber.StatusInternalServerError).
@@ -171,3 +171,60 @@ func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
 
 	return handler.JSON(sent{"email sent"})
 }
+
+type Template struct {
+	translator *ut.UniversalTranslator
+	languages  []string
+	core       *core.Template
+}
+
+// Creating a email template
+//
+// @Summary		Creating template
+// @Tags			template
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	sent "create template successfully"
+// @Failure		400		{object}	sent "an invalid template param was sent"
+// @Failure		409		{object}	sent "template name already exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Param			template	body		model.TemplatePartial	true	"template params"
+// @Router			/email/template [post]
+// @Description	Creating a email template.
+func (controller *Template) create(handler *fiber.Ctx) error {
+	body := &model.TemplatePartial{}
+
+	err := handler.BodyParser(body)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	err = controller.core.Create(*body)
+	if err != nil {
+		modelInvalid := core.ModelInvalidError{}
+		if okay := errors.As(err, &modelInvalid); okay {
+			accept := handler.AcceptsLanguages(controller.languages...)
+			if accept == "" {
+				accept = controller.languages[0]
+			}
+
+			language, _ := controller.translator.GetTranslator(accept)
+
+			return handler.Status(fiber.StatusBadRequest).
+				JSON(sent{modelInvalid.Translate(language)})
+		}
+
+		if errors.Is(err, core.ErrTemplateNameAlreadyExist) {
+			return handler.Status(fiber.StatusConflict).
+				JSON(sent{core.ErrTemplateNameAlreadyExist.Error()})
+		}
+
+		log.Printf("[ERROR] - Error creating template: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error creating template"})
+	}
+
+	return handler.Status(fiber.StatusCreated).JSON(sent{"template created"})
+}
+

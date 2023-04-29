@@ -11,6 +11,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+func NewDatabase() (*mongo.Client, error) {
+	uri := "mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100"
+
+	connection, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, fmt.Errorf("error connecting with the database: %w", err)
+	}
+
+	err = connection.Ping(context.Background(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error ping server: %w", err)
+	}
+
+	return connection, nil
+}
+
 type Queue struct {
 	db *mongo.Database
 }
@@ -78,18 +94,14 @@ func (database *Queue) SaveEmail(email model.Email) error {
 	return nil
 }
 
-func NewQueueDatabase() (*Queue, error) {
-	uri := "mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100"
+func NewQueueDatabase(connection *mongo.Client) *Queue {
+	return &Queue{connection.Database("email")}
+}
 
-	connection, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
-	if err != nil {
-		return nil, fmt.Errorf("error connecting with the database: %w", err)
-	}
+type Template struct {
+	db *mongo.Database
+}
 
-	err = connection.Ping(context.Background(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("error ping server: %w", err)
-	}
-
-	return &Queue{connection.Database("email")}, nil
+func NewTemplateDatabase(connection *mongo.Client) *Template {
+	return &Template{connection.Database("templates")}
 }
