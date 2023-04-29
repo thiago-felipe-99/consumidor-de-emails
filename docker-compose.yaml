@@ -6,13 +6,6 @@ services:
       dockerfile: ./consumer/Dockerfile
     env_file: 
       - ./consumer/.env
-  benchmarking:
-    build: 
-      context: ./
-      dockerfile: ./benchmarking/Dockerfile
-    env_file:
-      - ./benchmarking/.env
-    entrypoint: /benchmarking
   rabbit:
     image: rabbitmq:3.11-management
     environment:
