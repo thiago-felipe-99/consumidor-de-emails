@@ -1,5 +1,5 @@
 //nolint:wrapcheck
-package main
+package controllers
 
 import (
 	"github.com/ansrivas/fiberprometheus/v2"
@@ -15,6 +15,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
+	"github.com/thiago-felipe-99/mail/publisher/core"
+	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -45,7 +47,7 @@ func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, er
 	return translator, nil
 }
 
-func createHTTPServer(rabbit *rabbit.Rabbit, database *database) (*fiber.App, error) {
+func CreateHTTPServer(rabbit *rabbit.Rabbit, database *data.Queue) (*fiber.App, error) {
 	app := fiber.New()
 
 	prometheus := fiberprometheus.New("publisher")
@@ -68,12 +70,8 @@ func createHTTPServer(rabbit *rabbit.Rabbit, database *database) (*fiber.App, er
 		return nil, err
 	}
 
-	queue := queueController{
-		core: &queueCore{
-			rabbit:    rabbit,
-			database:  database,
-			validator: validate,
-		},
+	queue := Queue{
+		core:       core.NewQueue(rabbit, database, validate),
 		translator: translator,
 		languages:  []string{"en", "pt_BR", "pt"},
 	}

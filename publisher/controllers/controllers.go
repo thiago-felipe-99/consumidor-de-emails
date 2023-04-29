@@ -1,5 +1,5 @@
 //nolint:wrapcheck
-package main
+package controllers
 
 import (
 	"errors"
@@ -7,27 +7,18 @@ import (
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
-)
-
-var (
-	errQueueAlreadyExist = errors.New("queue already exist")
-	errQueueDontExist    = errors.New("queue dont exist")
-	errBodyValidate      = errors.New("unable to parse body")
+	"github.com/thiago-felipe-99/mail/publisher/core"
+	"github.com/thiago-felipe-99/mail/publisher/model"
 )
 
 type sent struct {
 	Message string `json:"message" bson:"message"`
 }
 
-type queueController struct {
+type Queue struct {
 	translator *ut.UniversalTranslator
 	languages  []string
-	core       *queueCore
-}
-
-type queueBody struct {
-	Name       string `json:"name"       validate:"required"`
-	MaxRetries int64  `json:"maxRetries"`
+	core       *core.Queue
 }
 
 // Creating a RabbitMQ queue with DLX
@@ -40,11 +31,11 @@ type queueBody struct {
 // @Failure		400		{object}	sent "an invalid queue param was sent"
 // @Failure		409		{object}	sent "queue already exist"
 // @Failure		500		{object}	sent "internal server error"
-// @Param			queue	body		queueBody	true	"queue params"
+// @Param			queue	body		model.QueuePartial	true	"queue params"
 // @Router			/email/queue [post]
 // @Description	Creating a RabbitMQ queue with DLX.
-func (controller *queueController) create(handler *fiber.Ctx) error {
-	body := &queueBody{
+func (controller *Queue) create(handler *fiber.Ctx) error {
+	body := &model.QueuePartial{
 		MaxRetries: 10, //nolint:gomnd
 	}
 
@@ -53,13 +44,14 @@ func (controller *queueController) create(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	err = controller.core.create(*body)
+	err = controller.core.Create(*body)
 	if err != nil {
-		if errors.Is(err, errQueueAlreadyExist) {
-			return handler.Status(fiber.StatusConflict).JSON(sent{errQueueAlreadyExist.Error()})
+		if errors.Is(err, core.ErrQueueAlreadyExist) {
+			return handler.Status(fiber.StatusConflict).
+				JSON(sent{core.ErrQueueAlreadyExist.Error()})
 		}
 
-		modelInvalid := modelInvalidError{}
+		modelInvalid := core.ModelInvalidError{}
 		if okay := errors.As(err, &modelInvalid); okay {
 			accept := handler.AcceptsLanguages(controller.languages...)
 			if accept == "" {
@@ -87,12 +79,12 @@ func (controller *queueController) create(handler *fiber.Ctx) error {
 // @Tags			queue
 // @Accept			json
 // @Produce		json
-// @Success		200		{array}	queueModel "all queues"
+// @Success		200		{array}	model.Queue "all queues"
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue [get]
 // @Description	Getting all RabbitMQ queues.
-func (controller *queueController) getAll(handler *fiber.Ctx) error {
-	queues, err := controller.core.getAll()
+func (controller *Queue) getAll(handler *fiber.Ctx) error {
+	queues, err := controller.core.GetAll()
 	if err != nil {
 		log.Printf("[ERROR] - Error getting all queues: %s", err)
 
@@ -114,11 +106,11 @@ func (controller *queueController) getAll(handler *fiber.Ctx) error {
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue/{name} [delete]
 // @Description	Delete a queue with DLX.
-func (controller *queueController) delete(handler *fiber.Ctx) error {
-	err := controller.core.delete(handler.Params("name"))
+func (controller *Queue) delete(handler *fiber.Ctx) error {
+	err := controller.core.Delete(handler.Params("name"))
 	if err != nil {
-		if errors.Is(err, errQueueDontExist) {
-			return handler.Status(fiber.StatusNotFound).JSON(sent{errQueueDontExist.Error()})
+		if errors.Is(err, core.ErrQueueDontExist) {
+			return handler.Status(fiber.StatusNotFound).JSON(sent{core.ErrQueueDontExist.Error()})
 		}
 
 		log.Printf("[ERROR] - Error deleting queue: %s", err)
@@ -141,24 +133,24 @@ func (controller *queueController) delete(handler *fiber.Ctx) error {
 // @Failure		404		{object}	sent "queue does not exist"
 // @Failure		500		{object}	sent "internal server error"
 // @Param			name	path	string		true	"queue name"
-// @Param			queue	body	emailModel	true	"email"
-// @Router			/email/queue/{name}/sendEmail [post]
+// @Param			queue	body	model.Email	true	"email"
+// @Router			/email/queue/{name}/send [post]
 // @Description	Sends an email to the RabbitMQ queue.
-func (controller *queueController) sendEmail(handler *fiber.Ctx) error {
-	body := &emailModel{}
+func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
+	body := &model.Email{}
 
 	err := handler.BodyParser(body)
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	err = controller.core.sendEmail(handler.Params("name"), *body)
+	err = controller.core.SendEmail(handler.Params("name"), *body)
 	if err != nil {
-		if errors.Is(err, errQueueDontExist) {
-			return handler.Status(fiber.StatusConflict).JSON(sent{errQueueDontExist.Error()})
+		if errors.Is(err, core.ErrQueueDontExist) {
+			return handler.Status(fiber.StatusNotFound).JSON(sent{core.ErrQueueDontExist.Error()})
 		}
 
-		modelInvalid := modelInvalidError{}
+		modelInvalid := core.ModelInvalidError{}
 		if okay := errors.As(err, &modelInvalid); okay {
 			accept := handler.AcceptsLanguages(controller.languages...)
 			if accept == "" {

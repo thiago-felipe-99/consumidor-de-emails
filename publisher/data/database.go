@@ -1,23 +1,21 @@
-package main
+package data
 
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/thiago-felipe-99/mail/publisher/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type database struct {
+type Queue struct {
 	db *mongo.Database
 }
 
-func (database *database) addQueue(names, dlx string, maxRetries int64) error {
-	queue := queueModel{uuid.New(), names, dlx, maxRetries, time.Now()}
-
+func (database *Queue) Add(queue model.Queue) error {
 	_, err := database.db.Collection("queues").InsertOne(context.Background(), queue)
 	if err != nil {
 		return fmt.Errorf("error adding queue on database: %w", err)
@@ -26,8 +24,8 @@ func (database *database) addQueue(names, dlx string, maxRetries int64) error {
 	return nil
 }
 
-func (database *database) getQueues() ([]queueModel, error) {
-	queues := []queueModel{}
+func (database *Queue) GetAll() ([]model.Queue, error) {
+	queues := []model.Queue{}
 
 	cursor, err := database.db.Collection("queues").Find(context.Background(), bson.D{})
 	if err != nil {
@@ -42,7 +40,7 @@ func (database *database) getQueues() ([]queueModel, error) {
 	return queues, nil
 }
 
-func (database *database) existQueue(name string) (bool, error) {
+func (database *Queue) Exist(name string) (bool, error) {
 	filter := bson.D{
 		{Key: "$or", Value: bson.A{
 			bson.D{{Key: "name", Value: name}},
@@ -58,7 +56,7 @@ func (database *database) existQueue(name string) (bool, error) {
 	return count >= 1, nil
 }
 
-func (database *database) deleteQueue(name string) error {
+func (database *Queue) Delete(name string) error {
 	filter := bson.D{{Key: "name", Value: name}}
 
 	result := database.db.Collection("queues").FindOneAndDelete(context.Background(), filter)
@@ -69,7 +67,7 @@ func (database *database) deleteQueue(name string) error {
 	return nil
 }
 
-func (database *database) saveEmail(email emailModel) error {
+func (database *Queue) SaveEmail(email model.Email) error {
 	email.ID = uuid.New()
 
 	_, err := database.db.Collection("emails_sent").InsertOne(context.Background(), email)
@@ -80,7 +78,7 @@ func (database *database) saveEmail(email emailModel) error {
 	return nil
 }
 
-func newDatabase() (*database, error) {
+func NewQueueDatabase() (*Queue, error) {
 	uri := "mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100"
 
 	connection, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
@@ -93,5 +91,5 @@ func newDatabase() (*database, error) {
 		return nil, fmt.Errorf("error ping server: %w", err)
 	}
 
-	return &database{connection.Database("email")}, nil
+	return &Queue{connection.Database("email")}, nil
 }

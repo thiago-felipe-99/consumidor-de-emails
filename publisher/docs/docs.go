@@ -35,14 +35,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/main.queueModel"
+                                "$ref": "#/definitions/model.Queue"
                             }
                         }
                     },
                     "500": {
                         "description": "internal server error",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     }
                 }
@@ -66,7 +66,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.queueBody"
+                            "$ref": "#/definitions/model.QueuePartial"
                         }
                     }
                 ],
@@ -74,25 +74,25 @@ const docTemplate = `{
                     "200": {
                         "description": "create queue successfully",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "400": {
                         "description": "an invalid queue param was sent",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "409": {
                         "description": "queue already exist",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "500": {
                         "description": "internal server error",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     }
                 }
@@ -121,19 +121,19 @@ const docTemplate = `{
                     "404": {
                         "description": "queue dont exist",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "500": {
                         "description": "internal server error",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     }
                 }
             }
         },
-        "/email/queue/{name}/sendEmail": {
+        "/email/queue/{name}/send": {
             "post": {
                 "description": "Sends an email to the RabbitMQ queue.",
                 "consumes": [
@@ -160,7 +160,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.emailModel"
+                            "$ref": "#/definitions/model.Email"
                         }
                     }
                 ],
@@ -168,25 +168,25 @@ const docTemplate = `{
                     "200": {
                         "description": "email sent successfully",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "400": {
                         "description": "an invalid email param was sent",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "404": {
                         "description": "queue does not exist",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "500": {
                         "description": "internal server error",
                         "schema": {
-                            "$ref": "#/definitions/main.sent"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     }
                 }
@@ -194,7 +194,15 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.emailModel": {
+        "controllers.sent": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Email": {
             "type": "object",
             "required": [
                 "subject"
@@ -210,7 +218,7 @@ const docTemplate = `{
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                        "$ref": "#/definitions/main.receiver"
+                        "$ref": "#/definitions/model.Receiver"
                     }
                 },
                 "message": {
@@ -220,32 +228,18 @@ const docTemplate = `{
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                        "$ref": "#/definitions/main.receiver"
+                        "$ref": "#/definitions/model.Receiver"
                     }
                 },
                 "subject": {
                     "type": "string"
                 },
                 "template": {
-                    "$ref": "#/definitions/main.template"
+                    "$ref": "#/definitions/model.Template"
                 }
             }
         },
-        "main.queueBody": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "maxRetries": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.queueModel": {
+        "model.Queue": {
             "type": "object",
             "properties": {
                 "createdAt": {
@@ -262,7 +256,21 @@ const docTemplate = `{
                 }
             }
         },
-        "main.receiver": {
+        "model.QueuePartial": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "maxRetries": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Receiver": {
             "type": "object",
             "required": [
                 "email",
@@ -277,15 +285,7 @@ const docTemplate = `{
                 }
             }
         },
-        "main.sent": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.template": {
+        "model.Template": {
             "type": "object",
             "required": [
                 "name"

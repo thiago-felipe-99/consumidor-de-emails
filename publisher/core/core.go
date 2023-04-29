@@ -1,36 +1,45 @@
-package main
+package core
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+	"github.com/thiago-felipe-99/mail/publisher/data"
+	"github.com/thiago-felipe-99/mail/publisher/model"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
-var errInvalidName = errors.New("was sent a invalid name")
+var (
+	ErrInvalidName       = errors.New("was sent a invalid name")
+	ErrQueueAlreadyExist = errors.New("queue already exist")
+	ErrQueueDontExist    = errors.New("queue does not exist")
+	ErrBodyValidate      = errors.New("unable to parse body")
+)
 
 func dlxName(name string) string {
 	return name + "-dlx"
 }
 
-type queueCore struct {
+type Queue struct {
 	rabbit    *rabbit.Rabbit
 	validator *validator.Validate
-	database  *database
+	database  *data.Queue
 }
 
-type modelInvalidError struct {
+type ModelInvalidError struct {
 	invalid validator.ValidationErrors
 }
 
-func (err modelInvalidError) Error() string {
+func (err ModelInvalidError) Error() string {
 	return err.invalid.Error()
 }
 
-func (err modelInvalidError) Translate(language ut.Translator) string {
+func (err ModelInvalidError) Translate(language ut.Translator) string {
 	messages := err.invalid.Translate(language)
 
 	messageSend := ""
@@ -41,50 +50,56 @@ func (err modelInvalidError) Translate(language ut.Translator) string {
 	return messageSend[2:]
 }
 
-func (core *queueCore) validate(data any) error {
+func (core *Queue) validate(data any) error {
 	err := core.validator.Struct(data)
 	if err != nil {
 		validationErrs := validator.ValidationErrors{}
 
 		okay := errors.As(err, &validationErrs)
 		if !okay {
-			return errBodyValidate
+			return ErrBodyValidate
 		}
 
-		return modelInvalidError{validationErrs}
+		return ModelInvalidError{validationErrs}
 	}
 
 	return nil
 }
 
-func (core *queueCore) create(queue queueBody) error {
-	err := core.validate(queue)
+func (core *Queue) Create(partial model.QueuePartial) error {
+	err := core.validate(partial)
 	if err != nil {
 		return err
 	}
 
-	name, dlx := queue.Name, dlxName(queue.Name)
+	queue := model.Queue{
+		ID:         uuid.New(),
+		Name:       partial.Name,
+		DLX:        dlxName(partial.Name),
+		MaxRetries: partial.MaxRetries,
+		CreatedAt:  time.Now(),
+	}
 
-	queueExist, err := core.database.existQueue(name)
+	queueExist, err := core.database.Exist(queue.Name)
 	if err != nil {
 		return fmt.Errorf("error checking queue: %w", err)
 	}
 
-	dlxExist, err := core.database.existQueue(dlx)
+	dlxExist, err := core.database.Exist(queue.Name)
 	if err != nil {
 		return fmt.Errorf("error checking queue: %w", err)
 	}
 
 	if queueExist || dlxExist {
-		return errQueueAlreadyExist
+		return ErrQueueAlreadyExist
 	}
 
-	err = core.rabbit.CreateQueueWithDLX(name, dlx, queue.MaxRetries)
+	err = core.rabbit.CreateQueueWithDLX(queue.Name, queue.DLX, queue.MaxRetries)
 	if err != nil {
 		return fmt.Errorf("error creating queue: %w", err)
 	}
 
-	err = core.database.addQueue(name, dlx, queue.MaxRetries)
+	err = core.database.Add(queue)
 	if err != nil {
 		return fmt.Errorf("error adding queue on database: %w", err)
 	}
@@ -92,8 +107,8 @@ func (core *queueCore) create(queue queueBody) error {
 	return nil
 }
 
-func (core *queueCore) getAll() ([]queueModel, error) {
-	queues, err := core.database.getQueues()
+func (core *Queue) GetAll() ([]model.Queue, error) {
+	queues, err := core.database.GetAll()
 	if err != nil {
 		return nil, fmt.Errorf("error getting all queues: %w", err)
 	}
@@ -101,18 +116,18 @@ func (core *queueCore) getAll() ([]queueModel, error) {
 	return queues, nil
 }
 
-func (core *queueCore) delete(name string) error {
+func (core *Queue) Delete(name string) error {
 	if len(name) == 0 {
-		return errInvalidName
+		return ErrInvalidName
 	}
 
-	exist, err := core.database.existQueue(name)
+	exist, err := core.database.Exist(name)
 	if err != nil {
 		return fmt.Errorf("error checking queue: %w", err)
 	}
 
 	if !exist {
-		return errQueueDontExist
+		return ErrQueueDontExist
 	}
 
 	err = core.rabbit.DeleteQueueWithDLX(name, dlxName(name))
@@ -120,7 +135,7 @@ func (core *queueCore) delete(name string) error {
 		return fmt.Errorf("error deleting queue from RabbitMQ: %w", err)
 	}
 
-	err = core.database.deleteQueue(name)
+	err = core.database.Delete(name)
 	if err != nil {
 		return fmt.Errorf("error deleting queue from database: %w", err)
 	}
@@ -128,9 +143,9 @@ func (core *queueCore) delete(name string) error {
 	return nil
 }
 
-func (core *queueCore) sendEmail(queue string, email emailModel) error {
+func (core *Queue) SendEmail(queue string, email model.Email) error {
 	if len(queue) == 0 {
-		return errInvalidName
+		return ErrInvalidName
 	}
 
 	err := core.validate(email)
@@ -138,13 +153,13 @@ func (core *queueCore) sendEmail(queue string, email emailModel) error {
 		return err
 	}
 
-	queueExist, err := core.database.existQueue(queue)
+	queueExist, err := core.database.Exist(queue)
 	if err != nil {
 		return fmt.Errorf("error checking queue: %w", err)
 	}
 
 	if !queueExist {
-		return errQueueDontExist
+		return ErrQueueDontExist
 	}
 
 	err = core.rabbit.SendMessage(context.Background(), queue, email)
@@ -152,10 +167,18 @@ func (core *queueCore) sendEmail(queue string, email emailModel) error {
 		return fmt.Errorf("error sending email: %w", err)
 	}
 
-	err = core.database.saveEmail(email)
+	err = core.database.SaveEmail(email)
 	if err != nil {
 		return fmt.Errorf("error saving email: %w", err)
 	}
 
 	return nil
+}
+
+func NewQueue(rabbit *rabbit.Rabbit, database *data.Queue, validate *validator.Validate) *Queue {
+	return &Queue{
+		rabbit:    rabbit,
+		validator: validate,
+		database:  database,
+	}
 }

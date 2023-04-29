@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/thiago-felipe-99/mail/publisher/controllers"
+	"github.com/thiago-felipe-99/mail/publisher/data"
 	_ "github.com/thiago-felipe-99/mail/publisher/docs"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
@@ -27,14 +29,14 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
-	database, err := newDatabase()
+	database, err := data.NewQueueDatabase()
 	if err != nil {
 		log.Printf("[ERROR] - Error creating datase: %s", err)
 
 		return
 	}
 
-	queues, err := database.getQueues()
+	queues, err := database.GetAll()
 	if err != nil {
 		log.Printf("[ERROR] - Error getting queues: %s", err)
 
@@ -50,7 +52,7 @@ func main() {
 		}
 	}
 
-	server, err := createHTTPServer(rabbitConnection, database)
+	server, err := controllers.CreateHTTPServer(rabbitConnection, database)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)
 

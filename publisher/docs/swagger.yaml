@@ -1,6 +1,11 @@
 basePath: /
 definitions:
-  main.emailModel:
+  controllers.sent:
+    properties:
+      message:
+        type: string
+    type: object
+  model.Email:
     properties:
       attachments:
         items:
@@ -8,33 +13,24 @@ definitions:
         type: array
       blindReceivers:
         items:
-          $ref: '#/definitions/main.receiver'
+          $ref: '#/definitions/model.Receiver'
         minItems: 1
         type: array
       message:
         type: string
       receivers:
         items:
-          $ref: '#/definitions/main.receiver'
+          $ref: '#/definitions/model.Receiver'
         minItems: 1
         type: array
       subject:
         type: string
       template:
-        $ref: '#/definitions/main.template'
+        $ref: '#/definitions/model.Template'
     required:
     - subject
     type: object
-  main.queueBody:
-    properties:
-      maxRetries:
-        type: integer
-      name:
-        type: string
-    required:
-    - name
-    type: object
-  main.queueModel:
+  model.Queue:
     properties:
       createdAt:
         type: string
@@ -45,7 +41,16 @@ definitions:
       name:
         type: string
     type: object
-  main.receiver:
+  model.QueuePartial:
+    properties:
+      maxRetries:
+        type: integer
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  model.Receiver:
     properties:
       email:
         type: string
@@ -55,12 +60,7 @@ definitions:
     - email
     - name
     type: object
-  main.sent:
-    properties:
-      message:
-        type: string
-    type: object
-  main.template:
+  model.Template:
     properties:
       data:
         additionalProperties:
@@ -90,12 +90,12 @@ paths:
           description: all queues
           schema:
             items:
-              $ref: '#/definitions/main.queueModel'
+              $ref: '#/definitions/model.Queue'
             type: array
         "500":
           description: internal server error
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
       summary: Get queues
       tags:
       - queue
@@ -109,26 +109,26 @@ paths:
         name: queue
         required: true
         schema:
-          $ref: '#/definitions/main.queueBody'
+          $ref: '#/definitions/model.QueuePartial'
       produces:
       - application/json
       responses:
         "200":
           description: create queue successfully
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
         "400":
           description: an invalid queue param was sent
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
         "409":
           description: queue already exist
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
         "500":
           description: internal server error
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
       summary: Creating queue
       tags:
       - queue
@@ -147,15 +147,15 @@ paths:
         "404":
           description: queue dont exist
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
         "500":
           description: internal server error
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
       summary: Delete queues
       tags:
       - queue
-  /email/queue/{name}/sendEmail:
+  /email/queue/{name}/send:
     post:
       consumes:
       - application/json
@@ -171,26 +171,26 @@ paths:
         name: queue
         required: true
         schema:
-          $ref: '#/definitions/main.emailModel'
+          $ref: '#/definitions/model.Email'
       produces:
       - application/json
       responses:
         "200":
           description: email sent successfully
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
         "400":
           description: an invalid email param was sent
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
         "404":
           description: queue does not exist
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
         "500":
           description: internal server error
           schema:
-            $ref: '#/definitions/main.sent'
+            $ref: '#/definitions/controllers.sent'
       summary: Sends email
       tags:
       - queue
