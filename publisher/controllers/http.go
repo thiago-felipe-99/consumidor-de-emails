@@ -47,7 +47,11 @@ func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, er
 	return translator, nil
 }
 
-func CreateHTTPServer(rabbit *rabbit.Rabbit, database *data.Queue) (*fiber.App, error) {
+func CreateHTTPServer(
+	rabbit *rabbit.Rabbit,
+	queueDatabase *data.Queue,
+	templateDatabase *data.Template,
+) (*fiber.App, error) {
 	app := fiber.New()
 
 	prometheus := fiberprometheus.New("publisher")
@@ -70,16 +74,26 @@ func CreateHTTPServer(rabbit *rabbit.Rabbit, database *data.Queue) (*fiber.App, 
 		return nil, err
 	}
 
+	languages := []string{"en", "pt_BR", "pt"}
+
 	queue := Queue{
-		core:       core.NewQueue(rabbit, database, validate),
+		core:       core.NewQueue(rabbit, queueDatabase, validate),
 		translator: translator,
-		languages:  []string{"en", "pt_BR", "pt"},
+		languages:  languages,
 	}
 
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", queue.create)
 	app.Delete("/email/queue/:name", queue.delete)
 	app.Post("/email/queue/:name/send", queue.sendEmail)
+
+	template := Template{
+		core:       core.NewTemplate(templateDatabase, validate),
+		translator: translator,
+		languages:  languages,
+	}
+
+	app.Post("/email/template", template.create)
 
 	return app, nil
 }

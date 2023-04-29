@@ -115,7 +115,7 @@ const docTemplate = `{
                     "204": {
                         "description": "queue deleted",
                         "schema": {
-                            "type": "onject"
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "404": {
@@ -191,6 +191,58 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/email/template": {
+            "post": {
+                "description": "Creating a email template.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Creating template",
+                "parameters": [
+                    {
+                        "description": "template params",
+                        "name": "template",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TemplatePartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "create template successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid template param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "template name already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -235,7 +287,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "template": {
-                    "$ref": "#/definitions/model.Template"
+                    "$ref": "#/definitions/model.TemplateData"
                 }
             }
         },
@@ -285,7 +337,7 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Template": {
+        "model.TemplateData": {
             "type": "object",
             "required": [
                 "name"
@@ -298,6 +350,21 @@ const docTemplate = `{
                     }
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TemplatePartial": {
+            "type": "object",
+            "required": [
+                "name",
+                "template"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "template": {
                     "type": "string"
                 }
             }

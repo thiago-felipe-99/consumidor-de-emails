@@ -26,7 +26,7 @@ definitions:
       subject:
         type: string
       template:
-        $ref: '#/definitions/model.Template'
+        $ref: '#/definitions/model.TemplateData'
     required:
     - subject
     type: object
@@ -60,7 +60,7 @@ definitions:
     - email
     - name
     type: object
-  model.Template:
+  model.TemplateData:
     properties:
       data:
         additionalProperties:
@@ -70,6 +70,16 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  model.TemplatePartial:
+    properties:
+      name:
+        type: string
+      template:
+        type: string
+    required:
+    - name
+    - template
     type: object
 host: localhost:8080
 info:
@@ -143,7 +153,7 @@ paths:
         "204":
           description: queue deleted
           schema:
-            type: onject
+            $ref: '#/definitions/controllers.sent'
         "404":
           description: queue dont exist
           schema:
@@ -194,4 +204,38 @@ paths:
       summary: Sends email
       tags:
       - queue
+  /email/template:
+    post:
+      consumes:
+      - application/json
+      description: Creating a email template.
+      parameters:
+      - description: template params
+        in: body
+        name: template
+        required: true
+        schema:
+          $ref: '#/definitions/model.TemplatePartial'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: create template successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid template param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "409":
+          description: template name already exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Creating template
+      tags:
+      - template
 swagger: "2.0"

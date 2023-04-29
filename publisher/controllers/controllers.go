@@ -15,10 +15,62 @@ type sent struct {
 	Message string `json:"message" bson:"message"`
 }
 
+type expectError struct {
+	err    error
+	status int
+}
+
+type okay struct {
+	message string
+	status  int
+}
+
+func callingCore(
+	coreFunc func() error,
+	expectErrors []expectError,
+	unexpectMessageError string,
+	okay okay,
+	language ut.Translator,
+	handler *fiber.Ctx,
+) error {
+	err := coreFunc()
+	if err != nil {
+		modelInvalid := core.ModelInvalidError{}
+		if okay := errors.As(err, &modelInvalid); okay {
+			return handler.Status(fiber.StatusBadRequest).
+				JSON(sent{modelInvalid.Translate(language)})
+		}
+
+		for _, expectError := range expectErrors {
+			if errors.Is(err, expectError.err) {
+				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
+			}
+		}
+
+		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{unexpectMessageError})
+	}
+
+	return handler.Status(okay.status).JSON(sent{okay.message})
+}
+
 type Queue struct {
+	core       *core.Queue
 	translator *ut.UniversalTranslator
 	languages  []string
-	core       *core.Queue
+}
+
+func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nolint:ireturn
+	accept := handler.AcceptsLanguages(controller.languages...)
+	if accept == "" {
+		accept = controller.languages[0]
+	}
+
+	language, _ := controller.translator.GetTranslator(accept)
+
+	return language
 }
 
 // Creating a RabbitMQ queue with DLX
@@ -44,33 +96,22 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	err = controller.core.Create(*body)
-	if err != nil {
-		modelInvalid := core.ModelInvalidError{}
-		if okay := errors.As(err, &modelInvalid); okay {
-			accept := handler.AcceptsLanguages(controller.languages...)
-			if accept == "" {
-				accept = controller.languages[0]
-			}
+	funcCore := func() error { return controller.core.Create(*body) }
 
-			language, _ := controller.translator.GetTranslator(accept)
+	expectErrors := []expectError{{core.ErrQueueAlreadyExist, fiber.StatusConflict}}
 
-			return handler.Status(fiber.StatusBadRequest).
-				JSON(sent{modelInvalid.Translate(language)})
-		}
+	unexpectMessageError := "error creating queue"
 
-		if errors.Is(err, core.ErrQueueAlreadyExist) {
-			return handler.Status(fiber.StatusConflict).
-				JSON(sent{core.ErrQueueAlreadyExist.Error()})
-		}
+	okay := okay{"queue created", fiber.StatusCreated}
 
-		log.Printf("[ERROR] - Error creating queue: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error creating queue"})
-	}
-
-	return handler.Status(fiber.StatusCreated).JSON(sent{"queue created"})
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
 }
 
 // Getting all RabbitMQ queues
@@ -101,25 +142,28 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 // @Tags			queue
 // @Accept			json
 // @Produce		json
-// @Success		204		{onject}	sent "queue deleted"
+// @Success		204		{object}	sent "queue deleted"
 // @Failure		404		{object}	sent "queue dont exist"
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue/{name} [delete]
 // @Description	Delete a queue with DLX.
 func (controller *Queue) delete(handler *fiber.Ctx) error {
-	err := controller.core.Delete(handler.Params("name"))
-	if err != nil {
-		if errors.Is(err, core.ErrQueueDontExist) {
-			return handler.Status(fiber.StatusNotFound).JSON(sent{core.ErrQueueDontExist.Error()})
-		}
+	funcCore := func() error { return controller.core.Delete(handler.Params("name")) }
 
-		log.Printf("[ERROR] - Error deleting queue: %s", err)
+	expectErrors := []expectError{{core.ErrQueueDontExist, fiber.StatusNotFound}}
 
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error deletring queue"})
-	}
+	unexpectMessageError := "error deleting queue"
 
-	return handler.JSON(sent{"queue deleted"})
+	okay := okay{"queue deleted", fiber.StatusOK}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
 }
 
 // Sends an email to the RabbitMQ queue
@@ -144,38 +188,39 @@ func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	err = controller.core.SendEmail(handler.Params("name"), *body)
-	if err != nil {
-		modelInvalid := core.ModelInvalidError{}
-		if okay := errors.As(err, &modelInvalid); okay {
-			accept := handler.AcceptsLanguages(controller.languages...)
-			if accept == "" {
-				accept = controller.languages[0]
-			}
+	funcCore := func() error { return controller.core.SendEmail(handler.Params("name"), *body) }
 
-			language, _ := controller.translator.GetTranslator(accept)
+	expectErrors := []expectError{{core.ErrQueueDontExist, fiber.StatusNotFound}}
 
-			return handler.Status(fiber.StatusBadRequest).
-				JSON(sent{modelInvalid.Translate(language)})
-		}
+	unexpectMessageError := "error sending email"
 
-		if errors.Is(err, core.ErrQueueDontExist) {
-			return handler.Status(fiber.StatusNotFound).JSON(sent{core.ErrQueueDontExist.Error()})
-		}
+	okay := okay{"email sent", fiber.StatusOK}
 
-		log.Printf("[ERROR] - Error sending email: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error sending email"})
-	}
-
-	return handler.JSON(sent{"email sent"})
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
 }
 
 type Template struct {
+	core       *core.Template
 	translator *ut.UniversalTranslator
 	languages  []string
-	core       *core.Template
+}
+
+func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //nolint:ireturn
+	accept := handler.AcceptsLanguages(controller.languages...)
+	if accept == "" {
+		accept = controller.languages[0]
+	}
+
+	language, _ := controller.translator.GetTranslator(accept)
+
+	return language
 }
 
 // Creating a email template
@@ -199,32 +244,20 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	err = controller.core.Create(*body)
-	if err != nil {
-		modelInvalid := core.ModelInvalidError{}
-		if okay := errors.As(err, &modelInvalid); okay {
-			accept := handler.AcceptsLanguages(controller.languages...)
-			if accept == "" {
-				accept = controller.languages[0]
-			}
+	funcCore := func() error { return controller.core.Create(*body) }
 
-			language, _ := controller.translator.GetTranslator(accept)
+	expectErrors := []expectError{{core.ErrTemplateNameAlreadyExist, fiber.StatusConflict}}
 
-			return handler.Status(fiber.StatusBadRequest).
-				JSON(sent{modelInvalid.Translate(language)})
-		}
+	unexpectMessageError := "error creating template"
 
-		if errors.Is(err, core.ErrTemplateNameAlreadyExist) {
-			return handler.Status(fiber.StatusConflict).
-				JSON(sent{core.ErrTemplateNameAlreadyExist.Error()})
-		}
+	okay := okay{"template created", fiber.StatusCreated}
 
-		log.Printf("[ERROR] - Error creating template: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error creating template"})
-	}
-
-	return handler.Status(fiber.StatusCreated).JSON(sent{"template created"})
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
 }
-

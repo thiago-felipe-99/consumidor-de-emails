@@ -29,14 +29,16 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
-	database, err := data.NewQueueDatabase()
+	database, err := data.NewDatabase()
 	if err != nil {
 		log.Printf("[ERROR] - Error creating datase: %s", err)
 
 		return
 	}
 
-	queues, err := database.GetAll()
+	queueDatabase := data.NewQueueDatabase(database)
+
+	queues, err := queueDatabase.GetAll()
 	if err != nil {
 		log.Printf("[ERROR] - Error getting queues: %s", err)
 
@@ -52,7 +54,9 @@ func main() {
 		}
 	}
 
-	server, err := controllers.CreateHTTPServer(rabbitConnection, database)
+	templateDatabase := data.NewTemplateDatabase(database)
+
+	server, err := controllers.CreateHTTPServer(rabbitConnection, queueDatabase, templateDatabase)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)
 

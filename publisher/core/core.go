@@ -28,8 +28,8 @@ func dlxName(name string) string {
 
 type Queue struct {
 	rabbit    *rabbit.Rabbit
-	validator *validator.Validate
 	database  *data.Queue
+	validator *validator.Validate
 }
 
 type ModelInvalidError struct {
@@ -185,12 +185,18 @@ func NewQueue(rabbit *rabbit.Rabbit, database *data.Queue, validate *validator.V
 }
 
 type Template struct {
-  // minio 
-	validator *validator.Validate
+	// minio
 	database  *data.Template
+	validator *validator.Validate
 }
 
-func (core *Template) Create(partial model.TemplatePartial) error {
-  return nil
+func (core *Template) Create(_ model.TemplatePartial) error {
+	return nil
 }
 
+func NewTemplate(database *data.Template, validate *validator.Validate) *Template {
+	return &Template{
+		database:  database,
+		validator: validate,
+	}
+}
