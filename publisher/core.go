@@ -9,6 +9,8 @@ import (
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
+var errInvalidName = errors.New("was sent a invalid name")
+
 func dlxName(name string) string {
 	return name + "-dlx"
 }
@@ -87,4 +89,31 @@ func (core *queueCore) getAll() ([]queueModel, error) {
 	}
 
 	return queues, nil
+}
+
+func (core *queueCore) delete(name string) error {
+	if len(name) == 0 {
+		return errInvalidName
+	}
+
+	exist, err := core.database.existQueue(name)
+	if err != nil {
+		return fmt.Errorf("error checking queue: %w", err)
+	}
+
+	if !exist {
+		return errQueueDontExist
+	}
+
+	err = core.rabbit.DeleteQueueWithDLX(name, dlxName(name))
+	if err != nil {
+		return fmt.Errorf("error deleting queue from RabbitMQ: %w", err)
+	}
+
+	err = core.database.deleteQueue(name)
+	if err != nil {
+		return fmt.Errorf("error deleting queue from database: %w", err)
+	}
+
+	return nil
 }

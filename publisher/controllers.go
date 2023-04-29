@@ -183,34 +183,16 @@ func (controller *queueController) getAll() func(*fiber.Ctx) error {
 // @Description	Delete a queue with DLX.
 func (controller *queueController) delete() func(*fiber.Ctx) error {
 	return func(handler *fiber.Ctx) error {
-		name := handler.Params("name")
-
-		exist, err := controller.database.existQueue(name)
+		err := controller.core.delete(handler.Params("name"))
 		if err != nil {
-			log.Printf("[ERROR] - Error checking queue: %s", err)
+			if errors.Is(err, errQueueDontExist) {
+				return handler.Status(fiber.StatusNotFound).JSON(sent{errQueueDontExist.Error()})
+			}
+
+			log.Printf("[ERROR] - Error deleting queue: %s", err)
 
 			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error checking queue"})
-		}
-
-		if !exist {
-			return handler.Status(fiber.StatusNotFound).JSON(sent{errQueueDontExist.Error()})
-		}
-
-		err = controller.rabbit.DeleteQueueWithDLX(name, dlxName(name))
-		if err != nil {
-			log.Printf("[ERROR] - Error deleting queue from RabbitMQ: %s", err)
-
-			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error deleting queue from RabbitMQ"})
-		}
-
-		err = controller.database.deleteQueue(name)
-		if err != nil {
-			log.Printf("[ERROR] - Error deleting queue from database: %s", err)
-
-			return handler.Status(fiber.StatusInternalServerError).
-				JSON(sent{"error deleting queue"})
+				JSON(sent{"error deletring queue"})
 		}
 
 		return handler.JSON(sent{"queue deleted"})
