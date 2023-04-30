@@ -1,10 +1,9 @@
-//nolint:wrapcheck
 package controllers
 
 import (
 	"errors"
+	"fmt"
 	"log"
-	"time"
 
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/go-playground/locales/en"
@@ -19,10 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
-	"github.com/minio/minio-go/v7"
 	"github.com/thiago-felipe-99/mail/publisher/core"
-	"github.com/thiago-felipe-99/mail/publisher/data"
-	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
 type sent struct {
@@ -100,34 +96,27 @@ func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, er
 
 	err := en_translations.RegisterDefaultTranslations(validate, enTrans)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error register 'en' translation: %w", err)
 	}
 
 	ptTrans, _ := translator.GetTranslator("pt")
 
 	err = ptTranslations.RegisterDefaultTranslations(validate, ptTrans)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error register 'pt' translation: %w", err)
 	}
 
 	ptBRTrans, _ := translator.GetTranslator("pt_BR")
 
 	err = pt_br_translations.RegisterDefaultTranslations(validate, ptBRTrans)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error register 'pt_BR' translation: %w", err)
 	}
 
 	return translator, nil
 }
 
-func CreateHTTPServer(
-	rabbit *rabbit.Rabbit,
-	userDatabase *data.User,
-	queueDatabase *data.Queue,
-	templateDatabase *data.Template,
-	minio *minio.Client,
-	bucket string,
-) (*fiber.App, error) {
+func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.App, error) {
 	app := fiber.New()
 
 	prometheus := fiberprometheus.New("publisher")
@@ -149,8 +138,6 @@ func CreateHTTPServer(
 
 	app.Get("/swagger/*", swagger.New(swaggerConfig))
 
-	validate := validator.New()
-
 	translator, err := createTranslator(validate)
 	if err != nil {
 		return nil, err
@@ -159,19 +146,19 @@ func CreateHTTPServer(
 	languages := []string{"en", "pt_BR", "pt"}
 
 	user := User{
-		core:       core.NewUser(userDatabase, validate, time.Minute*5), //nolint:gomnd
+		core:       cores.User,
 		translator: translator,
 		languages:  languages,
 	}
 
 	template := Template{
-		core:       core.NewTemplate(templateDatabase, minio, bucket, validate),
+		core:       cores.Template,
 		translator: translator,
 		languages:  languages,
 	}
 
 	queue := Queue{
-		core:       core.NewQueue(template.core, rabbit, queueDatabase, validate),
+		core:       cores.Queue,
 		translator: translator,
 		languages:  languages,
 	}

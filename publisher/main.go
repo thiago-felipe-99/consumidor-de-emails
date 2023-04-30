@@ -2,14 +2,19 @@ package main
 
 import (
 	"log"
+	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/thiago-felipe-99/mail/publisher/controllers"
+	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	_ "github.com/thiago-felipe-99/mail/publisher/docs"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
+
+const sessionDuration = 5 * time.Second
 
 // @title			Publisher Emails
 // @version		1.0
@@ -40,7 +45,7 @@ func main() {
 		return
 	}
 
-	database, err := data.NewDatabase(
+	mongoClient, err := data.NewMongoClient(
 		"mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100",
 	)
 	if err != nil {
@@ -49,9 +54,9 @@ func main() {
 		return
 	}
 
-	queueDatabase := data.NewQueueDatabase(database)
+	databases := data.NewDatabases(mongoClient)
 
-	queues, err := queueDatabase.GetAll()
+	queues, err := databases.Queue.GetAll()
 	if err != nil {
 		log.Printf("[ERROR] - Error getting queues: %s", err)
 
@@ -67,18 +72,18 @@ func main() {
 		}
 	}
 
-	userDatabase := data.NewUserDatabase(database)
+	validate := validator.New()
 
-	templateDatabase := data.NewTemplateDatabase(database)
-
-	server, err := controllers.CreateHTTPServer(
+	cores := core.NewCores(
+		databases,
+		validate,
+		sessionDuration,
 		rabbitConnection,
-		userDatabase,
-		queueDatabase,
-		templateDatabase,
 		minio,
 		"template",
 	)
+
+	server, err := controllers.CreateHTTPServer(validate, cores)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)
 

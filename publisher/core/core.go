@@ -721,3 +721,26 @@ func NewTemplate(
 		regexFields: regexp.MustCompile(`{{ *(\w|\d)+ *}}`),
 	}
 }
+
+type Cores struct {
+	*User
+	*Queue
+	*Template
+}
+
+func NewCores(
+	databases *data.Databases,
+	validate *validator.Validate,
+	sessionDuration time.Duration,
+	rabbit *rabbit.Rabbit,
+	minio *minio.Client,
+	bukcetTemplate string,
+) *Cores {
+	template := NewTemplate(databases.Template, minio, bukcetTemplate, validate)
+
+	return &Cores{
+		User:     NewUser(databases.User, validate, sessionDuration),
+		Template: template,
+		Queue:    NewQueue(template, rabbit, databases.Queue, validate),
+	}
+}

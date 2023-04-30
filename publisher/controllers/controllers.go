@@ -1,4 +1,3 @@
-//nolint:wrapcheck
 package controllers
 
 import (
@@ -32,17 +31,17 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 
 // Create a user in application
 //
-// @Summary		Create user
-// @Tags			user
-// @Accept			json
-// @Produce		json
-// @Success		201		{object}	sent "user created successfully"
-// @Failure		400		{object}	sent "an invalid user param was sent"
-// @Failure		409		{object}	sent "user already exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			user	body		model.UserPartial	true	"user params"
-// @Router			/user [post]
-// @Description	Create a user in application.
+//	@Summary		Create user
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		201		{object}	sent				"user created successfully"
+//	@Failure		400		{object}	sent				"an invalid user param was sent"
+//	@Failure		409		{object}	sent				"user already exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			user	body		model.UserPartial	true	"user params"
+//	@Router			/user [post]
+//	@Description	Create a user in application.
 func (controller *User) create(handler *fiber.Ctx) error {
 	body := &model.User{}
 
@@ -73,16 +72,16 @@ func (controller *User) create(handler *fiber.Ctx) error {
 
 // Get current user informations
 //
-// @Summary		Get user
-// @Tags			user
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "user informations"
-// @Failure		401		{object}	sent "unathorized"
-// @Failure		404		{object}	sent "user does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Router			/user [get]
-// @Description	Get current user informatios.
+//	@Summary		Get user
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	sent	"user informations"
+//	@Failure		401	{object}	sent	"unathorized"
+//	@Failure		404	{object}	sent	"user does not exist"
+//	@Failure		500	{object}	sent	"internal server error"
+//	@Router			/user [get]
+//	@Description	Get current user informatios.
 func (controller *User) get(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
@@ -108,18 +107,18 @@ func (controller *User) get(handler *fiber.Ctx) error {
 
 // Update user informations
 //
-// @Summary		Update user
-// @Tags			user
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "user updated"
-// @Failure		400		{object}	sent "an invalid user param was sent"
-// @Failure		401		{object}	sent "unathorized"
-// @Failure		404		{object}	sent "user does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			user	body		model.UserPartial	true	"user params"
-// @Router			/user [put]
-// @Description	Update user informatios.
+//	@Summary		Update user
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent				"user updated"
+//	@Failure		400		{object}	sent				"an invalid user param was sent"
+//	@Failure		401		{object}	sent				"unathorized"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			user	body		model.UserPartial	true	"user params"
+//	@Router			/user [put]
+//	@Description	Update user informatios.
 func (controller *User) update(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
@@ -156,16 +155,16 @@ func (controller *User) update(handler *fiber.Ctx) error {
 
 // Delete current user
 //
-// @Summary		Delete user
-// @Tags			user
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "user deleted"
-// @Failure		401		{object}	sent "unathorized"
-// @Failure		404		{object}	sent "user dont exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Router			/user [delete]
-// @Description	Delete current user.
+//	@Summary		Delete user
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	sent	"user deleted"
+//	@Failure		401	{object}	sent	"unathorized"
+//	@Failure		404	{object}	sent	"user dont exist"
+//	@Failure		500	{object}	sent	"internal server error"
+//	@Router			/user [delete]
+//	@Description	Delete current user.
 func (controller *User) delete(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
@@ -197,17 +196,17 @@ func (controller *User) delete(handler *fiber.Ctx) error {
 
 // Create a user session
 //
-// @Summary		Create session
-// @Tags			user
-// @Accept			json
-// @Produce		json
-// @Success		201		{object}	sent "session created successfully"
-// @Failure		400		{object}	sent "an invalid user param was sent"
-// @Failure		404		{object}	sent "user does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			user	body		model.UserPartial	true	"user params"
-// @Router			/user/session [post]
-// @Description	Create a user session and set in the response cookie.
+//	@Summary		Create session
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		201		{object}	sent				"session created successfully"
+//	@Failure		400		{object}	sent				"an invalid user param was sent"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			user	body		model.UserPartial	true	"user params"
+//	@Router			/user/session [post]
+//	@Description	Create a user session and set in the response cookie.
 func (controller *User) newSession(handler *fiber.Ctx) error {
 	body := &model.UserPartial{}
 
@@ -265,15 +264,15 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 
 // Refresh a user session
 //
-// @Summary		Refresh session
-// @Tags			user
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "session refreshed successfully"
-// @Failure		401		{object}	sent "session does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Router			/user/session [put]
-// @Description	Refresh a user session and set in the response cookie.
+//	@Summary		Refresh session
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	sent	"session refreshed successfully"
+//	@Failure		401	{object}	sent	"session does not exist"
+//	@Failure		500	{object}	sent	"internal server error"
+//	@Router			/user/session [put]
+//	@Description	Refresh a user session and set in the response cookie.
 func (controller *User) refreshSession(handler *fiber.Ctx) error {
 	sessionID := handler.Cookies("session", "invalid_session")
 
@@ -330,17 +329,17 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 
 // Create a RabbitMQ queue with DLX
 //
-// @Summary		Creating queue
-// @Tags			queue
-// @Accept			json
-// @Produce		json
-// @Success		201		{object}	sent "create queue successfully"
-// @Failure		400		{object}	sent "an invalid queue param was sent"
-// @Failure		409		{object}	sent "queue already exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			queue	body		model.QueuePartial	true	"queue params"
-// @Router			/email/queue [post]
-// @Description	Create a RabbitMQ queue with DLX.
+//	@Summary		Creating queue
+//	@Tags			queue
+//	@Accept			json
+//	@Produce		json
+//	@Success		201		{object}	sent				"create queue successfully"
+//	@Failure		400		{object}	sent				"an invalid queue param was sent"
+//	@Failure		409		{object}	sent				"queue already exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			queue	body		model.QueuePartial	true	"queue params"
+//	@Router			/email/queue [post]
+//	@Description	Create a RabbitMQ queue with DLX.
 func (controller *Queue) create(handler *fiber.Ctx) error {
 	body := &model.QueuePartial{
 		MaxRetries: 10, //nolint:gomnd
@@ -371,14 +370,14 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 
 // Get all RabbitMQ queues
 //
-// @Summary		Get queues
-// @Tags			queue
-// @Accept			json
-// @Produce		json
-// @Success		200		{array}	model.Queue "all queues"
-// @Failure		500		{object}	sent "internal server error"
-// @Router			/email/queue [get]
-// @Description	Get all RabbitMQ queues.
+//	@Summary		Get queues
+//	@Tags			queue
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		model.Queue	"all queues"
+//	@Failure		500	{object}	sent		"internal server error"
+//	@Router			/email/queue [get]
+//	@Description	Get all RabbitMQ queues.
 func (controller *Queue) getAll(handler *fiber.Ctx) error {
 	return callingCoreWithReturn(
 		controller.core.GetAll,
@@ -390,16 +389,16 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 
 // Delete a queue with DLX
 //
-// @Summary		Delete queues
-// @Tags			queue
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "queue deleted"
-// @Failure		404		{object}	sent "queue dont exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			name	path	string		true	"queue name"
-// @Router			/email/queue/{name} [delete]
-// @Description	Delete a queue with DLX.
+//	@Summary		Delete queues
+//	@Tags			queue
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent	"queue deleted"
+//	@Failure		404		{object}	sent	"queue dont exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			name	path		string	true	"queue name"
+//	@Router			/email/queue/{name} [delete]
+//	@Description	Delete a queue with DLX.
 func (controller *Queue) delete(handler *fiber.Ctx) error {
 	funcCore := func() error { return controller.core.Delete(handler.Params("name")) }
 
@@ -421,18 +420,18 @@ func (controller *Queue) delete(handler *fiber.Ctx) error {
 
 // Sends an email to the RabbitMQ queue
 //
-// @Summary		Sends email
-// @Tags			queue
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "email sent successfully"
-// @Failure		400		{object}	sent "an invalid email param was sent"
-// @Failure		404		{object}	sent "queue does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			name	path	string		true	"queue name"
-// @Param			queue	body	model.Email	true	"email"
-// @Router			/email/queue/{name}/send [post]
-// @Description	Sends an email to the RabbitMQ queue.
+//	@Summary		Sends email
+//	@Tags			queue
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent		"email sent successfully"
+//	@Failure		400		{object}	sent		"an invalid email param was sent"
+//	@Failure		404		{object}	sent		"queue does not exist"
+//	@Failure		500		{object}	sent		"internal server error"
+//	@Param			name	path		string		true	"queue name"
+//	@Param			queue	body		model.Email	true	"email"
+//	@Router			/email/queue/{name}/send [post]
+//	@Description	Sends an email to the RabbitMQ queue.
 func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
 	body := &model.Email{}
 
@@ -482,17 +481,17 @@ func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //
 
 // Create a email template
 //
-// @Summary		Creating template
-// @Tags			template
-// @Accept			json
-// @Produce		json
-// @Success		201		{object}	sent "create template successfully"
-// @Failure		400		{object}	sent "an invalid template param was sent"
-// @Failure		409		{object}	sent "template name already exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			template	body		model.TemplatePartial	true	"template params"
-// @Router			/email/template [post]
-// @Description	Create a email template.
+//	@Summary		Creating template
+//	@Tags			template
+//	@Accept			json
+//	@Produce		json
+//	@Success		201			{object}	sent					"create template successfully"
+//	@Failure		400			{object}	sent					"an invalid template param was sent"
+//	@Failure		409			{object}	sent					"template name already exist"
+//	@Failure		500			{object}	sent					"internal server error"
+//	@Param			template	body		model.TemplatePartial	true	"template params"
+//	@Router			/email/template [post]
+//	@Description	Create a email template.
 func (controller *Template) create(handler *fiber.Ctx) error {
 	body := &model.TemplatePartial{}
 
@@ -524,14 +523,14 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 
 // Delete all email templates
 //
-// @Summary		Get templates
-// @Tags			template
-// @Accept			json
-// @Produce		json
-// @Success		200		{array}	model.Template "all templates"
-// @Failure		500		{object}	sent "internal server error"
-// @Router			/email/template [get]
-// @Description	Delete all email templates.
+//	@Summary		Get templates
+//	@Tags			template
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		model.Template	"all templates"
+//	@Failure		500	{object}	sent			"internal server error"
+//	@Router			/email/template [get]
+//	@Description	Delete all email templates.
 func (controller *Template) getAll(handler *fiber.Ctx) error {
 	return callingCoreWithReturn(
 		controller.core.GetAll,
@@ -543,16 +542,16 @@ func (controller *Template) getAll(handler *fiber.Ctx) error {
 
 // Get a email template
 //
-// @Summary		Get template
-// @Tags			template
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	model.Template "all templates"
-// @Success		404		{array}	sent "template does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			name	path	string		true	"template name"
-// @Router			/email/template/{name} [get]
-// @Description	Get a email template.
+//	@Summary		Get template
+//	@Tags			template
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	model.Template	"all templates"
+//	@Success		404		{array}		sent			"template does not exist"
+//	@Failure		500		{object}	sent			"internal server error"
+//	@Param			name	path		string			true	"template name"
+//	@Router			/email/template/{name} [get]
+//	@Description	Get a email template.
 func (controller *Template) get(handler *fiber.Ctx) error {
 	coreFunc := func() (*model.Template, error) { return controller.core.Get(handler.Params("name")) }
 
@@ -563,18 +562,18 @@ func (controller *Template) get(handler *fiber.Ctx) error {
 
 // Update a email template
 //
-// @Summary		Update template
-// @Tags			template
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "template updated"
-// @Failure		400		{object}	sent "an invalid template param was sent"
-// @Failure		404		{object}	sent "template does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			name	path	string		true	"template name"
-// @Param			template	body		model.TemplatePartial	true	"template params"
-// @Router			/email/template/{name} [put]
-// @Description	Update a email template.
+//	@Summary		Update template
+//	@Tags			template
+//	@Accept			json
+//	@Produce		json
+//	@Success		200			{object}	sent					"template updated"
+//	@Failure		400			{object}	sent					"an invalid template param was sent"
+//	@Failure		404			{object}	sent					"template does not exist"
+//	@Failure		500			{object}	sent					"internal server error"
+//	@Param			name		path		string					true	"template name"
+//	@Param			template	body		model.TemplatePartial	true	"template params"
+//	@Router			/email/template/{name} [put]
+//	@Description	Update a email template.
 func (controller *Template) update(handler *fiber.Ctx) error {
 	body := &model.TemplatePartial{}
 
@@ -606,16 +605,16 @@ func (controller *Template) update(handler *fiber.Ctx) error {
 
 // Delete a email template
 //
-// @Summary		Delete template
-// @Tags			template
-// @Accept			json
-// @Produce		json
-// @Success		200		{object}	sent "template deleted"
-// @Failure		404		{object}	sent "template does not exist"
-// @Failure		500		{object}	sent "internal server error"
-// @Param			name	path	string		true	"template name"
-// @Router			/email/template/{name} [delete]
-// @Description	Delete a email template.
+//	@Summary		Delete template
+//	@Tags			template
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent	"template deleted"
+//	@Failure		404		{object}	sent	"template does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			name	path		string	true	"template name"
+//	@Router			/email/template/{name} [delete]
+//	@Description	Delete a email template.
 func (controller *Template) delete(handler *fiber.Ctx) error {
 	funcCore := func() error { return controller.core.Delete(handler.Params("name")) }
 

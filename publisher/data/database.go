@@ -12,20 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func NewDatabase(uri string) (*mongo.Client, error) {
-	connection, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
-	if err != nil {
-		return nil, fmt.Errorf("error connecting with the database: %w", err)
-	}
-
-	err = connection.Ping(context.Background(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("error ping server: %w", err)
-	}
-
-	return connection, nil
-}
-
 type User struct {
 	db *mongo.Database
 }
@@ -139,9 +125,9 @@ func (database *User) UpdateSession(session model.UserSession) error {
 	return nil
 }
 
-func NewUserDatabase(database *mongo.Client) *User {
+func NewUserDatabase(client *mongo.Client) *User {
 	return &User{
-		db: database.Database("user"),
+		db: client.Database("user"),
 	}
 }
 
@@ -210,8 +196,8 @@ func (database *Queue) SaveEmail(email model.Email) error {
 	return nil
 }
 
-func NewQueueDatabase(connection *mongo.Client) *Queue {
-	return &Queue{connection.Database("email")}
+func NewQueueDatabase(client *mongo.Client) *Queue {
+	return &Queue{client.Database("email")}
 }
 
 type Template struct {
@@ -312,6 +298,34 @@ func (database *Template) Delete(name string) error {
 	return nil
 }
 
-func NewTemplateDatabase(connection *mongo.Client) *Template {
-	return &Template{connection.Database("templates")}
+func NewTemplateDatabase(client *mongo.Client) *Template {
+	return &Template{client.Database("templates")}
+}
+
+func NewMongoClient(uri string) (*mongo.Client, error) {
+	connection, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, fmt.Errorf("error connecting with the database: %w", err)
+	}
+
+	err = connection.Ping(context.Background(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error ping server: %w", err)
+	}
+
+	return connection, nil
+}
+
+type Databases struct {
+	*User
+	*Queue
+	*Template
+}
+
+func NewDatabases(client *mongo.Client) *Databases {
+	return &Databases{
+		User:     NewUserDatabase(client),
+		Queue:    NewQueueDatabase(client),
+		Template: NewTemplateDatabase(client),
+	}
 }
