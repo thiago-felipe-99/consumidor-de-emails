@@ -20,10 +20,12 @@ import (
 var (
 	ErrInvalidName              = errors.New("was sent a invalid name")
 	ErrQueueAlreadyExist        = errors.New("queue already exist")
-	ErrQueueDontExist           = errors.New("queue does not exist")
+	ErrQueueDoesNotExist        = errors.New("queue does not exist")
 	ErrBodyValidate             = errors.New("unable to parse body")
 	ErrTemplateNameAlreadyExist = errors.New("template name already exist")
 	ErrMaxSizeTemplate          = errors.New("template has a max size of 1MB")
+	ErrMissingFieldTemplates    = errors.New("missing fields from template")
+	ErrTemplateDoesNotExist     = errors.New("template does not exist")
 )
 
 const maxSizeTemplate = 1024 * 1024
@@ -68,6 +70,7 @@ func dlxName(name string) string {
 }
 
 type Queue struct {
+	template  *Template
 	rabbit    *rabbit.Rabbit
 	database  *data.Queue
 	validator *validator.Validate
@@ -134,7 +137,7 @@ func (core *Queue) Delete(name string) error {
 	}
 
 	if !exist {
-		return ErrQueueDontExist
+		return ErrQueueDoesNotExist
 	}
 
 	err = core.rabbit.DeleteQueueWithDLX(name, dlxName(name))
@@ -166,7 +169,29 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 	}
 
 	if !queueExist {
-		return ErrQueueDontExist
+		return ErrQueueDoesNotExist
+	}
+
+	if email.Template != nil {
+		exist, err := core.template.Exist(email.Template.Name)
+		if err != nil {
+			return fmt.Errorf("error checking if template exist: %w", err)
+		}
+
+		if !exist {
+			return ErrTemplateDoesNotExist
+		}
+
+		fields, err := core.template.GetFields(email.Template.Name)
+		if err != nil {
+			return fmt.Errorf("error getting templates fields: %w", err)
+		}
+
+		for _, field := range fields {
+			if _, found := email.Template.Data[field]; !found {
+				return ErrMissingFieldTemplates
+			}
+		}
 	}
 
 	err = core.rabbit.SendMessage(context.Background(), queue, email)
@@ -184,11 +209,17 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 	return nil
 }
 
-func NewQueue(rabbit *rabbit.Rabbit, database *data.Queue, validate *validator.Validate) *Queue {
+func NewQueue(
+	template *Template,
+	rabbit *rabbit.Rabbit,
+	database *data.Queue,
+	validate *validator.Validate,
+) *Queue {
 	return &Queue{
+		template:  template,
 		rabbit:    rabbit,
-		validator: validate,
 		database:  database,
+		validator: validate,
 	}
 }
 
@@ -268,6 +299,24 @@ func (core *Template) Create(partial model.TemplatePartial) error {
 	}
 
 	return nil
+}
+
+func (core *Template) Exist(name string) (bool, error) {
+	exist, err := core.database.Exist(name)
+	if err != nil {
+		return false, fmt.Errorf("error checking if template exist in database: %w", err)
+	}
+
+	return exist, nil
+}
+
+func (core *Template) GetFields(name string) ([]string, error) {
+	template, err := core.database.Get(name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting template: %w", err)
+	}
+
+	return template.Fields, nil
 }
 
 func NewTemplate(

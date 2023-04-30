@@ -150,7 +150,7 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 func (controller *Queue) delete(handler *fiber.Ctx) error {
 	funcCore := func() error { return controller.core.Delete(handler.Params("name")) }
 
-	expectErrors := []expectError{{core.ErrQueueDontExist, fiber.StatusNotFound}}
+	expectErrors := []expectError{{core.ErrQueueDoesNotExist, fiber.StatusNotFound}}
 
 	unexpectMessageError := "error deleting queue"
 
@@ -190,7 +190,11 @@ func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
 
 	funcCore := func() error { return controller.core.SendEmail(handler.Params("name"), *body) }
 
-	expectErrors := []expectError{{core.ErrQueueDontExist, fiber.StatusNotFound}}
+	expectErrors := []expectError{
+		{core.ErrQueueDoesNotExist, fiber.StatusNotFound},
+		{core.ErrMissingFieldTemplates, fiber.StatusBadRequest},
+		{core.ErrTemplateDoesNotExist, fiber.StatusBadRequest},
+	}
 
 	unexpectMessageError := "error sending email"
 

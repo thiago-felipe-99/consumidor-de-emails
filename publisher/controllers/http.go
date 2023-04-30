@@ -79,8 +79,14 @@ func CreateHTTPServer(
 
 	languages := []string{"en", "pt_BR", "pt"}
 
+	template := Template{
+		core:       core.NewTemplate(templateDatabase, minio, bucket, validate),
+		translator: translator,
+		languages:  languages,
+	}
+
 	queue := Queue{
-		core:       core.NewQueue(rabbit, queueDatabase, validate),
+		core:       core.NewQueue(template.core, rabbit, queueDatabase, validate),
 		translator: translator,
 		languages:  languages,
 	}
@@ -89,12 +95,6 @@ func CreateHTTPServer(
 	app.Post("/email/queue", queue.create)
 	app.Delete("/email/queue/:name", queue.delete)
 	app.Post("/email/queue/:name/send", queue.sendEmail)
-
-	template := Template{
-		core:       core.NewTemplate(templateDatabase, minio, bucket, validate),
-		translator: translator,
-		languages:  languages,
-	}
 
 	app.Post("/email/template", template.create)
 

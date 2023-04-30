@@ -117,6 +117,21 @@ func (database *Template) Exist(name string) (bool, error) {
 	return count >= 1, nil
 }
 
+func (database *Template) Get(name string) (*model.Template, error) {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	template := &model.Template{}
+
+	err := database.db.Collection("templates").
+		FindOne(context.Background(), filter).
+		Decode(template)
+	if err != nil {
+		return nil, fmt.Errorf("error getting template from database: %w", err)
+	}
+
+	return template, nil
+}
+
 func NewTemplateDatabase(connection *mongo.Client) *Template {
 	return &Template{connection.Database("templates")}
 }
