@@ -219,6 +219,26 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 	return &newSession, nil
 }
 
+func (core *User) Get(userID uuid.UUID) (*model.User, error) {
+	exist, err := core.database.ExistByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrUserDoesNotExist
+	}
+
+	user, err := core.database.GetByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	user.Password = ""
+
+	return user, nil
+}
+
 func NewUser(
 	database *data.User,
 	validate *validator.Validate,

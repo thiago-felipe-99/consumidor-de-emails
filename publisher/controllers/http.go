@@ -176,6 +176,7 @@ func CreateHTTPServer(
 		languages:  languages,
 	}
 
+	app.Get("/user", user.refreshSession, user.get)
 	app.Post("/user", user.create)
 	app.Post("/user/session", user.newSession)
 	app.Put(

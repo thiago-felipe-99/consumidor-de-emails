@@ -65,6 +65,19 @@ func (database *User) ExistByID(userID uuid.UUID) (bool, error) {
 	return count > 0, nil
 }
 
+func (database *User) GetByID(userID uuid.UUID) (*model.User, error) {
+	filter := bson.D{{Key: "_id", Value: userID}}
+
+	user := &model.User{}
+
+	err := database.db.Collection("users").FindOne(context.Background(), filter).Decode(user)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	return user, nil
+}
+
 func (database *User) GetByNameOrEmail(name, email string) (*model.User, error) {
 	filter := bson.D{
 		{Key: "$or", Value: bson.A{

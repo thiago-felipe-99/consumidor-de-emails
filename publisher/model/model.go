@@ -15,10 +15,10 @@ type UserPartial struct {
 }
 
 type User struct {
-	ID       uuid.UUID `json:"-"        bson:"_id"      validate:"-"`
-	Name     string    `json:"name"     bson:"name"     validate:"required"`
-	Email    string    `json:"email"    bson:"email"    validate:"required,email"`
-	Password string    `json:"password" bson:"password" validate:"required"`
+	ID       uuid.UUID `json:"-"                  bson:"_id"      validate:"-"`
+	Name     string    `json:"name"               bson:"name"     validate:"required"`
+	Email    string    `json:"email"              bson:"email"    validate:"required,email"`
+	Password string    `json:"password,omitempty" bson:"password" validate:"required"`
 }
 
 type UserSession struct {

@@ -8,6 +8,7 @@ import (
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
@@ -66,6 +67,43 @@ func (controller *User) create(handler *fiber.Ctx) error {
 		unexpectMessageError,
 		okay,
 		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Get current user informations
+//
+// @Summary		Get user
+// @Tags			user
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	sent "user informations"
+// @Failure		401		{object}	sent "unathorized"
+// @Failure		404		{object}	sent "user does not exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Router			/user [get]
+// @Description	Get current user informatios.
+func (controller *User) get(handler *fiber.Ctx) error {
+	idRaw := handler.Locals("userID")
+
+	userID, ok := idRaw.(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() (*model.User, error) { return controller.core.Get(userID) }
+
+	expectErrors := []expectError{}
+
+	unexpectMessageError := "error getting user"
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
 		handler,
 	)
 }
@@ -179,6 +217,7 @@ func (controller *User) refreshSession(handler *fiber.Ctx) error {
 	}
 
 	handler.Cookie(cookie)
+	handler.Locals("userID", session.UserID)
 
 	return handler.Next()
 }
