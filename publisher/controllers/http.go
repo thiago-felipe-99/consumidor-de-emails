@@ -2,6 +2,9 @@
 package controllers
 
 import (
+	"errors"
+	"log"
+
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/go-playground/locales/en"
 	"github.com/go-playground/locales/pt"
@@ -20,6 +23,74 @@ import (
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
+
+type sent struct {
+	Message string `json:"message" bson:"message"`
+}
+
+type expectError struct {
+	err    error
+	status int
+}
+
+type okay struct {
+	message string
+	status  int
+}
+
+func callingCore(
+	coreFunc func() error,
+	expectErrors []expectError,
+	unexpectMessageError string,
+	okay okay,
+	language ut.Translator,
+	handler *fiber.Ctx,
+) error {
+	err := coreFunc()
+	if err != nil {
+		modelInvalid := core.ModelInvalidError{}
+		if okay := errors.As(err, &modelInvalid); okay {
+			return handler.Status(fiber.StatusBadRequest).
+				JSON(sent{modelInvalid.Translate(language)})
+		}
+
+		for _, expectError := range expectErrors {
+			if errors.Is(err, expectError.err) {
+				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
+			}
+		}
+
+		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{unexpectMessageError})
+	}
+
+	return handler.Status(okay.status).JSON(sent{okay.message})
+}
+
+func callingCoreWithReturn[T any](
+	coreFunc func() (T, error),
+	expectErrors []expectError,
+	unexpectMessageError string,
+	handler *fiber.Ctx,
+) error {
+	data, err := coreFunc()
+	if err != nil {
+		for _, expectError := range expectErrors {
+			if errors.Is(err, expectError.err) {
+				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
+			}
+		}
+
+		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{unexpectMessageError})
+	}
+
+	return handler.JSON(data)
+}
 
 func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, error) {
 	translator := ut.New(en.New(), pt.New(), pt_BR.New())
@@ -50,6 +121,7 @@ func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, er
 
 func CreateHTTPServer(
 	rabbit *rabbit.Rabbit,
+	userDatabase *data.User,
 	queueDatabase *data.Queue,
 	templateDatabase *data.Template,
 	minio *minio.Client,
@@ -79,6 +151,12 @@ func CreateHTTPServer(
 
 	languages := []string{"en", "pt_BR", "pt"}
 
+	user := User{
+		core:       core.NewUser(userDatabase, validate),
+		translator: translator,
+		languages:  languages,
+	}
+
 	template := Template{
 		core:       core.NewTemplate(templateDatabase, minio, bucket, validate),
 		translator: translator,
@@ -90,6 +168,8 @@ func CreateHTTPServer(
 		translator: translator,
 		languages:  languages,
 	}
+
+	app.Post("/user", user.create)
 
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", queue.create)

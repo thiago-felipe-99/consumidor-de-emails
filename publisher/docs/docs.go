@@ -18,7 +18,7 @@ const docTemplate = `{
     "paths": {
         "/email/queue": {
             "get": {
-                "description": "Getting all RabbitMQ queues.",
+                "description": "Get all RabbitMQ queues.",
                 "consumes": [
                     "application/json"
                 ],
@@ -48,7 +48,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Creating a RabbitMQ queue with DLX.",
+                "description": "Create a RabbitMQ queue with DLX.",
                 "consumes": [
                     "application/json"
                 ],
@@ -203,7 +203,7 @@ const docTemplate = `{
         },
         "/email/template": {
             "get": {
-                "description": "Getting all email templates.",
+                "description": "Delete all email templates.",
                 "consumes": [
                     "application/json"
                 ],
@@ -233,7 +233,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Creating a email template.",
+                "description": "Create a email template.",
                 "consumes": [
                     "application/json"
                 ],
@@ -285,7 +285,7 @@ const docTemplate = `{
         },
         "/email/template/{name}": {
             "get": {
-                "description": "Getting a email template.",
+                "description": "Get a email template.",
                 "consumes": [
                     "application/json"
                 ],
@@ -416,6 +416,58 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "template does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user": {
+            "post": {
+                "description": "Create a user in application.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Create user",
+                "parameters": [
+                    {
+                        "description": "user params",
+                        "name": "queue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.User"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "user created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid user param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "user already exist",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -567,6 +619,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.User": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
                     "type": "string"
                 }
             }

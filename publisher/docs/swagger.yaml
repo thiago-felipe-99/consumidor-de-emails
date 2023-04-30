@@ -92,6 +92,19 @@ definitions:
     - name
     - template
     type: object
+  model.User:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -103,7 +116,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Getting all RabbitMQ queues.
+      description: Get all RabbitMQ queues.
       produces:
       - application/json
       responses:
@@ -123,7 +136,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creating a RabbitMQ queue with DLX.
+      description: Create a RabbitMQ queue with DLX.
       parameters:
       - description: queue params
         in: body
@@ -225,7 +238,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Getting all email templates.
+      description: Delete all email templates.
       produces:
       - application/json
       responses:
@@ -245,7 +258,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creating a email template.
+      description: Create a email template.
       parameters:
       - description: template params
         in: body
@@ -307,7 +320,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Getting a email template.
+      description: Get a email template.
       parameters:
       - description: template name
         in: path
@@ -372,4 +385,38 @@ paths:
       summary: Update template
       tags:
       - template
+  /user:
+    post:
+      consumes:
+      - application/json
+      description: Create a user in application.
+      parameters:
+      - description: user params
+        in: body
+        name: queue
+        required: true
+        schema:
+          $ref: '#/definitions/model.User'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: user created successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid user param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "409":
+          description: user already exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Create user
+      tags:
+      - user
 swagger: "2.0"

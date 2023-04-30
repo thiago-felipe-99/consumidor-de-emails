@@ -2,81 +2,68 @@
 package controllers
 
 import (
-	"errors"
-	"log"
-
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
 
-type sent struct {
-	Message string `json:"message" bson:"message"`
+type User struct {
+	core       *core.User
+	translator *ut.UniversalTranslator
+	languages  []string
 }
 
-type expectError struct {
-	err    error
-	status int
-}
-
-type okay struct {
-	message string
-	status  int
-}
-
-func callingCore(
-	coreFunc func() error,
-	expectErrors []expectError,
-	unexpectMessageError string,
-	okay okay,
-	language ut.Translator,
-	handler *fiber.Ctx,
-) error {
-	err := coreFunc()
-	if err != nil {
-		modelInvalid := core.ModelInvalidError{}
-		if okay := errors.As(err, &modelInvalid); okay {
-			return handler.Status(fiber.StatusBadRequest).
-				JSON(sent{modelInvalid.Translate(language)})
-		}
-
-		for _, expectError := range expectErrors {
-			if errors.Is(err, expectError.err) {
-				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
-			}
-		}
-
-		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{unexpectMessageError})
+func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //nolint:ireturn
+	accept := handler.AcceptsLanguages(controller.languages...)
+	if accept == "" {
+		accept = controller.languages[0]
 	}
 
-	return handler.Status(okay.status).JSON(sent{okay.message})
+	language, _ := controller.translator.GetTranslator(accept)
+
+	return language
 }
 
-func callingCoreWithReturn[T any](
-	coreFunc func() (T, error),
-	expectErrors []expectError,
-	unexpectMessageError string,
-	handler *fiber.Ctx,
-) error {
-	data, err := coreFunc()
+// Create a user in application
+//
+// @Summary		Create user
+// @Tags			user
+// @Accept			json
+// @Produce		json
+// @Success		201		{object}	sent "user created successfully"
+// @Failure		400		{object}	sent "an invalid user param was sent"
+// @Failure		409		{object}	sent "user already exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Param			queue	body		model.User	true	"user params"
+// @Router			/user [post]
+// @Description	Create a user in application.
+func (controller *User) create(handler *fiber.Ctx) error {
+	body := &model.User{}
+
+	err := handler.BodyParser(body)
 	if err != nil {
-		for _, expectError := range expectErrors {
-			if errors.Is(err, expectError.err) {
-				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
-			}
-		}
-
-		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{unexpectMessageError})
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	return handler.JSON(data)
+	funcCore := func() error { return controller.core.Create(*body) }
+
+	expectErrors := []expectError{
+		{core.ErrUserAlreadyExist, fiber.StatusConflict},
+	}
+
+	unexpectMessageError := "error creating user"
+
+	okay := okay{"user created", fiber.StatusCreated}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
 }
 
 type Queue struct {
@@ -96,7 +83,7 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 	return language
 }
 
-// Creating a RabbitMQ queue with DLX
+// Create a RabbitMQ queue with DLX
 //
 // @Summary		Creating queue
 // @Tags			queue
@@ -108,7 +95,7 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 // @Failure		500		{object}	sent "internal server error"
 // @Param			queue	body		model.QueuePartial	true	"queue params"
 // @Router			/email/queue [post]
-// @Description	Creating a RabbitMQ queue with DLX.
+// @Description	Create a RabbitMQ queue with DLX.
 func (controller *Queue) create(handler *fiber.Ctx) error {
 	body := &model.QueuePartial{
 		MaxRetries: 10, //nolint:gomnd
@@ -137,7 +124,7 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 	)
 }
 
-// Getting all RabbitMQ queues
+// Get all RabbitMQ queues
 //
 // @Summary		Get queues
 // @Tags			queue
@@ -146,7 +133,7 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 // @Success		200		{array}	model.Queue "all queues"
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/queue [get]
-// @Description	Getting all RabbitMQ queues.
+// @Description	Get all RabbitMQ queues.
 func (controller *Queue) getAll(handler *fiber.Ctx) error {
 	return callingCoreWithReturn(
 		controller.core.GetAll,
@@ -248,7 +235,7 @@ func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //
 	return language
 }
 
-// Creating a email template
+// Create a email template
 //
 // @Summary		Creating template
 // @Tags			template
@@ -260,7 +247,7 @@ func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //
 // @Failure		500		{object}	sent "internal server error"
 // @Param			template	body		model.TemplatePartial	true	"template params"
 // @Router			/email/template [post]
-// @Description	Creating a email template.
+// @Description	Create a email template.
 func (controller *Template) create(handler *fiber.Ctx) error {
 	body := &model.TemplatePartial{}
 
@@ -290,7 +277,7 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 	)
 }
 
-// Getting all email templates
+// Delete all email templates
 //
 // @Summary		Get templates
 // @Tags			template
@@ -299,7 +286,7 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 // @Success		200		{array}	model.Template "all templates"
 // @Failure		500		{object}	sent "internal server error"
 // @Router			/email/template [get]
-// @Description	Getting all email templates.
+// @Description	Delete all email templates.
 func (controller *Template) getAll(handler *fiber.Ctx) error {
 	return callingCoreWithReturn(
 		controller.core.GetAll,
@@ -309,7 +296,7 @@ func (controller *Template) getAll(handler *fiber.Ctx) error {
 	)
 }
 
-// Getting a email template
+// Get a email template
 //
 // @Summary		Get template
 // @Tags			template
@@ -320,7 +307,7 @@ func (controller *Template) getAll(handler *fiber.Ctx) error {
 // @Failure		500		{object}	sent "internal server error"
 // @Param			name	path	string		true	"template name"
 // @Router			/email/template/{name} [get]
-// @Description	Getting a email template.
+// @Description	Get a email template.
 func (controller *Template) get(handler *fiber.Ctx) error {
 	coreFunc := func() (*model.Template, error) { return controller.core.Get(handler.Params("name")) }
 

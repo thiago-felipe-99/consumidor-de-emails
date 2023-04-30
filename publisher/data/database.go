@@ -25,6 +25,41 @@ func NewDatabase(uri string) (*mongo.Client, error) {
 	return connection, nil
 }
 
+type User struct {
+	db *mongo.Database
+}
+
+func (database *User) Create(user model.User) error {
+	_, err := database.db.Collection("user").InsertOne(context.Background(), user)
+	if err != nil {
+		return fmt.Errorf("error creating user in database: %w", err)
+	}
+
+	return nil
+}
+
+func (database *User) Exist(name, email string) (bool, error) {
+	filter := bson.D{
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "name", Value: name}},
+			bson.D{{Key: "email", Value: email}},
+		}},
+	}
+
+	count, err := database.db.Collection("user").CountDocuments(context.Background(), filter)
+	if err != nil {
+		return false, fmt.Errorf("error counting users: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+func NewUserDatabase(database *mongo.Client) *User {
+	return &User{
+		db: database.Database("user"),
+	}
+}
+
 type Queue struct {
 	db *mongo.Database
 }

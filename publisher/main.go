@@ -31,6 +31,15 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
+	minio, err := minio.New("localhost:9000", &minio.Options{
+		Creds: credentials.NewStaticV4("minio", "miniominio", ""),
+	})
+	if err != nil {
+		log.Printf("[ERROR] - Error connecting with the Minio: %s", err)
+
+		return
+	}
+
 	database, err := data.NewDatabase(
 		"mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100",
 	)
@@ -58,19 +67,13 @@ func main() {
 		}
 	}
 
+	userDatabase := data.NewUserDatabase(database)
+
 	templateDatabase := data.NewTemplateDatabase(database)
-
-	minio, err := minio.New("localhost:9000", &minio.Options{
-		Creds: credentials.NewStaticV4("minio", "miniominio", ""),
-	})
-	if err != nil {
-		log.Printf("[ERROR] - Error connecting with the Minio: %s", err)
-
-		return
-	}
 
 	server, err := controllers.CreateHTTPServer(
 		rabbitConnection,
+		userDatabase,
 		queueDatabase,
 		templateDatabase,
 		minio,

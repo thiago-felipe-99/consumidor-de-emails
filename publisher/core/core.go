@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alexedwards/argon2id"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -18,6 +19,7 @@ import (
 )
 
 var (
+	ErrUserAlreadyExist         = errors.New("user already exist")
 	ErrInvalidName              = errors.New("was sent a invalid name")
 	ErrQueueAlreadyExist        = errors.New("queue already exist")
 	ErrQueueDoesNotExist        = errors.New("queue does not exist")
@@ -26,6 +28,14 @@ var (
 	ErrMaxSizeTemplate          = errors.New("template has a max size of 1MB")
 	ErrMissingFieldTemplates    = errors.New("missing fields from template")
 	ErrTemplateDoesNotExist     = errors.New("template does not exist")
+)
+
+const (
+	argon2idParamMemory      = 128 * 1024
+	argon2idParamIterations  = 2
+	argon2idParamSaltLength  = 32
+	argon2idParamKeyLength   = 64
+	argon2idParamParallelism = 4
 )
 
 const maxSizeTemplate = 1024 * 1024
@@ -63,6 +73,58 @@ func validate(validate *validator.Validate, data any) error {
 	}
 
 	return nil
+}
+
+type User struct {
+	database  *data.User
+	validator *validator.Validate
+	argon2id  argon2id.Params
+}
+
+func (core *User) Create(user model.User) error {
+	err := validate(core.validator, user)
+	if err != nil {
+		return err
+	}
+
+	user.ID = uuid.New()
+
+	exist, err := core.database.Exist(user.Name, user.Email)
+	if err != nil {
+		return fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if exist {
+		return ErrUserAlreadyExist
+	}
+
+	hash, err := argon2id.CreateHash(user.Password, &core.argon2id)
+	if err != nil {
+		return fmt.Errorf("error creating password hash: %w", err)
+	}
+
+	user.Password = hash
+
+	err = core.database.Create(user)
+	if err != nil {
+		return fmt.Errorf("error creating user in database: %w", err)
+	}
+
+	return nil
+}
+
+func NewUser(database *data.User, validate *validator.Validate) *User {
+	return &User{
+		database:  database,
+		validator: validate,
+		argon2id: argon2id.Params{
+			Memory:      argon2idParamMemory,
+			Iterations:  argon2idParamIterations,
+			Parallelism: argon2idParamParallelism,
+			SaltLength:  argon2idParamSaltLength,
+			KeyLength:   argon2idParamKeyLength,
+		},
+	}
 }
 
 func dlxName(name string) string {
