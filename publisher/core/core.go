@@ -319,6 +319,15 @@ func (core *Template) GetFields(name string) ([]string, error) {
 	return template.Fields, nil
 }
 
+func (core *Template) GetAll() ([]model.Template, error) {
+	templates, err := core.database.GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("error getting templates from database: %w", err)
+	}
+
+	return templates, nil
+}
+
 func NewTemplate(
 	database *data.Template,
 	minio *minio.Client,

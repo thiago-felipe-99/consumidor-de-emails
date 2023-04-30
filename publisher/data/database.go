@@ -132,6 +132,22 @@ func (database *Template) Get(name string) (*model.Template, error) {
 	return template, nil
 }
 
+func (database *Template) GetAll() ([]model.Template, error) {
+	templates := []model.Template{}
+
+	cursor, err := database.db.Collection("templates").Find(context.Background(), bson.D{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting all templates from database: %w", err)
+	}
+
+	err = cursor.All(context.Background(), &templates)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing templates: %w", err)
+	}
+
+	return templates, nil
+}
+
 func NewTemplateDatabase(connection *mongo.Client) *Template {
 	return &Template{connection.Database("templates")}
 }

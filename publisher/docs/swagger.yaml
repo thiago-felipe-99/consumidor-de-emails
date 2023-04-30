@@ -60,6 +60,17 @@ definitions:
     - email
     - name
     type: object
+  model.Template:
+    properties:
+      fields:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      template:
+        type: string
+    type: object
   model.TemplateData:
     properties:
       data:
@@ -205,6 +216,26 @@ paths:
       tags:
       - queue
   /email/template:
+    get:
+      consumes:
+      - application/json
+      description: Getting all email templates.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: all templates
+          schema:
+            items:
+              $ref: '#/definitions/model.Template'
+            type: array
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get templates
+      tags:
+      - template
     post:
       consumes:
       - application/json

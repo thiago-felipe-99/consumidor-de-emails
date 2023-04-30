@@ -130,7 +130,7 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 		log.Printf("[ERROR] - Error getting all queues: %s", err)
 
 		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting queue"})
+			JSON(sent{"error getting all queues"})
 	}
 
 	return handler.JSON(queues)
@@ -267,4 +267,26 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 		controller.getTranslator(handler),
 		handler,
 	)
+}
+
+// Getting all email templates
+//
+// @Summary		Get templates
+// @Tags			template
+// @Accept			json
+// @Produce		json
+// @Success		200		{array}	model.Template "all templates"
+// @Failure		500		{object}	sent "internal server error"
+// @Router			/email/template [get]
+// @Description	Getting all email templates.
+func (controller *Template) getAll(handler *fiber.Ctx) error {
+	templates, err := controller.core.GetAll()
+	if err != nil {
+		log.Printf("[ERROR] - Error getting all templates: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error getting all templates"})
+	}
+
+	return handler.JSON(templates)
 }
