@@ -6,6 +6,14 @@ services:
       dockerfile: ./consumer/Dockerfile
     env_file: 
       - ./consumer/.env
+  publisher:
+    build: 
+      context: ./
+      dockerfile: ./publisher/Dockerfile
+    env_file: 
+      - ./publisher/.env
+    ports:
+      - 8080:8080/tcp
   rabbit:
     image: rabbitmq:3.11-management
     environment:

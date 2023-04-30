@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -22,13 +23,19 @@ const sessionDuration = 5 * time.Second
 // @BasePath		/
 // @description	This is an api that publishes emails in RabbitMQ.
 func main() {
+	configs, err := getConfigurations()
+	if err != nil {
+		log.Printf("[ERROR] - Error getting configurations: %s", err)
+
+		return
+	}
+
 	rabbitConfig := rabbit.Config{
-		User:     "rabbit",
-		Password: "rabbit",
-		Host:     "localhost",
-		Port:     "5672",
-		PortAPI:  "15672",
-		Vhost:    "email",
+		User:     configs.Rabbit.User,
+		Password: configs.Rabbit.Password,
+		Host:     configs.Rabbit.Host,
+		Port:     fmt.Sprint(configs.Rabbit.Port),
+		Vhost:    configs.Rabbit.Vhost,
 	}
 
 	rabbitConnection := rabbit.New(rabbitConfig)
@@ -36,8 +43,10 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
-	minio, err := minio.New("localhost:9000", &minio.Options{
-		Creds: credentials.NewStaticV4("minio", "miniominio", ""),
+	minioURI := fmt.Sprintf("%s:%d", configs.Minio.Host, configs.Minio.Port)
+
+	minio, err := minio.New(minioURI, &minio.Options{
+		Creds: credentials.NewStaticV4(configs.Minio.AccessKey, configs.Minio.SecretKey, ""),
 	})
 	if err != nil {
 		log.Printf("[ERROR] - Error connecting with the Minio: %s", err)
@@ -45,9 +54,33 @@ func main() {
 		return
 	}
 
-	mongoClient, err := data.NewMongoClient(
-		"mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100",
-	)
+	var mongoURI string
+
+	if configs.Mongo.Secure {
+		mongoURI = fmt.Sprintf(
+			"mongodb+srv://%s:%s@%s:%d/?connectTimeoutMS=%d&timeoutMS=%d&maxIdleTimeMS=%d",
+			configs.Mongo.User,
+			configs.Mongo.Password,
+			configs.Mongo.Host,
+			configs.Mongo.Port,
+			configs.Mongo.ConnectTimeoutMS,
+			configs.Mongo.TimeoutMS,
+			configs.Mongo.MaxIdleTimeMS,
+		)
+	} else {
+		mongoURI = fmt.Sprintf(
+			"mongodb://%s:%s@%s:%d/?connectTimeoutMS=%d&timeoutMS=%d&maxIdleTimeMS=%d",
+			configs.Mongo.User,
+			configs.Mongo.Password,
+			configs.Mongo.Host,
+			configs.Mongo.Port,
+			configs.Mongo.ConnectTimeoutMS,
+			configs.Mongo.TimeoutMS,
+			configs.Mongo.MaxIdleTimeMS,
+		)
+	}
+
+	mongoClient, err := data.NewMongoClient(mongoURI)
 	if err != nil {
 		log.Printf("[ERROR] - Error creating datase: %s", err)
 
@@ -80,7 +113,7 @@ func main() {
 		sessionDuration,
 		rabbitConnection,
 		minio,
-		"template",
+		configs.Minio.TemplateBucket,
 	)
 
 	server, err := controllers.CreateHTTPServer(validate, cores)

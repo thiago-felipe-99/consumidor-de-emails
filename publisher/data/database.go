@@ -126,9 +126,7 @@ func (database *User) UpdateSession(session model.UserSession) error {
 }
 
 func NewUserDatabase(client *mongo.Client) *User {
-	return &User{
-		db: client.Database("user"),
-	}
+	return &User{client.Database("user")}
 }
 
 type Queue struct {

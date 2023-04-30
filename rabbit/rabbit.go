@@ -41,7 +41,6 @@ type Config struct {
 	Password string
 	Host     string
 	Port     string
-	PortAPI  string
 	Vhost    string
 }
 
