@@ -2,6 +2,8 @@
 package controllers
 
 import (
+	"time"
+
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
 	"github.com/thiago-felipe-99/mail/publisher/core"
@@ -64,6 +66,72 @@ func (controller *User) create(handler *fiber.Ctx) error {
 		controller.getTranslator(handler),
 		handler,
 	)
+}
+
+// Create a user session
+//
+// @Summary		Create session
+// @Tags			user
+// @Accept			json
+// @Produce		json
+// @Success		201		{object}	sent "session created successfully"
+// @Failure		400		{object}	sent "an invalid user param was sent"
+// @Failure		404		{object}	sent "user does not exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Param			queue	body		model.UserPartial	true	"user params"
+// @Router			/user/session [post]
+// @Description	Create a user session.
+func (controller *User) newSession(handler *fiber.Ctx) error {
+	body := &model.UserPartial{}
+
+	err := handler.BodyParser(body)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	sessionHandler := &model.UserSession{}
+
+	funcCore := func() error {
+		session, err := controller.core.NewSession(*body)
+		sessionHandler = session
+
+		return err
+	}
+
+	expectErrors := []expectError{
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+		{core.ErrDifferentPassword, fiber.StatusBadRequest},
+	}
+
+	unexpectMessageError := "error creating user session"
+
+	okay := okay{"session created", fiber.StatusCreated}
+
+	err = callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+
+	cookie := &fiber.Cookie{
+		Name:     "session",
+		Value:    "",
+		Expires:  time.Now(),
+		HTTPOnly: true,
+		Secure:   true,
+	}
+
+	if sessionHandler != nil {
+		cookie.Value = sessionHandler.ID.String()
+		cookie.Expires = sessionHandler.Expires
+	}
+
+	handler.Cookie(cookie)
+
+	return err
 }
 
 type Queue struct {

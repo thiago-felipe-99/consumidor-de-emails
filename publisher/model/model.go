@@ -6,11 +6,27 @@ import (
 	"github.com/google/uuid"
 )
 
+//nolint:lll
+type UserPartial struct {
+	ID       uuid.UUID `json:"-"        bson:"_id"      validate:"-"`
+	Name     string    `json:"name"     bson:"name"     validate:"required_without=Email,excluded_with=Email"`
+	Email    string    `json:"email"    bson:"email"    validate:"required_without=Name,excluded_with=Name,omitempty,email"`
+	Password string    `json:"password" bson:"password" validate:"required"`
+}
+
 type User struct {
 	ID       uuid.UUID `json:"-"        bson:"_id"      validate:"-"`
 	Name     string    `json:"name"     bson:"name"     validate:"required"`
 	Email    string    `json:"email"    bson:"email"    validate:"required,email"`
 	Password string    `json:"password" bson:"password" validate:"required"`
+}
+
+type UserSession struct {
+	ID         uuid.UUID `json:"-"         bson:"_id"        validate:"-"`
+	UserID     uuid.UUID `json:"userID"    bson:"user_id"    validate:"-"` //nolint:tagliatelle
+	CreateadAt time.Time `json:"createdAt" bson:"created_at" validate:"-"`
+	Expires    time.Time `json:"expires"   bson:"expires"    validate:"-"`
+	DeletedAt  time.Time `json:"deletedAt" bson:"deleted_at" validate:"-"`
 }
 
 type QueuePartial struct {

@@ -20,6 +20,8 @@ import (
 
 var (
 	ErrUserAlreadyExist         = errors.New("user already exist")
+	ErrUserDoesNotExist         = errors.New("user does not exist")
+	ErrDifferentPassword        = errors.New("was sent a different password")
 	ErrInvalidName              = errors.New("was sent a invalid name")
 	ErrQueueAlreadyExist        = errors.New("queue already exist")
 	ErrQueueDoesNotExist        = errors.New("queue does not exist")
@@ -76,9 +78,10 @@ func validate(validate *validator.Validate, data any) error {
 }
 
 type User struct {
-	database  *data.User
-	validator *validator.Validate
-	argon2id  argon2id.Params
+	database        *data.User
+	validator       *validator.Validate
+	argon2id        argon2id.Params
+	durationSession time.Duration
 }
 
 func (core *User) Create(user model.User) error {
@@ -113,7 +116,56 @@ func (core *User) Create(user model.User) error {
 	return nil
 }
 
-func NewUser(database *data.User, validate *validator.Validate) *User {
+func (core *User) NewSession(partial model.UserPartial) (*model.UserSession, error) {
+	err := validate(core.validator, partial)
+	if err != nil {
+		return nil, err
+	}
+
+	exist, err := core.database.Exist(partial.Name, partial.Email)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrUserDoesNotExist
+	}
+
+	user, err := core.database.GetByNameOrEmail(partial.Name, partial.Email)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user in database: %w", err)
+	}
+
+	equals, err := argon2id.ComparePasswordAndHash(partial.Password, user.Password)
+	if err != nil {
+		return nil, fmt.Errorf("error comparing password with hash: %w", err)
+	}
+
+	if !equals {
+		return nil, ErrDifferentPassword
+	}
+
+	session := model.UserSession{
+		ID:         uuid.New(),
+		UserID:     user.ID,
+		CreateadAt: time.Now(),
+		Expires:    time.Now().Add(core.durationSession),
+		DeletedAt:  time.Now().Add(core.durationSession),
+	}
+
+	err = core.database.SaveSession(session)
+	if err != nil {
+		return nil, fmt.Errorf("error saving session in database: %w", err)
+	}
+
+	return &session, nil
+}
+
+func NewUser(
+	database *data.User,
+	validate *validator.Validate,
+	durationSession time.Duration,
+) *User {
 	return &User{
 		database:  database,
 		validator: validate,
@@ -124,6 +176,7 @@ func NewUser(database *data.User, validate *validator.Validate) *User {
 			SaltLength:  argon2idParamSaltLength,
 			KeyLength:   argon2idParamKeyLength,
 		},
+		durationSession: durationSession,
 	}
 }
 

@@ -4,6 +4,7 @@ package controllers
 import (
 	"errors"
 	"log"
+	"time"
 
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/go-playground/locales/en"
@@ -140,7 +141,13 @@ func CreateHTTPServer(
 	app.Use(recover.New())
 	app.Use(prometheus.Middleware)
 
-	app.Get("/swagger/*", swagger.HandlerDefault)
+	swaggerConfig := swagger.Config{
+		Title:                  "Emails Publisher",
+		WithCredentials:        true,
+		DisplayRequestDuration: true,
+	}
+
+	app.Get("/swagger/*", swagger.New(swaggerConfig))
 
 	validate := validator.New()
 
@@ -152,7 +159,7 @@ func CreateHTTPServer(
 	languages := []string{"en", "pt_BR", "pt"}
 
 	user := User{
-		core:       core.NewUser(userDatabase, validate),
+		core:       core.NewUser(userDatabase, validate, time.Minute*5), //nolint:gomnd
 		translator: translator,
 		languages:  languages,
 	}
@@ -170,6 +177,7 @@ func CreateHTTPServer(
 	}
 
 	app.Post("/user", user.create)
+	app.Post("/user/session", user.newSession)
 
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", queue.create)

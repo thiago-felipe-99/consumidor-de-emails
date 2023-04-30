@@ -480,6 +480,58 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/user/session": {
+            "post": {
+                "description": "Create a user session.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Create session",
+                "parameters": [
+                    {
+                        "description": "user params",
+                        "name": "queue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "session created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid user param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -628,6 +680,23 @@ const docTemplate = `{
             "required": [
                 "email",
                 "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserPartial": {
+            "type": "object",
+            "required": [
                 "password"
             ],
             "properties": {

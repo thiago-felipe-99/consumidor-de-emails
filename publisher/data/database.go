@@ -30,9 +30,18 @@ type User struct {
 }
 
 func (database *User) Create(user model.User) error {
-	_, err := database.db.Collection("user").InsertOne(context.Background(), user)
+	_, err := database.db.Collection("users").InsertOne(context.Background(), user)
 	if err != nil {
 		return fmt.Errorf("error creating user in database: %w", err)
+	}
+
+	return nil
+}
+
+func (database *User) SaveSession(session model.UserSession) error {
+	_, err := database.db.Collection("sessions").InsertOne(context.Background(), session)
+	if err != nil {
+		return fmt.Errorf("error creating user session in database: %w", err)
 	}
 
 	return nil
@@ -46,12 +55,30 @@ func (database *User) Exist(name, email string) (bool, error) {
 		}},
 	}
 
-	count, err := database.db.Collection("user").CountDocuments(context.Background(), filter)
+	count, err := database.db.Collection("users").CountDocuments(context.Background(), filter)
 	if err != nil {
-		return false, fmt.Errorf("error counting users: %w", err)
+		return false, fmt.Errorf("error counting users from database: %w", err)
 	}
 
 	return count > 0, nil
+}
+
+func (database *User) GetByNameOrEmail(name, email string) (*model.User, error) {
+	filter := bson.D{
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "name", Value: name}},
+			bson.D{{Key: "email", Value: email}},
+		}},
+	}
+
+	user := &model.User{}
+
+	err := database.db.Collection("users").FindOne(context.Background(), filter).Decode(user)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	return user, nil
 }
 
 func NewUserDatabase(database *mongo.Client) *User {

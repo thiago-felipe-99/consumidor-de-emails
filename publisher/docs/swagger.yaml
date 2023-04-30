@@ -105,6 +105,17 @@ definitions:
     - name
     - password
     type: object
+  model.UserPartial:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    required:
+    - password
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -417,6 +428,40 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Create user
+      tags:
+      - user
+  /user/session:
+    post:
+      consumes:
+      - application/json
+      description: Create a user session.
+      parameters:
+      - description: user params
+        in: body
+        name: queue
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserPartial'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: session created successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid user param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Create session
       tags:
       - user
 swagger: "2.0"
