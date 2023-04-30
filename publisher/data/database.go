@@ -92,13 +92,8 @@ func (database *User) SaveSession(session model.UserSession) error {
 	return nil
 }
 
-func (database *User) ExistSession(sessionID string) (bool, error) {
-	uuid, err := uuid.Parse(sessionID)
-	if err != nil {
-		return false, fmt.Errorf("error parsing session id: %w", err)
-	}
-
-	filter := bson.D{{Key: "_id", Value: uuid}}
+func (database *User) ExistSession(sessionID uuid.UUID) (bool, error) {
+	filter := bson.D{{Key: "_id", Value: sessionID}}
 
 	count, err := database.db.Collection("sessions").CountDocuments(context.Background(), filter)
 	if err != nil {
@@ -108,17 +103,12 @@ func (database *User) ExistSession(sessionID string) (bool, error) {
 	return count > 0, nil
 }
 
-func (database *User) GetSession(sessionID string) (*model.UserSession, error) {
-	uuid, err := uuid.Parse(sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing session id: %w", err)
-	}
-
-	filter := bson.D{{Key: "_id", Value: uuid}}
+func (database *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error) {
+	filter := bson.D{{Key: "_id", Value: sessionID}}
 
 	session := &model.UserSession{}
 
-	err = database.db.Collection("sessions").FindOne(context.Background(), filter).Decode(session)
+	err := database.db.Collection("sessions").FindOne(context.Background(), filter).Decode(session)
 	if err != nil {
 		return nil, fmt.Errorf("error getting session from database: %w", err)
 	}

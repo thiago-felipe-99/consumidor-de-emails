@@ -91,11 +91,11 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	sessionHandler := &model.UserSession{}
+	session := &model.UserSession{}
 
 	funcCore := func() error {
-		session, err := controller.core.NewSession(*body)
-		sessionHandler = session
+		sessionTemp, err := controller.core.NewSession(*body)
+		session = sessionTemp
 
 		return err
 	}
@@ -126,9 +126,9 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 		Secure:   true,
 	}
 
-	if sessionHandler != nil {
-		cookie.Value = sessionHandler.ID.String()
-		cookie.Expires = sessionHandler.Expires
+	if session != nil {
+		cookie.Value = session.ID.String()
+		cookie.Expires = session.Expires
 	}
 
 	handler.Cookie(cookie)
@@ -149,7 +149,6 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 // @Description	Refresh a user session and set in the response cookie.
 func (controller *User) refreshSession(handler *fiber.Ctx) error {
 	sessionID := handler.Cookies("session", "invalid_session")
-	log.Println(sessionID)
 
 	cookie := &fiber.Cookie{
 		Name:     "session",
@@ -163,15 +162,15 @@ func (controller *User) refreshSession(handler *fiber.Ctx) error {
 	if err != nil {
 		handler.Cookie(cookie)
 
-		if errors.Is(err, core.ErrUserSessionDoesNotExist) {
+		if errors.Is(err, core.ErrUserSessionDoesNotExist) || errors.Is(err, core.ErrInvalidID) {
 			return handler.Status(fiber.StatusUnauthorized).
 				JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
 		}
 
-		log.Printf("[ERROR] - error validating session: %s", err)
+		log.Printf("[ERROR] - error refreshing session: %s", err)
 
 		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error validating session"})
+			JSON(sent{"error refreshing session"})
 	}
 
 	if session != nil {

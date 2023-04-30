@@ -496,7 +496,7 @@ const docTemplate = `{
                 "summary": "Refresh session",
                 "responses": {
                     "200": {
-                        "description": "session created successfully",
+                        "description": "session refreshed successfully",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }

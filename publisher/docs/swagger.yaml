@@ -472,7 +472,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: session created successfully
+          description: session refreshed successfully
           schema:
             $ref: '#/definitions/controllers.sent'
         "401":

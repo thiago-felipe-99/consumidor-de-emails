@@ -22,6 +22,7 @@ var (
 	ErrUserAlreadyExist         = errors.New("user already exist")
 	ErrUserDoesNotExist         = errors.New("user does not exist")
 	ErrUserSessionDoesNotExist  = errors.New("user session does not exist")
+	ErrInvalidID                = errors.New("was sent a invalid ID")
 	ErrDifferentPassword        = errors.New("was sent a different password")
 	ErrInvalidName              = errors.New("was sent a invalid name")
 	ErrQueueAlreadyExist        = errors.New("queue already exist")
@@ -163,7 +164,12 @@ func (core *User) NewSession(partial model.UserPartial) (*model.UserSession, err
 }
 
 func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
-	exist, err := core.database.ExistSession(sessionID)
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		return nil, ErrInvalidID
+	}
+
+	exist, err := core.database.ExistSession(sessionUUID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if session exist in database: %w", err)
 	}
@@ -172,7 +178,7 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 		return nil, ErrUserSessionDoesNotExist
 	}
 
-	currentSession, err := core.database.GetSession(sessionID)
+	currentSession, err := core.database.GetSession(sessionUUID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting session from database: %w", err)
 	}
