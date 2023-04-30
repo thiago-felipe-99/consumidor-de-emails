@@ -4,16 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func NewDatabase() (*mongo.Client, error) {
-	uri := "mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100"
-
+func NewDatabase(uri string) (*mongo.Client, error) {
 	connection, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, fmt.Errorf("error connecting with the database: %w", err)
@@ -31,7 +28,7 @@ type Queue struct {
 	db *mongo.Database
 }
 
-func (database *Queue) Add(queue model.Queue) error {
+func (database *Queue) Create(queue model.Queue) error {
 	_, err := database.db.Collection("queues").InsertOne(context.Background(), queue)
 	if err != nil {
 		return fmt.Errorf("error adding queue on database: %w", err)
@@ -84,8 +81,6 @@ func (database *Queue) Delete(name string) error {
 }
 
 func (database *Queue) SaveEmail(email model.Email) error {
-	email.ID = uuid.New()
-
 	_, err := database.db.Collection("emails_sent").InsertOne(context.Background(), email)
 	if err != nil {
 		return fmt.Errorf("error adding queue on database: %w", err)
@@ -100,6 +95,26 @@ func NewQueueDatabase(connection *mongo.Client) *Queue {
 
 type Template struct {
 	db *mongo.Database
+}
+
+func (database *Template) Create(template model.Template) error {
+	_, err := database.db.Collection("templates").InsertOne(context.Background(), template)
+	if err != nil {
+		return fmt.Errorf("error adding template on database: %w", err)
+	}
+
+	return nil
+}
+
+func (database *Template) Exist(name string) (bool, error) {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	count, err := database.db.Collection("templates").CountDocuments(context.Background(), filter)
+	if err != nil {
+		return false, fmt.Errorf("error connecting with database: %w", err)
+	}
+
+	return count >= 1, nil
 }
 
 func NewTemplateDatabase(connection *mongo.Client) *Template {

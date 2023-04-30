@@ -246,7 +246,10 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 
 	funcCore := func() error { return controller.core.Create(*body) }
 
-	expectErrors := []expectError{{core.ErrTemplateNameAlreadyExist, fiber.StatusConflict}}
+	expectErrors := []expectError{
+		{core.ErrTemplateNameAlreadyExist, fiber.StatusConflict},
+		{core.ErrMaxSizeTemplate, fiber.StatusBadRequest},
+	}
 
 	unexpectMessageError := "error creating template"
 

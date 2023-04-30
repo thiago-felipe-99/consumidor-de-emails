@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/thiago-felipe-99/mail/publisher/controllers"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	_ "github.com/thiago-felipe-99/mail/publisher/docs"
@@ -29,7 +31,9 @@ func main() {
 
 	go rabbitConnection.HandleConnection()
 
-	database, err := data.NewDatabase()
+	database, err := data.NewDatabase(
+		"mongodb://mongo:mongo@localhost:27017/?connectTimeoutMS=10000&timeoutMS=5000&maxIdleTimeMS=100",
+	)
 	if err != nil {
 		log.Printf("[ERROR] - Error creating datase: %s", err)
 
@@ -56,7 +60,22 @@ func main() {
 
 	templateDatabase := data.NewTemplateDatabase(database)
 
-	server, err := controllers.CreateHTTPServer(rabbitConnection, queueDatabase, templateDatabase)
+	minio, err := minio.New("localhost:9000", &minio.Options{
+		Creds: credentials.NewStaticV4("minio", "miniominio", ""),
+	})
+	if err != nil {
+		log.Printf("[ERROR] - Error connecting with the minio: %s", err)
+
+		return
+	}
+
+	server, err := controllers.CreateHTTPServer(
+		rabbitConnection,
+		queueDatabase,
+		templateDatabase,
+		minio,
+		"template",
+	)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)
 

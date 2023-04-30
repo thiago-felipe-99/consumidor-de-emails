@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	htmplate "html/template"
+	htmltemplate "html/template"
 	"log"
 	"regexp"
 	"time"
@@ -112,7 +112,7 @@ func getTemplateHTML(template template, cache *templateCache) (string, error) {
 
 	rawHTML := blackfriday.Run(markdown)
 
-	regex := regexp.MustCompile(`({{)( *)(\w+)( *)(}})`)
+	regex := regexp.MustCompile(`({{)( *)((\w|\d)+)( *)(}})`)
 
 	keys := regex.FindAll(rawHTML, -1)
 	for _, rawKey := range keys {
@@ -122,9 +122,9 @@ func getTemplateHTML(template template, cache *templateCache) (string, error) {
 		}
 	}
 
-	replaceHTML := regex.ReplaceAll(rawHTML, []byte("$1 index . \"$3\" $5"))
+	replaceHTML := regex.ReplaceAll(rawHTML, []byte("$1 index . \"$3\" $6"))
 
-	templateHTML, err := htmplate.New("template").Parse(string(replaceHTML))
+	templateHTML, err := htmltemplate.New("template").Parse(string(replaceHTML))
 	if err != nil {
 		return "", fmt.Errorf("erro parsing HTML: %w", err)
 	}

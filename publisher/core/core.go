@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/minio/minio-go/v7"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 	"github.com/thiago-felipe-99/mail/rabbit"
@@ -20,17 +23,10 @@ var (
 	ErrQueueDontExist           = errors.New("queue does not exist")
 	ErrBodyValidate             = errors.New("unable to parse body")
 	ErrTemplateNameAlreadyExist = errors.New("template name already exist")
+	ErrMaxSizeTemplate          = errors.New("template has a max size of 1MB")
 )
 
-func dlxName(name string) string {
-	return name + "-dlx"
-}
-
-type Queue struct {
-	rabbit    *rabbit.Rabbit
-	database  *data.Queue
-	validator *validator.Validate
-}
+const maxSizeTemplate = 1024 * 1024
 
 type ModelInvalidError struct {
 	invalid validator.ValidationErrors
@@ -51,8 +47,8 @@ func (err ModelInvalidError) Translate(language ut.Translator) string {
 	return messageSend[2:]
 }
 
-func (core *Queue) validate(data any) error {
-	err := core.validator.Struct(data)
+func validate(validate *validator.Validate, data any) error {
+	err := validate.Struct(data)
 	if err != nil {
 		validationErrs := validator.ValidationErrors{}
 
@@ -67,8 +63,18 @@ func (core *Queue) validate(data any) error {
 	return nil
 }
 
+func dlxName(name string) string {
+	return name + "-dlx"
+}
+
+type Queue struct {
+	rabbit    *rabbit.Rabbit
+	database  *data.Queue
+	validator *validator.Validate
+}
+
 func (core *Queue) Create(partial model.QueuePartial) error {
-	err := core.validate(partial)
+	err := validate(core.validator, partial)
 	if err != nil {
 		return err
 	}
@@ -100,7 +106,7 @@ func (core *Queue) Create(partial model.QueuePartial) error {
 		return fmt.Errorf("error creating queue: %w", err)
 	}
 
-	err = core.database.Add(queue)
+	err = core.database.Create(queue)
 	if err != nil {
 		return fmt.Errorf("error adding queue on database: %w", err)
 	}
@@ -149,7 +155,7 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 		return ErrInvalidName
 	}
 
-	err := core.validate(email)
+	err := validate(core.validator, email)
 	if err != nil {
 		return err
 	}
@@ -168,6 +174,8 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 		return fmt.Errorf("error sending email: %w", err)
 	}
 
+	email.ID = uuid.New()
+
 	err = core.database.SaveEmail(email)
 	if err != nil {
 		return fmt.Errorf("error saving email: %w", err)
@@ -185,18 +193,94 @@ func NewQueue(rabbit *rabbit.Rabbit, database *data.Queue, validate *validator.V
 }
 
 type Template struct {
-	// minio
-	database  *data.Template
-	validator *validator.Validate
+	minio       *minio.Client
+	bucket      string
+	database    *data.Template
+	validate    *validator.Validate
+	regexFields *regexp.Regexp
 }
 
-func (core *Template) Create(_ model.TemplatePartial) error {
+func (core *Template) Create(partial model.TemplatePartial) error {
+	err := validate(core.validate, partial)
+	if err != nil {
+		return err
+	}
+
+	if len(partial.Name) > maxSizeTemplate {
+		return ErrMaxSizeTemplate
+	}
+
+	exist, err := core.database.Exist(partial.Name)
+	if err != nil {
+		return fmt.Errorf("error checking if template exist: %w", err)
+	}
+
+	if exist {
+		return ErrTemplateNameAlreadyExist
+	}
+
+	fieldsRaw := core.regexFields.FindAllString(partial.Template, -1)
+	fields := make([]string, 0, len(fieldsRaw))
+	existField := func(fields []string, find string) bool {
+		for _, field := range fields {
+			if field == find {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	for _, field := range fieldsRaw {
+		field = strings.Trim(field, "{} ")
+
+		if !existField(fields, field) {
+			fields = append(fields, field)
+		}
+	}
+
+	template := model.Template{
+		ID:       uuid.New(),
+		Name:     partial.Name,
+		Template: partial.Template,
+		Fields:   fields,
+	}
+
+	templateReader := strings.NewReader(template.Template)
+
+	_, err = core.minio.PutObject(
+		context.Background(),
+		core.bucket,
+		template.Name,
+		templateReader,
+		templateReader.Size(),
+		minio.PutObjectOptions{
+			ContentType: "text/markdown",
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("error adding template on minio: %w", err)
+	}
+
+	err = core.database.Create(template)
+	if err != nil {
+		return fmt.Errorf("error adding template on database: %w", err)
+	}
+
 	return nil
 }
 
-func NewTemplate(database *data.Template, validate *validator.Validate) *Template {
+func NewTemplate(
+	database *data.Template,
+	minio *minio.Client,
+	bucket string,
+	validate *validator.Validate,
+) *Template {
 	return &Template{
-		database:  database,
-		validator: validate,
+		database:    database,
+		minio:       minio,
+		bucket:      bucket,
+		validate:    validate,
+		regexFields: regexp.MustCompile(`{{ *(\w|\d)+ *}}`),
 	}
 }

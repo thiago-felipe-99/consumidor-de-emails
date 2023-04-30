@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
+	"github.com/minio/minio-go/v7"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/rabbit"
@@ -51,6 +52,8 @@ func CreateHTTPServer(
 	rabbit *rabbit.Rabbit,
 	queueDatabase *data.Queue,
 	templateDatabase *data.Template,
+	minio *minio.Client,
+	bucket string,
 ) (*fiber.App, error) {
 	app := fiber.New()
 
@@ -88,7 +91,7 @@ func CreateHTTPServer(
 	app.Post("/email/queue/:name/send", queue.sendEmail)
 
 	template := Template{
-		core:       core.NewTemplate(templateDatabase, validate),
+		core:       core.NewTemplate(templateDatabase, minio, bucket, validate),
 		translator: translator,
 		languages:  languages,
 	}
