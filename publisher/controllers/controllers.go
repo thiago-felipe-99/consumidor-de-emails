@@ -56,6 +56,29 @@ func callingCore(
 	return handler.Status(okay.status).JSON(sent{okay.message})
 }
 
+func callingCoreWithReturn[T any](
+	coreFunc func() (T, error),
+	expectErrors []expectError,
+	unexpectMessageError string,
+	handler *fiber.Ctx,
+) error {
+	data, err := coreFunc()
+	if err != nil {
+		for _, expectError := range expectErrors {
+			if errors.Is(err, expectError.err) {
+				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
+			}
+		}
+
+		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{unexpectMessageError})
+	}
+
+	return handler.JSON(data)
+}
+
 type Queue struct {
 	core       *core.Queue
 	translator *ut.UniversalTranslator
@@ -125,15 +148,12 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 // @Router			/email/queue [get]
 // @Description	Getting all RabbitMQ queues.
 func (controller *Queue) getAll(handler *fiber.Ctx) error {
-	queues, err := controller.core.GetAll()
-	if err != nil {
-		log.Printf("[ERROR] - Error getting all queues: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting all queues"})
-	}
-
-	return handler.JSON(queues)
+	return callingCoreWithReturn(
+		controller.core.GetAll,
+		[]expectError{},
+		"error getting all queues",
+		handler,
+	)
 }
 
 // Delete a queue with DLX
@@ -280,15 +300,12 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 // @Router			/email/template [get]
 // @Description	Getting all email templates.
 func (controller *Template) getAll(handler *fiber.Ctx) error {
-	templates, err := controller.core.GetAll()
-	if err != nil {
-		log.Printf("[ERROR] - Error getting all templates: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting all templates"})
-	}
-
-	return handler.JSON(templates)
+	return callingCoreWithReturn(
+		controller.core.GetAll,
+		[]expectError{},
+		"error getting all templates",
+		handler,
+	)
 }
 
 // Getting a email template
@@ -304,18 +321,9 @@ func (controller *Template) getAll(handler *fiber.Ctx) error {
 // @Router			/email/template/{name} [get]
 // @Description	Getting a email template.
 func (controller *Template) get(handler *fiber.Ctx) error {
-	template, err := controller.core.Get(handler.Params("name"))
-	if err != nil {
-		if errors.Is(err, core.ErrTemplateDoesNotExist) {
-			return handler.Status(fiber.StatusNotFound).
-				JSON(sent{core.ErrTemplateDoesNotExist.Error()})
-		}
+	coreFunc := func() (*model.Template, error) { return controller.core.Get(handler.Params("name")) }
 
-		log.Printf("[ERROR] - Error getting template: %s", err)
+	expectErros := []expectError{{core.ErrTemplateDoesNotExist, fiber.StatusNotFound}}
 
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting template"})
-	}
-
-	return handler.JSON(template)
+	return callingCoreWithReturn(coreFunc, expectErros, "error getting template", handler)
 }
