@@ -99,6 +99,7 @@ func CreateHTTPServer(
 	app.Get("/email/template", template.getAll)
 	app.Post("/email/template", template.create)
 	app.Get("/email/template/:name", template.get)
+	app.Put("/email/template/:name", template.update)
 	app.Delete("/email/template/:name", template.delete)
 
 	return app, nil

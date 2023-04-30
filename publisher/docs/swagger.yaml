@@ -334,4 +334,42 @@ paths:
       summary: Get template
       tags:
       - template
+    put:
+      consumes:
+      - application/json
+      description: Update a email template.
+      parameters:
+      - description: template name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: template params
+        in: body
+        name: template
+        required: true
+        schema:
+          $ref: '#/definitions/model.TemplatePartial'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: template updated
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid template param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: template does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Update template
+      tags:
+      - template
 swagger: "2.0"

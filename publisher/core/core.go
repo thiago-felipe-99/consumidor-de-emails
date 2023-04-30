@@ -231,26 +231,8 @@ type Template struct {
 	regexFields *regexp.Regexp
 }
 
-func (core *Template) Create(partial model.TemplatePartial) error {
-	err := validate(core.validate, partial)
-	if err != nil {
-		return err
-	}
-
-	if len(partial.Name) > maxSizeTemplate {
-		return ErrMaxSizeTemplate
-	}
-
-	exist, err := core.database.Exist(partial.Name)
-	if err != nil {
-		return fmt.Errorf("error checking if template exist: %w", err)
-	}
-
-	if exist {
-		return ErrTemplateNameAlreadyExist
-	}
-
-	fieldsRaw := core.regexFields.FindAllString(partial.Template, -1)
+func (core *Template) getFields(template string) []string {
+	fieldsRaw := core.regexFields.FindAllString(template, -1)
 	fields := make([]string, 0, len(fieldsRaw))
 	existField := func(fields []string, find string) bool {
 		for _, field := range fields {
@@ -270,11 +252,33 @@ func (core *Template) Create(partial model.TemplatePartial) error {
 		}
 	}
 
+	return fields
+}
+
+func (core *Template) Create(partial model.TemplatePartial) error {
+	err := validate(core.validate, partial)
+	if err != nil {
+		return err
+	}
+
+	if len(partial.Template) > maxSizeTemplate {
+		return ErrMaxSizeTemplate
+	}
+
+	exist, err := core.database.Exist(partial.Name)
+	if err != nil {
+		return fmt.Errorf("error checking if template exist: %w", err)
+	}
+
+	if exist {
+		return ErrTemplateNameAlreadyExist
+	}
+
 	template := model.Template{
 		ID:       uuid.New(),
 		Name:     partial.Name,
 		Template: partial.Template,
-		Fields:   fields,
+		Fields:   core.getFields(partial.Template),
 	}
 
 	templateReader := strings.NewReader(template.Template)
@@ -290,12 +294,67 @@ func (core *Template) Create(partial model.TemplatePartial) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("error adding template in Minio: %w", err)
+		return fmt.Errorf("error creating template in Minio: %w", err)
 	}
 
 	err = core.database.Create(template)
 	if err != nil {
-		return fmt.Errorf("error adding template in database: %w", err)
+		return fmt.Errorf("error creating template in database: %w", err)
+	}
+
+	return nil
+}
+
+func (core *Template) Update(name string, partial model.TemplatePartial) error {
+	err := validate(core.validate, partial)
+	if err != nil {
+		return err
+	}
+
+	if len(partial.Template) > maxSizeTemplate {
+		return ErrMaxSizeTemplate
+	}
+
+	exist, err := core.database.Exist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if template exist: %w", err)
+	}
+
+	if !exist {
+		return ErrTemplateDoesNotExist
+	}
+
+	templateID, err := core.database.GetID(name)
+	if err != nil {
+		return fmt.Errorf("error getting template ID: %w", err)
+	}
+
+	template := model.Template{
+		ID:       templateID,
+		Name:     name,
+		Template: partial.Template,
+		Fields:   core.getFields(partial.Template),
+	}
+
+	templateReader := strings.NewReader(template.Template)
+
+	_, err = core.minio.PutObject(
+		context.Background(),
+		core.bucket,
+		template.Name,
+		templateReader,
+		templateReader.Size(),
+		minio.PutObjectOptions{
+			ContentType: "text/markdown",
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("error updating template in Minio: %w", err)
+	}
+
+	err = core.database.Update(template)
+	if err != nil {
+		return fmt.Errorf("error updating template in database: %w", err)
 	}
 
 	return nil

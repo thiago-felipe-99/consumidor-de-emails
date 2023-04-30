@@ -329,6 +329,49 @@ func (controller *Template) get(handler *fiber.Ctx) error {
 	return callingCoreWithReturn(coreFunc, expectErros, "error getting template", handler)
 }
 
+// Update a email template
+//
+// @Summary		Update template
+// @Tags			template
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	sent "template updated"
+// @Failure		400		{object}	sent "an invalid template param was sent"
+// @Failure		404		{object}	sent "template does not exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Param			name	path	string		true	"template name"
+// @Param			template	body		model.TemplatePartial	true	"template params"
+// @Router			/email/template/{name} [put]
+// @Description	Update a email template.
+func (controller *Template) update(handler *fiber.Ctx) error {
+	body := &model.TemplatePartial{}
+
+	err := handler.BodyParser(body)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	funcCore := func() error { return controller.core.Update(handler.Params("name"), *body) }
+
+	expectErrors := []expectError{
+		{core.ErrTemplateDoesNotExist, fiber.StatusNotFound},
+		{core.ErrMaxSizeTemplate, fiber.StatusBadRequest},
+	}
+
+	unexpectMessageError := "error updating template"
+
+	okay := okay{"template updated", fiber.StatusOK}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
 // Delete a email template
 //
 // @Summary		Delete template

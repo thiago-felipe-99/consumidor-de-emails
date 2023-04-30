@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,7 +32,7 @@ type Queue struct {
 func (database *Queue) Create(queue model.Queue) error {
 	_, err := database.db.Collection("queues").InsertOne(context.Background(), queue)
 	if err != nil {
-		return fmt.Errorf("error adding queue in database: %w", err)
+		return fmt.Errorf("error creating queue in database: %w", err)
 	}
 
 	return nil
@@ -106,6 +107,23 @@ func (database *Template) Create(template model.Template) error {
 	return nil
 }
 
+func (database *Template) Update(template model.Template) error {
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "template", Value: template.Template},
+			{Key: "fields", Value: template.Fields},
+		}},
+	}
+
+	_, err := database.db.Collection("templates").
+		UpdateByID(context.Background(), template.ID, update)
+	if err != nil {
+		return fmt.Errorf("error updating template in database: %w", err)
+	}
+
+	return nil
+}
+
 func (database *Template) Exist(name string) (bool, error) {
 	filter := bson.D{{Key: "name", Value: name}}
 
@@ -130,6 +148,21 @@ func (database *Template) Get(name string) (*model.Template, error) {
 	}
 
 	return template, nil
+}
+
+func (database *Template) GetID(name string) (uuid.UUID, error) {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	template := &model.Template{}
+
+	err := database.db.Collection("templates").
+		FindOne(context.Background(), filter).
+		Decode(template)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("error getting template from database: %w", err)
+	}
+
+	return template.ID, nil
 }
 
 func (database *Template) GetAll() ([]model.Template, error) {
