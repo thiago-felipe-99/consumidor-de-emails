@@ -269,4 +269,35 @@ paths:
       summary: Creating template
       tags:
       - template
+  /email/template/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Getting a email template.
+      parameters:
+      - description: template name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: all templates
+          schema:
+            $ref: '#/definitions/model.Template'
+        "404":
+          description: template does not exist
+          schema:
+            items:
+              $ref: '#/definitions/controllers.sent'
+            type: array
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get template
+      tags:
+      - template
 swagger: "2.0"

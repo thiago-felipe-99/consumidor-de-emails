@@ -92,12 +92,12 @@ func (core *Queue) Create(partial model.QueuePartial) error {
 
 	queueExist, err := core.database.Exist(queue.Name)
 	if err != nil {
-		return fmt.Errorf("error checking queue: %w", err)
+		return fmt.Errorf("error checking if queue exist: %w", err)
 	}
 
 	dlxExist, err := core.database.Exist(queue.Name)
 	if err != nil {
-		return fmt.Errorf("error checking queue: %w", err)
+		return fmt.Errorf("error checking if dlx queue exist: %w", err)
 	}
 
 	if queueExist || dlxExist {
@@ -133,7 +133,7 @@ func (core *Queue) Delete(name string) error {
 
 	exist, err := core.database.Exist(name)
 	if err != nil {
-		return fmt.Errorf("error checking queue: %w", err)
+		return fmt.Errorf("error checking if queue exist: %w", err)
 	}
 
 	if !exist {
@@ -165,7 +165,7 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 
 	queueExist, err := core.database.Exist(queue)
 	if err != nil {
-		return fmt.Errorf("error checking queue: %w", err)
+		return fmt.Errorf("error checking if queue exist: %w", err)
 	}
 
 	if !queueExist {
@@ -326,6 +326,28 @@ func (core *Template) GetAll() ([]model.Template, error) {
 	}
 
 	return templates, nil
+}
+
+func (core *Template) Get(name string) (*model.Template, error) {
+	if len(name) == 0 {
+		return nil, ErrInvalidName
+	}
+
+	exist, err := core.database.Exist(name)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if template exist: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrTemplateDoesNotExist
+	}
+
+	template, err := core.database.Get(name)
+	if err != nil {
+		return nil, fmt.Errorf("error deleting queue from database: %w", err)
+	}
+
+	return template, nil
 }
 
 func NewTemplate(

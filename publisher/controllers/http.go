@@ -98,6 +98,7 @@ func CreateHTTPServer(
 
 	app.Get("/email/template", template.getAll)
 	app.Post("/email/template", template.create)
+	app.Get("/email/template/:name", template.get)
 
 	return app, nil
 }

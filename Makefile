@@ -24,10 +24,12 @@ tidy: tidy_consumer tidy_publisher tidy_rabbit
 
 .PHONY: run_consumer
 run_consumer: tidy_consumer
+	golangci-lint run --fix ./consumer/...
 	go run ./consumer/
 
 .PHONY: run_publisher
 run_publisher: docs_publisher tidy_publisher
+	golangci-lint run --fix ./publisher/...
 	go run ./publisher/
 
 .PHONY: all

@@ -290,3 +290,32 @@ func (controller *Template) getAll(handler *fiber.Ctx) error {
 
 	return handler.JSON(templates)
 }
+
+// Getting a email template
+//
+// @Summary		Get template
+// @Tags			template
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	model.Template "all templates"
+// @Success		404		{array}	sent "template does not exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Param			name	path	string		true	"template name"
+// @Router			/email/template/{name} [get]
+// @Description	Getting a email template.
+func (controller *Template) get(handler *fiber.Ctx) error {
+	template, err := controller.core.Get(handler.Params("name"))
+	if err != nil {
+		if errors.Is(err, core.ErrTemplateDoesNotExist) {
+			return handler.Status(fiber.StatusNotFound).
+				JSON(sent{core.ErrTemplateDoesNotExist.Error()})
+		}
+
+		log.Printf("[ERROR] - Error getting template: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error getting template"})
+	}
+
+	return handler.JSON(template)
+}
