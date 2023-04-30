@@ -178,6 +178,11 @@ func CreateHTTPServer(
 
 	app.Post("/user", user.create)
 	app.Post("/user/session", user.newSession)
+	app.Put(
+		"/user/session",
+		user.refreshSession,
+		func(c *fiber.Ctx) error { return c.JSON(sent{"session refreshed"}) },
+	)
 
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", queue.create)

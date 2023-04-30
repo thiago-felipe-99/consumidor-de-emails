@@ -2,6 +2,8 @@
 package controllers
 
 import (
+	"errors"
+	"log"
 	"time"
 
 	ut "github.com/go-playground/universal-translator"
@@ -80,7 +82,7 @@ func (controller *User) create(handler *fiber.Ctx) error {
 // @Failure		500		{object}	sent "internal server error"
 // @Param			queue	body		model.UserPartial	true	"user params"
 // @Router			/user/session [post]
-// @Description	Create a user session.
+// @Description	Create a user session and set in the response cookie.
 func (controller *User) newSession(handler *fiber.Ctx) error {
 	body := &model.UserPartial{}
 
@@ -132,6 +134,54 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 	handler.Cookie(cookie)
 
 	return err
+}
+
+// Refresh a user session
+//
+// @Summary		Refresh session
+// @Tags			user
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	sent "session refreshed successfully"
+// @Failure		401		{object}	sent "session does not exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Router			/user/session [put]
+// @Description	Refresh a user session and set in the response cookie.
+func (controller *User) refreshSession(handler *fiber.Ctx) error {
+	sessionID := handler.Cookies("session", "invalid_session")
+	log.Println(sessionID)
+
+	cookie := &fiber.Cookie{
+		Name:     "session",
+		Value:    "",
+		Expires:  time.Now(),
+		HTTPOnly: true,
+		Secure:   true,
+	}
+
+	session, err := controller.core.RefreshSession(sessionID)
+	if err != nil {
+		handler.Cookie(cookie)
+
+		if errors.Is(err, core.ErrUserSessionDoesNotExist) {
+			return handler.Status(fiber.StatusUnauthorized).
+				JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
+		}
+
+		log.Printf("[ERROR] - error validating session: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error validating session"})
+	}
+
+	if session != nil {
+		cookie.Value = session.ID.String()
+		cookie.Expires = session.Expires
+	}
+
+	handler.Cookie(cookie)
+
+	return handler.Next()
 }
 
 type Queue struct {

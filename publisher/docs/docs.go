@@ -482,8 +482,41 @@ const docTemplate = `{
             }
         },
         "/user/session": {
+            "put": {
+                "description": "Refresh a user session and set in the response cookie.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Refresh session",
+                "responses": {
+                    "200": {
+                        "description": "session created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "session does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
             "post": {
-                "description": "Create a user session.",
+                "description": "Create a user session and set in the response cookie.",
                 "consumes": [
                     "application/json"
                 ],

@@ -434,7 +434,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a user session.
+      description: Create a user session and set in the response cookie.
       parameters:
       - description: user params
         in: body
@@ -462,6 +462,28 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Create session
+      tags:
+      - user
+    put:
+      consumes:
+      - application/json
+      description: Refresh a user session and set in the response cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: session created successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: session does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Refresh session
       tags:
       - user
 swagger: "2.0"

@@ -38,15 +38,6 @@ func (database *User) Create(user model.User) error {
 	return nil
 }
 
-func (database *User) SaveSession(session model.UserSession) error {
-	_, err := database.db.Collection("sessions").InsertOne(context.Background(), session)
-	if err != nil {
-		return fmt.Errorf("error creating user session in database: %w", err)
-	}
-
-	return nil
-}
-
 func (database *User) Exist(name, email string) (bool, error) {
 	filter := bson.D{
 		{Key: "$or", Value: bson.A{
@@ -54,6 +45,17 @@ func (database *User) Exist(name, email string) (bool, error) {
 			bson.D{{Key: "email", Value: email}},
 		}},
 	}
+
+	count, err := database.db.Collection("users").CountDocuments(context.Background(), filter)
+	if err != nil {
+		return false, fmt.Errorf("error counting users from database: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+func (database *User) ExistByID(userID uuid.UUID) (bool, error) {
+	filter := bson.D{{Key: "_id", Value: userID}}
 
 	count, err := database.db.Collection("users").CountDocuments(context.Background(), filter)
 	if err != nil {
@@ -79,6 +81,65 @@ func (database *User) GetByNameOrEmail(name, email string) (*model.User, error) 
 	}
 
 	return user, nil
+}
+
+func (database *User) SaveSession(session model.UserSession) error {
+	_, err := database.db.Collection("sessions").InsertOne(context.Background(), session)
+	if err != nil {
+		return fmt.Errorf("error creating user session in database: %w", err)
+	}
+
+	return nil
+}
+
+func (database *User) ExistSession(sessionID string) (bool, error) {
+	uuid, err := uuid.Parse(sessionID)
+	if err != nil {
+		return false, fmt.Errorf("error parsing session id: %w", err)
+	}
+
+	filter := bson.D{{Key: "_id", Value: uuid}}
+
+	count, err := database.db.Collection("sessions").CountDocuments(context.Background(), filter)
+	if err != nil {
+		return false, fmt.Errorf("error counting sessions in database: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+func (database *User) GetSession(sessionID string) (*model.UserSession, error) {
+	uuid, err := uuid.Parse(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing session id: %w", err)
+	}
+
+	filter := bson.D{{Key: "_id", Value: uuid}}
+
+	session := &model.UserSession{}
+
+	err = database.db.Collection("sessions").FindOne(context.Background(), filter).Decode(session)
+	if err != nil {
+		return nil, fmt.Errorf("error getting session from database: %w", err)
+	}
+
+	return session, nil
+}
+
+func (database *User) UpdateSession(session model.UserSession) error {
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "deleted_at", Value: session.DeletedAt},
+		}},
+	}
+
+	_, err := database.db.Collection("sessions").
+		UpdateByID(context.Background(), session.ID, update)
+	if err != nil {
+		return fmt.Errorf("error updating session in database: %w", err)
+	}
+
+	return nil
 }
 
 func NewUserDatabase(database *mongo.Client) *User {

@@ -21,6 +21,7 @@ import (
 var (
 	ErrUserAlreadyExist         = errors.New("user already exist")
 	ErrUserDoesNotExist         = errors.New("user does not exist")
+	ErrUserSessionDoesNotExist  = errors.New("user session does not exist")
 	ErrDifferentPassword        = errors.New("was sent a different password")
 	ErrInvalidName              = errors.New("was sent a invalid name")
 	ErrQueueAlreadyExist        = errors.New("queue already exist")
@@ -159,6 +160,57 @@ func (core *User) NewSession(partial model.UserPartial) (*model.UserSession, err
 	}
 
 	return &session, nil
+}
+
+func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
+	exist, err := core.database.ExistSession(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if session exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrUserSessionDoesNotExist
+	}
+
+	currentSession, err := core.database.GetSession(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting session from database: %w", err)
+	}
+
+	if currentSession.DeletedAt.Before(time.Now()) {
+		return nil, ErrUserSessionDoesNotExist
+	}
+
+	currentSession.DeletedAt = time.Now()
+
+	exist, err = core.database.ExistByID(currentSession.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrUserSessionDoesNotExist
+	}
+
+	err = core.database.UpdateSession(*currentSession)
+	if err != nil {
+		return nil, fmt.Errorf("error updating session in database: %w", err)
+	}
+
+	newSession := model.UserSession{
+		ID:         uuid.New(),
+		UserID:     currentSession.UserID,
+		CreateadAt: time.Now(),
+		Expires:    time.Now().Add(core.durationSession),
+		DeletedAt:  time.Now().Add(core.durationSession),
+	}
+
+	err = core.database.SaveSession(newSession)
+	if err != nil {
+		return nil, fmt.Errorf("error saving session in database: %w", err)
+	}
+
+	return &newSession, nil
 }
 
 func NewUser(
