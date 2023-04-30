@@ -178,6 +178,7 @@ func CreateHTTPServer(
 
 	app.Get("/user", user.refreshSession, user.get)
 	app.Post("/user", user.create)
+	app.Put("/user", user.refreshSession, user.update)
 	app.Delete("/user", user.refreshSession, user.delete)
 	app.Post("/user/session", user.newSession)
 	app.Put(

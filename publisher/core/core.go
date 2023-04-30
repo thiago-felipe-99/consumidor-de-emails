@@ -268,6 +268,34 @@ func (core *User) Get(userID uuid.UUID) (*model.User, error) {
 	return user, nil
 }
 
+func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
+	user, err := core.Get(userID)
+	if err != nil {
+		return fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	user.Password = partial.Password
+
+	err = validate(core.validator, user)
+	if err != nil {
+		return err
+	}
+
+	hash, err := argon2id.CreateHash(user.Password, &core.argon2id)
+	if err != nil {
+		return fmt.Errorf("error creating password hash: %w", err)
+	}
+
+	user.Password = hash
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error updating user in database: %w", err)
+	}
+
+	return nil
+}
+
 func (core *User) Delete(userID uuid.UUID) error {
 	user, err := core.Get(userID)
 	if err != nil {

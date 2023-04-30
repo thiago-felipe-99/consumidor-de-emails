@@ -84,9 +84,7 @@ func (controller *User) create(handler *fiber.Ctx) error {
 // @Router			/user [get]
 // @Description	Get current user informatios.
 func (controller *User) get(handler *fiber.Ctx) error {
-	idRaw := handler.Locals("userID")
-
-	userID, ok := idRaw.(uuid.UUID)
+	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -108,6 +106,54 @@ func (controller *User) get(handler *fiber.Ctx) error {
 	)
 }
 
+// Update user informations
+//
+// @Summary		Update user
+// @Tags			user
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	sent "user updated"
+// @Failure		400		{object}	sent "an invalid user param was sent"
+// @Failure		401		{object}	sent "unathorized"
+// @Failure		404		{object}	sent "user does not exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Param			user	body		model.UserPartial	true	"user params"
+// @Router			/user [put]
+// @Description	Update user informatios.
+func (controller *User) update(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error updating user"})
+	}
+
+	user := &model.UserPartial{}
+
+	err := handler.BodyParser(user)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	funcCore := func() error { return controller.core.Update(userID, *user) }
+
+	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error updating user"
+
+	okay := okay{"user updated", fiber.StatusOK}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
 // Delete current user
 //
 // @Summary		Delete user
@@ -121,9 +167,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 // @Router			/user [delete]
 // @Description	Delete current user.
 func (controller *User) delete(handler *fiber.Ctx) error {
-	idRaw := handler.Locals("userID")
-
-	userID, ok := idRaw.(uuid.UUID)
+	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 

@@ -469,6 +469,43 @@ paths:
       summary: Create user
       tags:
       - user
+    put:
+      consumes:
+      - application/json
+      description: Update user informatios.
+      parameters:
+      - description: user params
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserPartial'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user updated
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid user param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: unathorized
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Update user
+      tags:
+      - user
   /user/session:
     post:
       consumes:
