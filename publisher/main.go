@@ -64,7 +64,7 @@ func main() {
 		Creds: credentials.NewStaticV4("minio", "miniominio", ""),
 	})
 	if err != nil {
-		log.Printf("[ERROR] - Error connecting with the minio: %s", err)
+		log.Printf("[ERROR] - Error connecting with the Minio: %s", err)
 
 		return
 	}

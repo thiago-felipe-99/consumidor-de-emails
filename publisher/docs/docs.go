@@ -71,7 +71,7 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "create queue successfully",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
@@ -111,8 +111,17 @@ const docTemplate = `{
                     "queue"
                 ],
                 "summary": "Delete queues",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "queue name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
-                    "204": {
+                    "200": {
                         "description": "queue deleted",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
@@ -247,7 +256,7 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "create template successfully",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
@@ -310,6 +319,48 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/controllers.sent"
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a email template.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Delete template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "template name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "template deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "template does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "500": {

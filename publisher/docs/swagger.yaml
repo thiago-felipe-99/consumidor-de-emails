@@ -134,7 +134,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "201":
           description: create queue successfully
           schema:
             $ref: '#/definitions/controllers.sent'
@@ -158,10 +158,16 @@ paths:
       consumes:
       - application/json
       description: Delete a queue with DLX.
+      parameters:
+      - description: queue name
+        in: path
+        name: name
+        required: true
+        type: string
       produces:
       - application/json
       responses:
-        "204":
+        "200":
           description: queue deleted
           schema:
             $ref: '#/definitions/controllers.sent'
@@ -250,7 +256,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "201":
           description: create template successfully
           schema:
             $ref: '#/definitions/controllers.sent'
@@ -270,6 +276,34 @@ paths:
       tags:
       - template
   /email/template/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a email template.
+      parameters:
+      - description: template name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: template deleted
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: template does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Delete template
+      tags:
+      - template
     get:
       consumes:
       - application/json

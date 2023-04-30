@@ -92,12 +92,12 @@ func (core *Queue) Create(partial model.QueuePartial) error {
 
 	queueExist, err := core.database.Exist(queue.Name)
 	if err != nil {
-		return fmt.Errorf("error checking if queue exist: %w", err)
+		return fmt.Errorf("error checking if queue exist in database: %w", err)
 	}
 
 	dlxExist, err := core.database.Exist(queue.Name)
 	if err != nil {
-		return fmt.Errorf("error checking if dlx queue exist: %w", err)
+		return fmt.Errorf("error checking if dlx queue exist in database: %w", err)
 	}
 
 	if queueExist || dlxExist {
@@ -111,7 +111,7 @@ func (core *Queue) Create(partial model.QueuePartial) error {
 
 	err = core.database.Create(queue)
 	if err != nil {
-		return fmt.Errorf("error adding queue on database: %w", err)
+		return fmt.Errorf("error creating queue in database: %w", err)
 	}
 
 	return nil
@@ -203,7 +203,7 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 
 	err = core.database.SaveEmail(email)
 	if err != nil {
-		return fmt.Errorf("error saving email: %w", err)
+		return fmt.Errorf("error saving email in database: %w", err)
 	}
 
 	return nil
@@ -290,12 +290,12 @@ func (core *Template) Create(partial model.TemplatePartial) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("error adding template on minio: %w", err)
+		return fmt.Errorf("error adding template in Minio: %w", err)
 	}
 
 	err = core.database.Create(template)
 	if err != nil {
-		return fmt.Errorf("error adding template on database: %w", err)
+		return fmt.Errorf("error adding template in database: %w", err)
 	}
 
 	return nil
@@ -313,7 +313,7 @@ func (core *Template) Exist(name string) (bool, error) {
 func (core *Template) GetFields(name string) ([]string, error) {
 	template, err := core.database.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("error getting template: %w", err)
+		return nil, fmt.Errorf("error getting template from database: %w", err)
 	}
 
 	return template.Fields, nil
@@ -344,10 +344,42 @@ func (core *Template) Get(name string) (*model.Template, error) {
 
 	template, err := core.database.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("error deleting queue from database: %w", err)
+		return nil, fmt.Errorf("error getting template from database: %w", err)
 	}
 
 	return template, nil
+}
+
+func (core *Template) Delete(name string) error {
+	if len(name) == 0 {
+		return ErrInvalidName
+	}
+
+	exist, err := core.database.Exist(name)
+	if err != nil {
+		return fmt.Errorf("error checking if template exist: %w", err)
+	}
+
+	if !exist {
+		return ErrTemplateDoesNotExist
+	}
+
+	err = core.minio.RemoveObject(
+		context.Background(),
+		core.bucket,
+		name,
+		minio.RemoveObjectOptions{},
+	)
+	if err != nil {
+		return fmt.Errorf("error deleting template from Minio: %w", err)
+	}
+
+	err = core.database.Delete(name)
+	if err != nil {
+		return fmt.Errorf("error deleting template from database: %w", err)
+	}
+
+	return nil
 }
 
 func NewTemplate(

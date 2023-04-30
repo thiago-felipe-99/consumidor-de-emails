@@ -31,7 +31,7 @@ type Queue struct {
 func (database *Queue) Create(queue model.Queue) error {
 	_, err := database.db.Collection("queues").InsertOne(context.Background(), queue)
 	if err != nil {
-		return fmt.Errorf("error adding queue on database: %w", err)
+		return fmt.Errorf("error adding queue in database: %w", err)
 	}
 
 	return nil
@@ -42,7 +42,7 @@ func (database *Queue) GetAll() ([]model.Queue, error) {
 
 	cursor, err := database.db.Collection("queues").Find(context.Background(), bson.D{})
 	if err != nil {
-		return nil, fmt.Errorf("error getting queues: %w", err)
+		return nil, fmt.Errorf("error getting queues from database: %w", err)
 	}
 
 	err = cursor.All(context.Background(), &queues)
@@ -63,7 +63,7 @@ func (database *Queue) Exist(name string) (bool, error) {
 
 	count, err := database.db.Collection("queues").CountDocuments(context.Background(), filter)
 	if err != nil {
-		return false, fmt.Errorf("error verify if queue exist: %w", err)
+		return false, fmt.Errorf("error verify if queue exist in database: %w", err)
 	}
 
 	return count >= 1, nil
@@ -74,7 +74,7 @@ func (database *Queue) Delete(name string) error {
 
 	result := database.db.Collection("queues").FindOneAndDelete(context.Background(), filter)
 	if result.Err() != nil {
-		return fmt.Errorf("error deleting queue: %w", result.Err())
+		return fmt.Errorf("error deleting queue from database: %w", result.Err())
 	}
 
 	return nil
@@ -83,7 +83,7 @@ func (database *Queue) Delete(name string) error {
 func (database *Queue) SaveEmail(email model.Email) error {
 	_, err := database.db.Collection("emails_sent").InsertOne(context.Background(), email)
 	if err != nil {
-		return fmt.Errorf("error adding queue on database: %w", err)
+		return fmt.Errorf("error saving email in database: %w", err)
 	}
 
 	return nil
@@ -100,7 +100,7 @@ type Template struct {
 func (database *Template) Create(template model.Template) error {
 	_, err := database.db.Collection("templates").InsertOne(context.Background(), template)
 	if err != nil {
-		return fmt.Errorf("error adding template on database: %w", err)
+		return fmt.Errorf("error creating template in database: %w", err)
 	}
 
 	return nil
@@ -111,7 +111,7 @@ func (database *Template) Exist(name string) (bool, error) {
 
 	count, err := database.db.Collection("templates").CountDocuments(context.Background(), filter)
 	if err != nil {
-		return false, fmt.Errorf("error connecting with database: %w", err)
+		return false, fmt.Errorf("error getting template from database: %w", err)
 	}
 
 	return count >= 1, nil
@@ -146,6 +146,17 @@ func (database *Template) GetAll() ([]model.Template, error) {
 	}
 
 	return templates, nil
+}
+
+func (database *Template) Delete(name string) error {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	result := database.db.Collection("templates").FindOneAndDelete(context.Background(), filter)
+	if result.Err() != nil {
+		return fmt.Errorf("error deleting template from database: %w", result.Err())
+	}
+
+	return nil
 }
 
 func NewTemplateDatabase(connection *mongo.Client) *Template {

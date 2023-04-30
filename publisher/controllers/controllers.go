@@ -102,7 +102,7 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 // @Tags			queue
 // @Accept			json
 // @Produce		json
-// @Success		200		{object}	sent "create queue successfully"
+// @Success		201		{object}	sent "create queue successfully"
 // @Failure		400		{object}	sent "an invalid queue param was sent"
 // @Failure		409		{object}	sent "queue already exist"
 // @Failure		500		{object}	sent "internal server error"
@@ -162,9 +162,10 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 // @Tags			queue
 // @Accept			json
 // @Produce		json
-// @Success		204		{object}	sent "queue deleted"
+// @Success		200		{object}	sent "queue deleted"
 // @Failure		404		{object}	sent "queue dont exist"
 // @Failure		500		{object}	sent "internal server error"
+// @Param			name	path	string		true	"queue name"
 // @Router			/email/queue/{name} [delete]
 // @Description	Delete a queue with DLX.
 func (controller *Queue) delete(handler *fiber.Ctx) error {
@@ -253,7 +254,7 @@ func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //
 // @Tags			template
 // @Accept			json
 // @Produce		json
-// @Success		200		{object}	sent "create template successfully"
+// @Success		201		{object}	sent "create template successfully"
 // @Failure		400		{object}	sent "an invalid template param was sent"
 // @Failure		409		{object}	sent "template name already exist"
 // @Failure		500		{object}	sent "internal server error"
@@ -326,4 +327,35 @@ func (controller *Template) get(handler *fiber.Ctx) error {
 	expectErros := []expectError{{core.ErrTemplateDoesNotExist, fiber.StatusNotFound}}
 
 	return callingCoreWithReturn(coreFunc, expectErros, "error getting template", handler)
+}
+
+// Delete a email template
+//
+// @Summary		Delete template
+// @Tags			template
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	sent "template deleted"
+// @Failure		404		{object}	sent "template does not exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Param			name	path	string		true	"template name"
+// @Router			/email/template/{name} [delete]
+// @Description	Delete a email template.
+func (controller *Template) delete(handler *fiber.Ctx) error {
+	funcCore := func() error { return controller.core.Delete(handler.Params("name")) }
+
+	expectErrors := []expectError{{core.ErrTemplateDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error deleting template"
+
+	okay := okay{"template deleted", fiber.StatusOK}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
 }
