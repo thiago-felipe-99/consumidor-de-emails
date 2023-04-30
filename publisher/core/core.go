@@ -16,6 +16,7 @@ import (
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 	"github.com/thiago-felipe-99/mail/rabbit"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -86,7 +87,35 @@ type User struct {
 	durationSession time.Duration
 }
 
+func (core *User) existByID(userID uuid.UUID) (bool, error) {
+	user, err := core.database.GetByID(userID)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	return user.DeletedAt.IsZero(), nil
+}
+
+func (core *User) existByNameOrEmail(name, email string) (bool, error) {
+	user, err := core.database.GetByNameOrEmail(name, email)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	return user.DeletedAt.IsZero(), nil
+}
+
 func (core *User) Create(user model.User) error {
+	user.DeletedAt = time.Time{}
+
 	err := validate(core.validator, user)
 	if err != nil {
 		return err
@@ -94,7 +123,7 @@ func (core *User) Create(user model.User) error {
 
 	user.ID = uuid.New()
 
-	exist, err := core.database.Exist(user.Name, user.Email)
+	exist, err := core.existByNameOrEmail(user.Name, user.Email)
 	if err != nil {
 		return fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -124,7 +153,7 @@ func (core *User) NewSession(partial model.UserPartial) (*model.UserSession, err
 		return nil, err
 	}
 
-	exist, err := core.database.Exist(partial.Name, partial.Email)
+	exist, err := core.existByNameOrEmail(partial.Name, partial.Email)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -189,7 +218,7 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 
 	currentSession.DeletedAt = time.Now()
 
-	exist, err = core.database.ExistByID(currentSession.UserID)
+	exist, err = core.existByID(currentSession.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -220,7 +249,7 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 }
 
 func (core *User) Get(userID uuid.UUID) (*model.User, error) {
-	exist, err := core.database.ExistByID(userID)
+	exist, err := core.existByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -237,6 +266,22 @@ func (core *User) Get(userID uuid.UUID) (*model.User, error) {
 	user.Password = ""
 
 	return user, nil
+}
+
+func (core *User) Delete(userID uuid.UUID) error {
+	user, err := core.Get(userID)
+	if err != nil {
+		return err
+	}
+
+	user.DeletedAt = time.Now()
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error deleting user from database: %w", err)
+	}
+
+	return nil
 }
 
 func NewUser(

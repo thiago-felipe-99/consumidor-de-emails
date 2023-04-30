@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/model"
@@ -38,35 +39,11 @@ func (database *User) Create(user model.User) error {
 	return nil
 }
 
-func (database *User) Exist(name, email string) (bool, error) {
-	filter := bson.D{
-		{Key: "$or", Value: bson.A{
-			bson.D{{Key: "name", Value: name}},
-			bson.D{{Key: "email", Value: email}},
-		}},
-	}
-
-	count, err := database.db.Collection("users").CountDocuments(context.Background(), filter)
-	if err != nil {
-		return false, fmt.Errorf("error counting users from database: %w", err)
-	}
-
-	return count > 0, nil
-}
-
-func (database *User) ExistByID(userID uuid.UUID) (bool, error) {
-	filter := bson.D{{Key: "_id", Value: userID}}
-
-	count, err := database.db.Collection("users").CountDocuments(context.Background(), filter)
-	if err != nil {
-		return false, fmt.Errorf("error counting users from database: %w", err)
-	}
-
-	return count > 0, nil
-}
-
 func (database *User) GetByID(userID uuid.UUID) (*model.User, error) {
-	filter := bson.D{{Key: "_id", Value: userID}}
+	filter := bson.D{
+		{Key: "_id", Value: userID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
 	user := &model.User{}
 
@@ -84,6 +61,7 @@ func (database *User) GetByNameOrEmail(name, email string) (*model.User, error) 
 			bson.D{{Key: "name", Value: name}},
 			bson.D{{Key: "email", Value: email}},
 		}},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 
 	user := &model.User{}
@@ -94,6 +72,22 @@ func (database *User) GetByNameOrEmail(name, email string) (*model.User, error) 
 	}
 
 	return user, nil
+}
+
+func (database *User) Update(user model.User) error {
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "password", Value: user.Password},
+			{Key: "deleted_at", Value: user.DeletedAt},
+		}},
+	}
+
+	_, err := database.db.Collection("users").UpdateByID(context.Background(), user.ID, update)
+	if err != nil {
+		return fmt.Errorf("error deleting user from database: %w", err)
+	}
+
+	return nil
 }
 
 func (database *User) SaveSession(session model.UserSession) error {

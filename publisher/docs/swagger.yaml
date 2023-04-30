@@ -92,19 +92,6 @@ definitions:
     - name
     - template
     type: object
-  model.User:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      password:
-        type: string
-    required:
-    - email
-    - name
-    - password
-    type: object
   model.UserPartial:
     properties:
       email:
@@ -397,6 +384,32 @@ paths:
       tags:
       - template
   /user:
+    delete:
+      consumes:
+      - application/json
+      description: Delete current user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user deleted
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: unathorized
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user dont exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Delete user
+      tags:
+      - user
     get:
       consumes:
       - application/json
@@ -430,10 +443,10 @@ paths:
       parameters:
       - description: user params
         in: body
-        name: queue
+        name: user
         required: true
         schema:
-          $ref: '#/definitions/model.User'
+          $ref: '#/definitions/model.UserPartial'
       produces:
       - application/json
       responses:
@@ -464,7 +477,7 @@ paths:
       parameters:
       - description: user params
         in: body
-        name: queue
+        name: user
         required: true
         schema:
           $ref: '#/definitions/model.UserPartial'

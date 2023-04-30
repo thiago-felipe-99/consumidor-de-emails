@@ -40,7 +40,7 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 // @Failure		400		{object}	sent "an invalid user param was sent"
 // @Failure		409		{object}	sent "user already exist"
 // @Failure		500		{object}	sent "internal server error"
-// @Param			queue	body		model.User	true	"user params"
+// @Param			user	body		model.UserPartial	true	"user params"
 // @Router			/user [post]
 // @Description	Create a user in application.
 func (controller *User) create(handler *fiber.Ctx) error {
@@ -96,7 +96,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 
 	funcCore := func() (*model.User, error) { return controller.core.Get(userID) }
 
-	expectErrors := []expectError{}
+	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
 
 	unexpectMessageError := "error getting user"
 
@@ -104,6 +104,49 @@ func (controller *User) get(handler *fiber.Ctx) error {
 		funcCore,
 		expectErrors,
 		unexpectMessageError,
+		handler,
+	)
+}
+
+// Delete current user
+//
+// @Summary		Delete user
+// @Tags			user
+// @Accept			json
+// @Produce		json
+// @Success		200		{object}	sent "user deleted"
+// @Failure		401		{object}	sent "unathorized"
+// @Failure		404		{object}	sent "user dont exist"
+// @Failure		500		{object}	sent "internal server error"
+// @Router			/user [delete]
+// @Description	Delete current user.
+func (controller *User) delete(handler *fiber.Ctx) error {
+	idRaw := handler.Locals("userID")
+
+	userID, ok := idRaw.(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() error { return controller.core.Delete(userID) }
+
+	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error deleting user"
+
+	okay := okay{"user deleted", fiber.StatusOK}
+
+	handler.Locals("deleteSession", true)
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
 		handler,
 	)
 }
@@ -118,7 +161,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 // @Failure		400		{object}	sent "an invalid user param was sent"
 // @Failure		404		{object}	sent "user does not exist"
 // @Failure		500		{object}	sent "internal server error"
-// @Param			queue	body		model.UserPartial	true	"user params"
+// @Param			user	body		model.UserPartial	true	"user params"
 // @Router			/user/session [post]
 // @Description	Create a user session and set in the response cookie.
 func (controller *User) newSession(handler *fiber.Ctx) error {
@@ -164,7 +207,9 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 		Secure:   true,
 	}
 
-	if session != nil {
+	deleteSession, ok := handler.Locals("deleteSession").(bool)
+
+	if session != nil && !(ok && deleteSession) {
 		cookie.Value = session.ID.String()
 		cookie.Expires = session.Expires
 	}

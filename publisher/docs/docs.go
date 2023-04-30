@@ -484,11 +484,11 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "description": "user params",
-                        "name": "queue",
+                        "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.User"
+                            "$ref": "#/definitions/model.UserPartial"
                         }
                     }
                 ],
@@ -507,6 +507,45 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "user already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete current user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Delete user",
+                "responses": {
+                    "200": {
+                        "description": "user deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "unathorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user dont exist",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -569,7 +608,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "description": "user params",
-                        "name": "queue",
+                        "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -743,25 +782,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "template": {
-                    "type": "string"
-                }
-            }
-        },
-        "model.User": {
-            "type": "object",
-            "required": [
-                "email",
-                "name",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "password": {
                     "type": "string"
                 }
             }
