@@ -8,9 +8,9 @@ import (
 )
 
 type UserPartial struct {
-	Name     string `json:"name"     bson:"name"     validate:"required"`
-	Email    string `json:"email"    bson:"email"    validate:"required,email"`
-	Password string `json:"password" bson:"password" validate:"required"`
+	Name     string `config:"name"     json:"name"     bson:"name"     validate:"required"`
+	Email    string `config:"email"    json:"email"    bson:"email"    validate:"required,email"`
+	Password string `config:"password" json:"password" bson:"password" validate:"required"`
 }
 
 type User struct {
@@ -22,6 +22,7 @@ type User struct {
 	DeletedAt  time.Time `json:"deletedAt,omitempty" bson:"deleted_at" validate:"-"`
 	Roles      []string  `json:"roles,omitempty"     bson:"roles"      validate:"-"`
 	IsAdmin    bool      `json:"isAdmin,omitempty"   bson:"is_admin"   validate:"-"`
+	Protected  bool      `json:"protected,omitempty" bson:"protected"  validate:"-"`
 }
 
 type Roles struct {

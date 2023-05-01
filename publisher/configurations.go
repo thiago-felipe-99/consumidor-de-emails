@@ -12,14 +12,15 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
+	"github.com/thiago-felipe-99/mail/publisher/model"
 )
 
 type rabbitConfig struct {
-	User     string `config:"user"      validate:"required"`
-	Password string `config:"password"  validate:"required"`
-	Host     string `config:"host"      validate:"required"`
-	Port     int    `config:"port"      validate:"required"`
-	Vhost    string `config:"vhost"     validate:"required"`
+	User     string `config:"user"     validate:"required"`
+	Password string `config:"password" validate:"required"`
+	Host     string `config:"host"     validate:"required"`
+	Port     int    `config:"port"     validate:"required"`
+	Vhost    string `config:"vhost"    validate:"required"`
 }
 
 type minioConfig struct {
@@ -46,11 +47,14 @@ type sessionConfig struct {
 	DurationMinutes int `config:"duration_minutes" validate:"required,min=1"`
 }
 
+type adminConfig = model.UserPartial
+
 type configurations struct {
 	Rabbit  rabbitConfig  `config:"rabbit"  validate:"required"`
 	Minio   minioConfig   `config:"minio"   validate:"required"`
 	Mongo   mongoConfig   `config:"mongo"   validate:"required"`
 	Session sessionConfig `config:"session" validate:"required"`
+	Admin   adminConfig   `config:"admin"   validate:"required"`
 }
 
 //nolint:gomnd

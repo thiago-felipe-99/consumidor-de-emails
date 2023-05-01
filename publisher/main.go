@@ -114,6 +114,34 @@ func main() {
 		configs.Minio.TemplateBucket,
 	)
 
+	exist, err := cores.User.ExistByNameOrEmail(configs.Admin.Name, configs.Admin.Email)
+	if err != nil {
+		log.Printf("[ERROR] - Error verifying if first user exist: %s", err)
+	}
+
+	if !exist {
+		err := cores.User.Create(configs.Admin)
+		if err != nil {
+			log.Printf("[ERROR] - Error creating first user: %s", err)
+
+			return
+		}
+
+		user, err := cores.User.GetByNameOrEmail(configs.Admin.Name, configs.Admin.Email)
+		if err != nil {
+			log.Printf("[ERROR] - Error getting first user: %s", err)
+
+			return
+		}
+
+		err = cores.User.Protected(user.ID)
+		if err != nil {
+			log.Printf("[ERROR] - Error creating first admin: %s", err)
+
+			return
+		}
+	}
+
 	server, err := controllers.CreateHTTPServer(validate, cores)
 	if err != nil {
 		log.Printf("[ERROR] - Error create server: %s", err)

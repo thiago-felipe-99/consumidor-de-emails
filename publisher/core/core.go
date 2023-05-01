@@ -24,6 +24,7 @@ var (
 	ErrUserDoesNotExist         = errors.New("user does not exist")
 	ErrUserSessionDoesNotExist  = errors.New("user session does not exist")
 	ErrUserIsNotAdmin           = errors.New("user is not admin")
+	ErrUserIsProtected          = errors.New("user is protected")
 	ErrInvalidID                = errors.New("was sent a invalid ID")
 	ErrDifferentPassword        = errors.New("was sent a different password")
 	ErrInvalidName              = errors.New("was sent a invalid name")
@@ -101,7 +102,7 @@ func (core *User) existByID(userID uuid.UUID) (bool, error) {
 	return user.DeletedAt.IsZero(), nil
 }
 
-func (core *User) existByNameOrEmail(name, email string) (bool, error) {
+func (core *User) ExistByNameOrEmail(name, email string) (bool, error) {
 	user, err := core.database.GetByNameOrEmail(name, email)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -120,7 +121,7 @@ func (core *User) Create(partial model.UserPartial) error {
 		return err
 	}
 
-	exist, err := core.existByNameOrEmail(partial.Name, partial.Email)
+	exist, err := core.ExistByNameOrEmail(partial.Name, partial.Email)
 	if err != nil {
 		return fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -173,6 +174,26 @@ func (core *User) Get(userID uuid.UUID) (*model.User, error) {
 	return user, nil
 }
 
+func (core *User) GetByNameOrEmail(name, email string) (*model.User, error) {
+	exist, err := core.ExistByNameOrEmail(name, email)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrUserDoesNotExist
+	}
+
+	user, err := core.database.GetByNameOrEmail(name, email)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	user.Password = ""
+
+	return user, nil
+}
+
 func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
 	err := validate(core.validator, partial)
 	if err != nil {
@@ -203,6 +224,10 @@ func (core *User) Delete(userID uuid.UUID) error {
 	user, err := core.Get(userID)
 	if err != nil {
 		return err
+	}
+
+	if user.Protected {
+		return ErrUserIsProtected
 	}
 
 	user.DeletedAt = time.Now()
@@ -249,13 +274,39 @@ func (core *User) NewAdmin(userID uuid.UUID) error {
 	return nil
 }
 
+func (core *User) Protected(userID uuid.UUID) error {
+	exist, err := core.existByID(userID)
+	if err != nil {
+		return fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return ErrUserDoesNotExist
+	}
+
+	user, err := core.database.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	user.IsAdmin = true
+	user.Protected = true
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error updating user in database: %w", err)
+	}
+
+	return nil
+}
+
 func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSession, error) {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return nil, err
 	}
 
-	exist, err := core.existByNameOrEmail(partial.Name, partial.Email)
+	exist, err := core.ExistByNameOrEmail(partial.Name, partial.Email)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
 	}
