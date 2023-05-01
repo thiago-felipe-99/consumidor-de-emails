@@ -23,6 +23,7 @@ var (
 	ErrUserAlreadyExist         = errors.New("user already exist")
 	ErrUserDoesNotExist         = errors.New("user does not exist")
 	ErrUserSessionDoesNotExist  = errors.New("user session does not exist")
+	ErrUserIsNotAdmin           = errors.New("user is not admin")
 	ErrInvalidID                = errors.New("was sent a invalid ID")
 	ErrDifferentPassword        = errors.New("was sent a different password")
 	ErrInvalidName              = errors.New("was sent a invalid name")
@@ -209,6 +210,40 @@ func (core *User) Delete(userID uuid.UUID) error {
 	err = core.database.Update(*user)
 	if err != nil {
 		return fmt.Errorf("error deleting user from database: %w", err)
+	}
+
+	return nil
+}
+
+func (core *User) IsAdmin(userID uuid.UUID) (bool, error) {
+	user, err := core.Get(userID)
+	if err != nil {
+		return false, err
+	}
+
+	return user.IsAdmin, nil
+}
+
+func (core *User) NewAdmin(userID uuid.UUID) error {
+	exist, err := core.existByID(userID)
+	if err != nil {
+		return fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return ErrUserDoesNotExist
+	}
+
+	user, err := core.database.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	user.IsAdmin = true
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error updating user in database: %w", err)
 	}
 
 	return nil

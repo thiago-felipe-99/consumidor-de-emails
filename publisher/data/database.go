@@ -65,6 +65,7 @@ func (database *User) Update(user model.User) error {
 		{Key: "$set", Value: bson.D{
 			{Key: "password", Value: user.Password},
 			{Key: "deleted_at", Value: user.DeletedAt},
+			{Key: "is_admin", Value: user.IsAdmin},
 		}},
 	}
 

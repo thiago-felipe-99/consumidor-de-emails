@@ -429,7 +429,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "401":
-          description: unathorized
+          description: unauthorized
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -455,7 +455,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "401":
-          description: unathorized
+          description: unauthorized
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -525,7 +525,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "401":
-          description: unathorized
+          description: unauthorized
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -537,6 +537,39 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Update user
+      tags:
+      - user
+  /user/admin/{userID}:
+    post:
+      consumes:
+      - application/json
+      description: Create a user session and set in the response cookie.
+      parameters:
+      - description: user id to be promoted to admin
+        in: path
+        name: userID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: admin created successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: unauthorized
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Create admin
       tags:
       - user
   /user/session:

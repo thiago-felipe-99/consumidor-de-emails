@@ -450,7 +450,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "unathorized",
+                        "description": "unauthorized",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -506,7 +506,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "unathorized",
+                        "description": "unauthorized",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -595,13 +595,63 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "unathorized",
+                        "description": "unauthorized",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "404": {
                         "description": "user dont exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/admin/{userID}": {
+            "post": {
+                "description": "Create a user session and set in the response cookie.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Create admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be promoted to admin",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "admin created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }

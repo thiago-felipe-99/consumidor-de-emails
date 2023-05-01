@@ -163,16 +163,18 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 		languages:  languages,
 	}
 
-	app.Get("/user", user.refreshSession, user.get)
-	app.Post("/user", user.create)
-	app.Put("/user", user.refreshSession, user.update)
-	app.Delete("/user", user.refreshSession, user.delete)
 	app.Post("/user/session", user.newSession)
-	app.Put(
-		"/user/session",
-		user.refreshSession,
-		func(c *fiber.Ctx) error { return c.JSON(sent{"session refreshed"}) },
-	)
+
+	app.Use(user.refreshSession)
+
+	app.Get("/user", user.get)
+	app.Post("/user", user.create)
+	app.Put("/user", user.update)
+	app.Delete("/user", user.delete)
+
+	app.Put("/user/session", func(c *fiber.Ctx) error { return c.JSON(sent{"session refreshed"}) })
+
+	app.Post("/user/admin/:userID", user.isAdmin, user.newAdmin)
 
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", queue.create)
