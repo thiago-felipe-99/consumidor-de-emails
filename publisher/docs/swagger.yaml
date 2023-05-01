@@ -871,10 +871,6 @@ paths:
           description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
-        "404":
-          description: user does not exist
-          schema:
-            $ref: '#/definitions/controllers.sent'
         "409":
           description: role already exist
           schema:
@@ -888,10 +884,10 @@ paths:
       - role
       - admin
   /user/role/{userID}:
-    put:
+    delete:
       consumes:
       - application/json
-      description: Add role to user.
+      description: Delete user roles.
       parameters:
       - description: user id to be promoted
         in: path
@@ -904,13 +900,13 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/model.UserRole'
+            $ref: '#/definitions/model.RolePartial'
           type: array
       produces:
       - application/json
       responses:
         "200":
-          description: role created successfully
+          description: user role deleted successfully
           schema:
             $ref: '#/definitions/controllers.sent'
         "400":
@@ -933,7 +929,56 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Add role
+      summary: Delete roles
+      tags:
+      - role
+      - admin
+    put:
+      consumes:
+      - application/json
+      description: Add user roles.
+      parameters:
+      - description: user id to be promoted
+        in: path
+        name: userID
+        required: true
+        type: string
+      - description: role params
+        in: body
+        name: role
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/model.UserRole'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user role created successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: was sent a invalid roles params
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "403":
+          description: current user does not have all roles
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Add roles
       tags:
       - role
       - admin

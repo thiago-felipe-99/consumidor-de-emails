@@ -1068,12 +1068,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
-                    "404": {
-                        "description": "user does not exist",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.sent"
-                        }
-                    },
                     "409": {
                         "description": "role already exist",
                         "schema": {
@@ -1091,7 +1085,7 @@ const docTemplate = `{
         },
         "/user/role/{userID}": {
             "put": {
-                "description": "Add role to user.",
+                "description": "Add user roles.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1102,7 +1096,7 @@ const docTemplate = `{
                     "role",
                     "admin"
                 ],
-                "summary": "Add role",
+                "summary": "Add roles",
                 "parameters": [
                     {
                         "type": "string",
@@ -1126,7 +1120,80 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "role created successfully",
+                        "description": "user role created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid roles params",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user does not have all roles",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete user roles.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "role",
+                    "admin"
+                ],
+                "summary": "Delete roles",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be promoted",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "role params",
+                        "name": "role",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.RolePartial"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user role deleted successfully",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }

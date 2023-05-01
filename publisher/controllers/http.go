@@ -184,7 +184,7 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Post("/user/role", user.isAdmin, user.createRole)
 	// app.Delete("/user/role", user.deleteRoles)
 	app.Put("/user/role/:userID", user.hasRoles, user.addRoles)
-	// app.Delete("/user/role/:userID", user.hasRolesAdmin, user.deleteRoles)
+	app.Delete("/user/role/:userID", user.hasRolesAdmin, user.deleteRoles)
 
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", user.isAdmin, queue.create)

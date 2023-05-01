@@ -610,6 +610,7 @@ func (controller *User) getRoles(handler *fiber.Ctx) error {
 	)
 }
 
+//nolint:dupl
 func (controller *User) hasRoles(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
@@ -641,6 +642,38 @@ func (controller *User) hasRoles(handler *fiber.Ctx) error {
 	return handler.Next()
 }
 
+//nolint:dupl
+func (controller *User) hasRolesAdmin(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	roles := &[]model.RolePartial{}
+
+	err := handler.BodyParser(roles)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	hasRoles, err := controller.core.HasRolesAdmin(userID, *roles)
+	if err != nil {
+		log.Printf("[ERROR] - error getting if user has roles: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error getting if user has roles"})
+	}
+
+	if !hasRoles {
+		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user dont have all roles"})
+	}
+
+	return handler.Next()
+}
+
 // Create a role
 //
 //	@Summary		Create role
@@ -651,7 +684,6 @@ func (controller *User) hasRoles(handler *fiber.Ctx) error {
 //	@Failure		400		{object}	sent				"was sent a invalid role params"
 //	@Failure		401		{object}	sent				"user session has expired"
 //	@Failure		403		{object}	sent				"current user is not admin"
-//	@Failure		404		{object}	sent				"user does not exist"
 //	@Failure		409		{object}	sent				"role already exist"
 //	@Failure		500		{object}	sent				"internal server error"
 //	@Param			role	body		model.RolePartial	true	"role params"
@@ -691,14 +723,14 @@ func (controller *User) createRole(handler *fiber.Ctx) error {
 	)
 }
 
-// Add role to user
+// Add user roles
 //
-//	@Summary		Add role
+//	@Summary		Add roles
 //	@Tags			role, admin
 //	@Accept			json
 //	@Produce		json
-//	@Success		200		{object}	sent				"role created successfully"
-//	@Failure		400		{object}	sent				"was sent a invalid role params"
+//	@Success		200		{object}	sent				"user role created successfully"
+//	@Failure		400		{object}	sent				"was sent a invalid roles params"
 //	@Failure		401		{object}	sent				"user session has expired"
 //	@Failure		403		{object}	sent				"current user does not have all roles"
 //	@Failure		404		{object}	sent				"user does not exist"
@@ -706,7 +738,7 @@ func (controller *User) createRole(handler *fiber.Ctx) error {
 //	@Param			userID	path		string				true	"user id to be promoted"
 //	@Param			role	body		[]model.UserRole	true	"role params"
 //	@Router			/user/role/{userID} [put]
-//	@Description	Add role to user.
+//	@Description	Add user roles.
 func (controller *User) addRoles(handler *fiber.Ctx) error {
 	userID, err := uuid.Parse(handler.Params("userID"))
 	if err != nil {
@@ -723,11 +755,65 @@ func (controller *User) addRoles(handler *fiber.Ctx) error {
 
 	funcCore := func() error { return controller.core.AddRoles(*roles, userID) }
 
-	expectErrors := []expectError{{core.ErrRoleDoesNotExist, fiber.StatusNotFound}}
+	expectErrors := []expectError{
+		{core.ErrRoleDoesNotExist, fiber.StatusNotFound},
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+	}
 
 	unexpectMessageError := "error adding roles"
 
 	okay := okay{"added roles", fiber.StatusOK}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Delete user roles
+//
+//	@Summary		Delete roles
+//	@Tags			role, admin
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent				"user role deleted successfully"
+//	@Failure		400		{object}	sent				"was sent a invalid role params"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"current user does not have all roles"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			userID	path		string				true	"user id to be promoted"
+//	@Param			role	body		[]model.RolePartial	true	"role params"
+//	@Router			/user/role/{userID} [delete]
+//	@Description	Delete user roles.
+func (controller *User) deleteRoles(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	roles := &[]model.RolePartial{}
+
+	err = handler.BodyParser(roles)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	funcCore := func() error { return controller.core.DeleteRoles(*roles, userID) }
+
+	expectErrors := []expectError{
+		{core.ErrRoleDoesNotExist, fiber.StatusNotFound},
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+	}
+
+	unexpectMessageError := "error deleting user roles"
+
+	okay := okay{"deleted user roles", fiber.StatusOK}
 
 	return callingCore(
 		funcCore,

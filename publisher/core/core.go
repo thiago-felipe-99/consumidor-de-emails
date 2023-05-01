@@ -438,6 +438,39 @@ func (core *User) HasRoles(userID uuid.UUID, roles []model.UserRole) (bool, erro
 	return true, nil
 }
 
+func (core *User) HasRolesAdmin(userID uuid.UUID, roles []model.RolePartial) (bool, error) {
+	if len(roles) == 0 {
+		return true, nil
+	}
+
+	user, err := core.GetByID(userID)
+	if err != nil {
+		return false, err
+	}
+
+	if user.IsAdmin {
+		return true, nil
+	}
+
+	userRoles := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		userRoles = append(userRoles, role.Name)
+	}
+
+	for _, role := range roles {
+		index, exist := existsInSlice(userRoles, role.Name)
+		if !exist {
+			return false, nil
+		}
+
+		if !user.Roles[index].IsAdmin {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 func (core *User) AddRoles(roles []model.UserRole, userID uuid.UUID) error {
 	if len(roles) == 0 {
 		return nil
@@ -480,6 +513,56 @@ func (core *User) AddRoles(roles []model.UserRole, userID uuid.UUID) error {
 		} else if !user.Roles[index].IsProtected {
 			user.Roles[index].IsAdmin = role.IsAdmin || role.IsProtected
 			user.Roles[index].IsProtected = role.IsProtected
+		}
+	}
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error updating user: %w", err)
+	}
+
+	return nil
+}
+
+func (core *User) DeleteRoles(roles []model.RolePartial, userID uuid.UUID) error {
+	if len(roles) == 0 {
+		return nil
+	}
+
+	user, err := core.GetByID(userID)
+	if err != nil {
+		return err
+	}
+
+	rolesName := make([]string, 0, len(roles))
+	for _, role := range roles {
+		rolesName = append(rolesName, role.Name)
+	}
+
+	exist, err := core.existRoles(rolesName)
+	if err != nil {
+		return fmt.Errorf("eror checking if roles exist: %w", err)
+	}
+
+	if !exist {
+		return ErrRoleDoesNotExist
+	}
+
+	userRolesName := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		userRolesName = append(userRolesName, role.Name)
+	}
+
+	for _, role := range roles {
+		index, exist := existsInSlice(userRolesName, role.Name)
+		if exist && !user.Roles[index].IsProtected {
+			lastIndex := len(user.Roles) - 1
+
+			user.Roles[index] = user.Roles[lastIndex]
+			user.Roles = user.Roles[:lastIndex]
+
+			userRolesName[index] = userRolesName[lastIndex]
+			userRolesName = userRolesName[:lastIndex]
 		}
 	}
 
