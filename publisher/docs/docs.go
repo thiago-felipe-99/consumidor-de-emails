@@ -606,7 +606,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "admin"
                 ],
                 "summary": "Create user",
                 "parameters": [
@@ -715,7 +715,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "admin"
                 ],
                 "summary": "Create admin",
                 "parameters": [
@@ -775,7 +775,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "admin"
                 ],
                 "summary": "Remove admin",
                 "parameters": [
@@ -837,9 +837,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "admin"
                 ],
-                "summary": "Get user by admin",
+                "summary": "Get user",
                 "parameters": [
                     {
                         "type": "string",
@@ -891,9 +891,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "admin"
                 ],
-                "summary": "Delete user admin",
+                "summary": "Delete user",
                 "parameters": [
                     {
                         "type": "string",
@@ -947,9 +947,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "user"
+                    "admin"
                 ],
-                "summary": "Get user",
+                "summary": "Get all users",
                 "responses": {
                     "200": {
                         "description": "user informations",

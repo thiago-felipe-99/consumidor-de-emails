@@ -563,7 +563,7 @@ paths:
             $ref: '#/definitions/controllers.sent'
       summary: Create user
       tags:
-      - user
+      - admin
     put:
       consumes:
       - application/json
@@ -641,7 +641,7 @@ paths:
             $ref: '#/definitions/controllers.sent'
       summary: Remove admin
       tags:
-      - user
+      - admin
     post:
       consumes:
       - application/json
@@ -681,7 +681,7 @@ paths:
             $ref: '#/definitions/controllers.sent'
       summary: Create admin
       tags:
-      - user
+      - admin
   /user/admin/{userID}/user:
     delete:
       consumes:
@@ -716,9 +716,9 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Delete user admin
+      summary: Delete user
       tags:
-      - user
+      - admin
     get:
       consumes:
       - application/json
@@ -752,9 +752,9 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Get user by admin
+      summary: Get user
       tags:
-      - user
+      - admin
   /user/all:
     get:
       consumes:
@@ -779,9 +779,9 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Get user
+      summary: Get all users
       tags:
-      - user
+      - admin
   /user/session:
     post:
       consumes:

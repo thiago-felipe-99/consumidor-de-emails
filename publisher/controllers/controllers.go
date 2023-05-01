@@ -32,7 +32,7 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 // Create a user in application
 //
 //	@Summary		Create user
-//	@Tags			user
+//	@Tags			admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		201		{object}	sent				"user created successfully"
@@ -117,8 +117,8 @@ func (controller *User) get(handler *fiber.Ctx) error {
 
 // Get user by admin
 //
-//	@Summary		Get user by admin
-//	@Tags			user
+//	@Summary		Get user
+//	@Tags			admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		200		{object}	sent	"user informations"
@@ -152,8 +152,8 @@ func (controller *User) getByAdmin(handler *fiber.Ctx) error {
 
 // Get all users informations
 //
-//	@Summary		Get user
-//	@Tags			user
+//	@Summary		Get all users
+//	@Tags			admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	sent	"user informations"
@@ -272,8 +272,8 @@ func (controller *User) delete(handler *fiber.Ctx) error {
 
 // Delete user by admin
 //
-//	@Summary		Delete user admin
-//	@Tags			user
+//	@Summary		Delete user
+//	@Tags			admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		200		{object}	sent	"user deleted"
@@ -349,7 +349,7 @@ func (controller *User) isAdmin(handler *fiber.Ctx) error {
 // Create a user admin
 //
 //	@Summary		Create admin
-//	@Tags			user
+//	@Tags			admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		201		{object}	sent	"admin created successfully"
@@ -389,7 +389,7 @@ func (controller *User) newAdmin(handler *fiber.Ctx) error {
 // Remove the admin role from the user
 //
 //	@Summary		Remove admin
-//	@Tags			user
+//	@Tags			admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		200		{object}	sent	"admin role removed"
