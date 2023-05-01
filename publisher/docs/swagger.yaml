@@ -34,6 +34,8 @@ definitions:
     properties:
       createdAt:
         type: string
+      deletedAt:
+        type: string
       dlx:
         type: string
       maxRetries:
@@ -62,12 +64,20 @@ definitions:
     type: object
   model.Template:
     properties:
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
       fields:
         items:
           type: string
         type: array
       name:
         type: string
+      roles:
+        items:
+          type: string
+        type: array
       template:
         type: string
     type: object
@@ -86,6 +96,10 @@ definitions:
     properties:
       name:
         type: string
+      roles:
+        items:
+          type: string
+        type: array
       template:
         type: string
     required:
