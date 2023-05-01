@@ -581,6 +581,37 @@ func (controller *User) getRoles(handler *fiber.Ctx) error {
 	)
 }
 
+func (controller *User) hasRoles(handler *fiber.Ctx) error { //nolint: unused
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	roles := &[]model.RolePartial{}
+
+	err := handler.BodyParser(roles)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	hasRoles, err := controller.core.HasRoles(userID, *roles)
+	if err != nil {
+		log.Printf("[ERROR] - error getting if user has roles: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error getting if user has roles"})
+	}
+
+	if !hasRoles {
+		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user dont have all roles"})
+	}
+
+	return handler.Next()
+}
+
 // Create a role
 //
 //	@Summary		Create role

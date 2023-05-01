@@ -378,6 +378,40 @@ func (core *User) CreateRole(partial model.RolePartial, userID uuid.UUID) error 
 	return nil
 }
 
+func existSlice[T comparable](slice []T, find T) bool {
+	for _, element := range slice {
+		if element == find {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (core *User) HasRoles(userID uuid.UUID, roles []model.RolePartial) (bool, error) {
+	user, err := core.GetByID(userID)
+	if err != nil {
+		return false, err
+	}
+
+	if user.IsAdmin {
+		return true, nil
+	}
+
+	userRoles := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		userRoles = append(userRoles, role.Name)
+	}
+
+	for _, role := range roles {
+		if !existSlice(userRoles, role.Name) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSession, error) {
 	err := validate(core.validator, partial)
 	if err != nil {

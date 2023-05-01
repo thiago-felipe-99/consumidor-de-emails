@@ -21,7 +21,7 @@ type Role struct {
 }
 
 type UserRole struct {
-	Role        string `json:"role"        bson:"role"         validate:"required"`
+	Name        string `json:"name"        bson:"name"         validate:"required"`
 	IsAdmin     bool   `json:"isAdmin"     bson:"is_admin"     validate:"-"`
 	IsProtected bool   `json:"isProtected" bson:"is_protected" validate:"-"`
 }

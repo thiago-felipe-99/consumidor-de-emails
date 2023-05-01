@@ -1398,7 +1398,7 @@
         "model.UserRole": {
             "type": "object",
             "required": [
-                "role"
+                "name"
             ],
             "properties": {
                 "isAdmin": {
@@ -1407,7 +1407,7 @@
                 "isProtected": {
                     "type": "boolean"
                 },
-                "role": {
+                "name": {
                     "type": "string"
                 }
             }

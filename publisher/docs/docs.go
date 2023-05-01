@@ -1405,7 +1405,7 @@ const docTemplate = `{
         "model.UserRole": {
             "type": "object",
             "required": [
-                "role"
+                "name"
             ],
             "properties": {
                 "isAdmin": {
@@ -1414,7 +1414,7 @@ const docTemplate = `{
                 "isProtected": {
                     "type": "boolean"
                 },
-                "role": {
+                "name": {
                     "type": "string"
                 }
             }

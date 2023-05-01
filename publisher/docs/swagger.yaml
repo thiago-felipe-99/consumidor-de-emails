@@ -155,10 +155,10 @@ definitions:
         type: boolean
       isProtected:
         type: boolean
-      role:
+      name:
         type: string
     required:
-    - role
+    - name
     type: object
   model.UserSessionPartial:
     properties:
