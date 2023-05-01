@@ -37,6 +37,8 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 //	@Produce		json
 //	@Success		201		{object}	sent				"user created successfully"
 //	@Failure		400		{object}	sent				"an invalid user param was sent"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"user is not admin"
 //	@Failure		409		{object}	sent				"user already exist"
 //	@Failure		500		{object}	sent				"internal server error"
 //	@Param			user	body		model.UserPartial	true	"user params"
@@ -77,7 +79,7 @@ func (controller *User) create(handler *fiber.Ctx) error {
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	sent	"user informations"
-//	@Failure		401	{object}	sent	"unauthorized"
+//	@Failure		401	{object}	sent	"user session has expired"
 //	@Failure		404	{object}	sent	"user does not exist"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user [get]
@@ -113,7 +115,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200		{object}	sent				"user updated"
 //	@Failure		400		{object}	sent				"an invalid user param was sent"
-//	@Failure		401		{object}	sent				"unauthorized"
+//	@Failure		401		{object}	sent				"user session has expired"
 //	@Failure		404		{object}	sent				"user does not exist"
 //	@Failure		500		{object}	sent				"internal server error"
 //	@Param			user	body		model.UserPartial	true	"user params"
@@ -160,7 +162,7 @@ func (controller *User) update(handler *fiber.Ctx) error {
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	sent	"user deleted"
-//	@Failure		401	{object}	sent	"unauthorized"
+//	@Failure		401	{object}	sent	"user session has expired"
 //	@Failure		404	{object}	sent	"user dont exist"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user [delete]
@@ -176,7 +178,10 @@ func (controller *User) delete(handler *fiber.Ctx) error {
 
 	funcCore := func() error { return controller.core.Delete(userID) }
 
-	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
+	expectErrors := []expectError{
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+		{core.ErrUserIsProtected, fiber.StatusForbidden},
+	}
 
 	unexpectMessageError := "error deleting user"
 
@@ -212,7 +217,7 @@ func (controller *User) isAdmin(handler *fiber.Ctx) error {
 	}
 
 	if !isAdmin {
-		return handler.Status(fiber.StatusUnauthorized).JSON(sent{"current user is not admin"})
+		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user is not admin"})
 	}
 
 	return handler.Next()
@@ -224,10 +229,11 @@ func (controller *User) isAdmin(handler *fiber.Ctx) error {
 //	@Tags			user
 //	@Accept			json
 //	@Produce		json
-//	@Success		201		{object}	sent				"admin created successfully"
-//	@Failure		401		{object}	sent				"unauthorized"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
+//	@Success		201		{object}	sent	"admin created successfully"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		403		{object}	sent	"user is not admin"
+//	@Failure		404		{object}	sent	"user does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
 //	@Param			userID	path		string	true	"user id to be promoted to admin"
 //	@Router			/user/admin/{userID} [post]
 //	@Description	Create a user session and set in the response cookie.
@@ -330,8 +336,8 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 //	@Tags			user
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	sent	"session refreshed successfully"
-//	@Failure		401	{object}	sent	"session does not exist"
+//	@Success		200	{object}	sent	"user session refreshed successfully"
+//	@Failure		401	{object}	sent	"user session has expired"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user/session [put]
 //	@Description	Refresh a user session and set in the response cookie.
@@ -397,6 +403,8 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 //	@Produce		json
 //	@Success		201		{object}	sent				"create queue successfully"
 //	@Failure		400		{object}	sent				"an invalid queue param was sent"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"user is not admin"
 //	@Failure		409		{object}	sent				"queue already exist"
 //	@Failure		500		{object}	sent				"internal server error"
 //	@Param			queue	body		model.QueuePartial	true	"queue params"
@@ -437,6 +445,7 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{array}		model.Queue	"all queues"
+//	@Failure		401	{object}	sent		"user session has expired"
 //	@Failure		500	{object}	sent		"internal server error"
 //	@Router			/email/queue [get]
 //	@Description	Get all RabbitMQ queues.
@@ -456,6 +465,8 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 //	@Accept			json
 //	@Produce		json
 //	@Success		200		{object}	sent	"queue deleted"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		403		{object}	sent	"user is not admin"
 //	@Failure		404		{object}	sent	"queue dont exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			name	path		string	true	"queue name"
@@ -488,6 +499,8 @@ func (controller *Queue) delete(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200		{object}	sent		"email sent successfully"
 //	@Failure		400		{object}	sent		"an invalid email param was sent"
+//	@Failure		401		{object}	sent		"user session has expired"
+//	@Failure		403		{object}	sent		"user is not admin"
 //	@Failure		404		{object}	sent		"queue does not exist"
 //	@Failure		500		{object}	sent		"internal server error"
 //	@Param			name	path		string		true	"queue name"
@@ -549,6 +562,7 @@ func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //
 //	@Produce		json
 //	@Success		201			{object}	sent					"create template successfully"
 //	@Failure		400			{object}	sent					"an invalid template param was sent"
+//	@Failure		401			{object}	sent					"user session has expired"
 //	@Failure		409			{object}	sent					"template name already exist"
 //	@Failure		500			{object}	sent					"internal server error"
 //	@Param			template	body		model.TemplatePartial	true	"template params"
@@ -583,16 +597,17 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 	)
 }
 
-// Delete all email templates
+// Get all email templates
 //
 //	@Summary		Get templates
 //	@Tags			template
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{array}		model.Template	"all templates"
+//	@Failure		401	{object}	sent			"user session has expired"
 //	@Failure		500	{object}	sent			"internal server error"
 //	@Router			/email/template [get]
-//	@Description	Delete all email templates.
+//	@Description	Get all email templates.
 func (controller *Template) getAll(handler *fiber.Ctx) error {
 	return callingCoreWithReturn(
 		controller.core.GetAll,
@@ -609,6 +624,7 @@ func (controller *Template) getAll(handler *fiber.Ctx) error {
 //	@Accept			json
 //	@Produce		json
 //	@Success		200		{object}	model.Template	"all templates"
+//	@Failure		401		{object}	sent			"user session has expired"
 //	@Success		404		{array}		sent			"template does not exist"
 //	@Failure		500		{object}	sent			"internal server error"
 //	@Param			name	path		string			true	"template name"
@@ -630,6 +646,7 @@ func (controller *Template) get(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200			{object}	sent					"template updated"
 //	@Failure		400			{object}	sent					"an invalid template param was sent"
+//	@Failure		401			{object}	sent					"user session has expired"
 //	@Failure		404			{object}	sent					"template does not exist"
 //	@Failure		500			{object}	sent					"internal server error"
 //	@Param			name		path		string					true	"template name"
@@ -672,6 +689,7 @@ func (controller *Template) update(handler *fiber.Ctx) error {
 //	@Accept			json
 //	@Produce		json
 //	@Success		200		{object}	sent	"template deleted"
+//	@Failure		401		{object}	sent	"user session has expired"
 //	@Failure		404		{object}	sent	"template does not exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			name	path		string	true	"template name"

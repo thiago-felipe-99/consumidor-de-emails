@@ -39,6 +39,12 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
                     "500": {
                         "description": "internal server error",
                         "schema": {
@@ -83,6 +89,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
                     "409": {
                         "description": "queue already exist",
                         "schema": {
@@ -123,6 +141,18 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "queue deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -186,6 +216,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
                     "404": {
                         "description": "queue does not exist",
                         "schema": {
@@ -203,7 +245,7 @@ const docTemplate = `{
         },
         "/email/template": {
             "get": {
-                "description": "Delete all email templates.",
+                "description": "Get all email templates.",
                 "consumes": [
                     "application/json"
                 ],
@@ -222,6 +264,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/model.Template"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "500": {
@@ -268,6 +316,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
                     "409": {
                         "description": "template name already exist",
                         "schema": {
@@ -310,6 +364,12 @@ const docTemplate = `{
                         "description": "all templates",
                         "schema": {
                             "$ref": "#/definitions/model.Template"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "404": {
@@ -372,6 +432,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
                     "404": {
                         "description": "template does not exist",
                         "schema": {
@@ -414,6 +480,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
                     "404": {
                         "description": "template does not exist",
                         "schema": {
@@ -450,7 +522,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "user session has expired",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -506,7 +578,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "user session has expired",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -561,6 +633,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
                     "409": {
                         "description": "user already exist",
                         "schema": {
@@ -595,7 +679,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "user session has expired",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -645,7 +729,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "unauthorized",
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -680,13 +770,13 @@ const docTemplate = `{
                 "summary": "Refresh session",
                 "responses": {
                     "200": {
-                        "description": "session refreshed successfully",
+                        "description": "user session refreshed successfully",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "401": {
-                        "description": "session does not exist",
+                        "description": "user session has expired",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }

@@ -4,7 +4,8 @@ docs_publisher:
 
 .PHONY: lint
 lint:
-	 golangci-lint run --fix ./consumer/... ./publisher/... ./rabbit/...
+	swag fmt ./publisher/
+	golangci-lint run --fix ./consumer/... ./publisher/... ./rabbit/...
 
 .PHONEY: tidy_consumer
 tidy_consumer:
@@ -24,6 +25,7 @@ tidy: tidy_consumer tidy_publisher tidy_rabbit
 
 .PHONY: run_consumer
 run_consumer: tidy_consumer
+	swag fmt ./publisher/
 	golangci-lint run --fix ./consumer/...
 	go run ./consumer/
 

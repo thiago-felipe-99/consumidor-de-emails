@@ -168,7 +168,7 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Use(user.refreshSession)
 
 	app.Get("/user", user.get)
-	app.Post("/user", user.create)
+	app.Post("/user", user.isAdmin, user.create)
 	app.Put("/user", user.update)
 	app.Delete("/user", user.delete)
 
@@ -177,8 +177,8 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Post("/user/admin/:userID", user.isAdmin, user.newAdmin)
 
 	app.Get("/email/queue", queue.getAll)
-	app.Post("/email/queue", queue.create)
-	app.Delete("/email/queue/:name", queue.delete)
+	app.Post("/email/queue", user.isAdmin, queue.create)
+	app.Delete("/email/queue/:name", user.isAdmin, queue.delete)
 	app.Post("/email/queue/:name/send", queue.sendEmail)
 
 	app.Get("/email/template", template.getAll)
