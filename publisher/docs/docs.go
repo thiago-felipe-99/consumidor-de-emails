@@ -762,9 +762,6 @@ const docTemplate = `{
         },
         "model.Email": {
             "type": "object",
-            "required": [
-                "subject"
-            ],
             "properties": {
                 "attachments": {
                     "type": "array",
@@ -774,9 +771,14 @@ const docTemplate = `{
                 },
                 "blindReceivers": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/model.Receiver"
+                    }
+                },
+                "emailLists": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "id": {
@@ -787,7 +789,6 @@ const docTemplate = `{
                 },
                 "receivers": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/model.Receiver"
                     }
@@ -797,6 +798,9 @@ const docTemplate = `{
                 },
                 "template": {
                     "$ref": "#/definitions/model.TemplateData"
+                },
+                "userId": {
+                    "type": "string"
                 }
             }
         },

@@ -755,9 +755,6 @@
         },
         "model.Email": {
             "type": "object",
-            "required": [
-                "subject"
-            ],
             "properties": {
                 "attachments": {
                     "type": "array",
@@ -767,9 +764,14 @@
                 },
                 "blindReceivers": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/model.Receiver"
+                    }
+                },
+                "emailLists": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "id": {
@@ -780,7 +782,6 @@
                 },
                 "receivers": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/model.Receiver"
                     }
@@ -790,6 +791,9 @@
                 },
                 "template": {
                     "$ref": "#/definitions/model.TemplateData"
+                },
+                "userId": {
+                    "type": "string"
                 }
             }
         },

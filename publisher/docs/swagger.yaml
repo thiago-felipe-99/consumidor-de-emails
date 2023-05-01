@@ -14,7 +14,10 @@ definitions:
       blindReceivers:
         items:
           $ref: '#/definitions/model.Receiver'
-        minItems: 1
+        type: array
+      emailLists:
+        items:
+          type: string
         type: array
       id:
         type: string
@@ -23,14 +26,13 @@ definitions:
       receivers:
         items:
           $ref: '#/definitions/model.Receiver'
-        minItems: 1
         type: array
       subject:
         type: string
       template:
         $ref: '#/definitions/model.TemplateData'
-    required:
-    - subject
+      userId:
+        type: string
     type: object
   model.Queue:
     properties:
