@@ -1271,6 +1271,29 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UserRole"
+                    }
+                }
+            }
+        },
+        "model.UserRole": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "properties": {
+                "isAdmin": {
+                    "type": "boolean"
+                },
+                "isProtected": {
+                    "type": "boolean"
+                },
+                "role": {
+                    "type": "string"
                 }
             }
         }

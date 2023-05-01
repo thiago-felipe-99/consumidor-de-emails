@@ -83,7 +83,7 @@ func (database *User) Update(user model.User) error {
 			{Key: "deleted_at", Value: user.DeletedAt},
 			{Key: "deleted_by", Value: user.DeletedBy},
 			{Key: "is_admin", Value: user.IsAdmin},
-			{Key: "protected", Value: user.Protected},
+			{Key: "protected", Value: user.IsProtected},
 		}},
 	}
 

@@ -140,7 +140,7 @@ func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {
 		Name:      partial.Name,
 		Email:     partial.Email,
 		Password:  hash,
-		Roles:     []string{},
+		Roles:     []model.UserRole{},
 		CreatedAt: time.Now(),
 		CreatedBy: adminID,
 		IsAdmin:   false,
@@ -241,7 +241,7 @@ func (core *User) Delete(userID uuid.UUID, deleteByID uuid.UUID) error {
 		return err
 	}
 
-	if user.Protected {
+	if user.IsProtected {
 		return ErrUserIsProtected
 	}
 
@@ -305,7 +305,7 @@ func (core *User) RemoveAdmin(userID uuid.UUID) error {
 		return fmt.Errorf("error getting user from database: %w", err)
 	}
 
-	if user.Protected {
+	if user.IsProtected {
 		return ErrUserIsProtected
 	}
 
@@ -339,7 +339,7 @@ func (core *User) Protected(userID uuid.UUID) error {
 	}
 
 	user.IsAdmin = true
-	user.Protected = true
+	user.IsProtected = true
 
 	err = core.database.Update(*user)
 	if err != nil {

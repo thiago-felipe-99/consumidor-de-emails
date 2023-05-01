@@ -7,30 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserPartial struct {
-	Name     string `config:"name"     json:"name"     validate:"required"`
-	Email    string `config:"email"    json:"email"    validate:"required,email"`
-	Password string `config:"password" json:"password" validate:"required"`
-}
-
-type User struct {
-	ID        uuid.UUID `json:"id"                  bson:"_id"`
-	Name      string    `json:"name"                bson:"name"`
-	Email     string    `json:"email"               bson:"email"`
-	Password  string    `json:"password,omitempty"  bson:"password"`
-	CreatedAt time.Time `json:"createdAt"           bson:"created_at"`
-	CreatedBy uuid.UUID `json:"createdBy"           bson:"created_by"`
-	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
-	DeletedBy uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
-	Roles     []string  `json:"roles,omitempty"     bson:"roles"`
-	IsAdmin   bool      `json:"isAdmin,omitempty"   bson:"is_admin"`
-	Protected bool      `json:"protected,omitempty" bson:"protected"`
-}
-
-type UserRoles struct {
-	Roles []string `json:"roles" validate:"required,min=1"`
-}
-
 type Role struct {
 	ID        uuid.UUID `json:"id"                  bson:"_id"`
 	Name      string    `json:"name"                bson:"name"`
@@ -38,6 +14,33 @@ type Role struct {
 	CreatedBy uuid.UUID `json:"createdBy"           bson:"created_by"`
 	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
 	DeletedBy uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
+}
+
+type UserRole struct {
+	Role        string `json:"role"        bson:"role"         validate:"required"`
+	IsAdmin     bool   `json:"isAdmin"     bson:"is_admin"     validate:"-"`
+	IsProtected bool   `json:"isProtected" bson:"is_protected" validate:"-"`
+}
+
+type UserPartial struct {
+	Name     string     `config:"name"     json:"name"            validate:"required"`
+	Email    string     `config:"email"    json:"email"           validate:"required,email"`
+	Password string     `config:"password" json:"password"        validate:"required"`
+	Roles    []UserRole `config:"-"        json:"roles,omitempty" validate:"-"`
+}
+
+type User struct {
+	ID          uuid.UUID  `json:"id"                    bson:"_id"`
+	Name        string     `json:"name"                  bson:"name"`
+	Email       string     `json:"email"                 bson:"email"`
+	Password    string     `json:"password,omitempty"    bson:"password"`
+	CreatedAt   time.Time  `json:"createdAt"             bson:"created_at"`
+	CreatedBy   uuid.UUID  `json:"createdBy"             bson:"created_by"`
+	DeletedAt   time.Time  `json:"deletedAt,omitempty"   bson:"deleted_at"`
+	DeletedBy   uuid.UUID  `json:"deletedBy,omitempty"   bson:"deleted_by"`
+	Roles       []UserRole `json:"roles,omitempty"       bson:"roles"`
+	IsAdmin     bool       `json:"isAdmin,omitempty"     bson:"is_admin"`
+	IsProtected bool       `json:"isProtected,omitempty" bson:"is_protected"`
 }
 
 type UserSessionPartial struct {

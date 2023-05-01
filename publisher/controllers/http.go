@@ -172,14 +172,19 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Put("/user", user.update)
 	app.Delete("/user", user.delete)
 
-	app.Get("/user/all", user.isAdmin, user.getAll)
-
 	app.Put("/user/session", func(c *fiber.Ctx) error { return c.JSON(sent{"session refreshed"}) })
 
 	app.Get("/user/admin/:userID", user.isAdmin, user.getByAdmin)
 	app.Post("/user/admin/:userID", user.isAdmin, user.newAdmin)
 	app.Delete("/user/admin/:userID", user.isAdmin, user.removeAdminRole)
 	app.Delete("/user/admin/:userID/user", user.isAdmin, user.deleteUserAdmin)
+	app.Get("/user/all", user.isAdmin, user.getAll)
+
+	// app.Get("/user/roles", user.getRoles)
+	// app.Post("/user/roles/:userID", user.isAdmin, user.createRole)
+	// app.Delete("/user/roles", user.deleteRoles)
+	// app.Put("/user/roles/:userID", user.hasRoles, user.addRoles)
+	// app.Delete("/user/roles/:userID", user.hasRolesDelete, user.deleteRoles)
 
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", user.isAdmin, queue.create)

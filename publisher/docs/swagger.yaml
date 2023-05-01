@@ -133,10 +133,25 @@ definitions:
         type: string
       password:
         type: string
+      roles:
+        items:
+          $ref: '#/definitions/model.UserRole'
+        type: array
     required:
     - email
     - name
     - password
+    type: object
+  model.UserRole:
+    properties:
+      isAdmin:
+        type: boolean
+      isProtected:
+        type: boolean
+      role:
+        type: string
+    required:
+    - role
     type: object
 host: localhost:8080
 info:
