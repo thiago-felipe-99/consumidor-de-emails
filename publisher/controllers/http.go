@@ -176,6 +176,7 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 
 	app.Put("/user/session", func(c *fiber.Ctx) error { return c.JSON(sent{"session refreshed"}) })
 
+	app.Get("/user/admin/:userID", user.isAdmin, user.getByAdmin)
 	app.Post("/user/admin/:userID", user.isAdmin, user.newAdmin)
 	app.Delete("/user/admin/:userID", user.isAdmin, user.removeAdminRole)
 	app.Delete("/user/admin/:userID/user", user.isAdmin, user.deleteUserAdmin)

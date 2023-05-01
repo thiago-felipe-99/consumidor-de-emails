@@ -38,7 +38,7 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 //	@Success		201		{object}	sent				"user created successfully"
 //	@Failure		400		{object}	sent				"an invalid user param was sent"
 //	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"user is not admin"
+//	@Failure		403		{object}	sent				"current user is not admin"
 //	@Failure		409		{object}	sent				"user already exist"
 //	@Failure		500		{object}	sent				"internal server error"
 //	@Param			user	body		model.UserPartial	true	"user params"
@@ -115,6 +115,41 @@ func (controller *User) get(handler *fiber.Ctx) error {
 	)
 }
 
+// Get user by admin
+//
+//	@Summary		Get user by admin
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent	"user informations"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		403		{object}	sent	"current user is not admin"
+//	@Failure		404		{object}	sent	"user does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			userID	path		string	true	"user id"
+//	@Router			/user/admin/{userID}/user [get]
+//	@Description	Get user by admin.
+func (controller *User) getByAdmin(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	funcCore := func() (*model.User, error) { return controller.core.Get(userID) }
+
+	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error getting user"
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		handler,
+	)
+}
+
 // Get all users informations
 //
 //	@Summary		Get user
@@ -123,7 +158,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200	{object}	sent	"user informations"
 //	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		403	{object}	sent	"user is not admin"
+//	@Failure		403	{object}	sent	"current user is not admin"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user/all [get]
 //	@Description	Get all users informations.
@@ -198,7 +233,7 @@ func (controller *User) update(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200	{object}	sent	"user deleted"
 //	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		403	{object}	sent	"user is protected"
+//	@Failure		403	{object}	sent	"current user is protected"
 //	@Failure		404	{object}	sent	"user does not exist"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user [delete]
@@ -243,7 +278,7 @@ func (controller *User) delete(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200		{object}	sent	"user deleted"
 //	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"user is protected"
+//	@Failure		403		{object}	sent	"current user is protected"
 //	@Failure		404		{object}	sent	"user does not exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			userID	path		string	true	"user id to be deleted"
@@ -320,7 +355,7 @@ func (controller *User) isAdmin(handler *fiber.Ctx) error {
 //	@Success		201		{object}	sent	"admin created successfully"
 //	@Failure		400		{object}	sent	"was sent a invalid user ID"
 //	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"user is not admin"
+//	@Failure		403		{object}	sent	"current user is not admin"
 //	@Failure		404		{object}	sent	"user does not exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			userID	path		string	true	"user id to be promoted to admin"
@@ -360,7 +395,7 @@ func (controller *User) newAdmin(handler *fiber.Ctx) error {
 //	@Success		200		{object}	sent	"admin role removed"
 //	@Failure		400		{object}	sent	"was sent a invalid user ID"
 //	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"user is not admin"
+//	@Failure		403		{object}	sent	"current user is not admin"
 //	@Failure		404		{object}	sent	"user does not exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			userID	path		string	true	"user id to be removed from admin role"
@@ -537,7 +572,7 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 //	@Success		201		{object}	sent				"create queue successfully"
 //	@Failure		400		{object}	sent				"an invalid queue param was sent"
 //	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"user is not admin"
+//	@Failure		403		{object}	sent				"current user is not admin"
 //	@Failure		409		{object}	sent				"queue already exist"
 //	@Failure		500		{object}	sent				"internal server error"
 //	@Param			queue	body		model.QueuePartial	true	"queue params"
@@ -599,7 +634,7 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200		{object}	sent	"queue deleted"
 //	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"user is not admin"
+//	@Failure		403		{object}	sent	"current user is not admin"
 //	@Failure		404		{object}	sent	"queue does not exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			name	path		string	true	"queue name"
@@ -633,7 +668,7 @@ func (controller *Queue) delete(handler *fiber.Ctx) error {
 //	@Success		200		{object}	sent		"email sent successfully"
 //	@Failure		400		{object}	sent		"an invalid email param was sent"
 //	@Failure		401		{object}	sent		"user session has expired"
-//	@Failure		403		{object}	sent		"user is not admin"
+//	@Failure		403		{object}	sent		"current user is not admin"
 //	@Failure		404		{object}	sent		"queue does not exist"
 //	@Failure		500		{object}	sent		"internal server error"
 //	@Param			name	path		string		true	"queue name"

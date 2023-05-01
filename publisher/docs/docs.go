@@ -96,7 +96,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is not admin",
+                        "description": "current user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -152,7 +152,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is not admin",
+                        "description": "current user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -223,7 +223,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is not admin",
+                        "description": "current user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -640,7 +640,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is not admin",
+                        "description": "current user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -685,7 +685,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is protected",
+                        "description": "current user is protected",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -747,7 +747,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is not admin",
+                        "description": "current user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -807,7 +807,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is not admin",
+                        "description": "current user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -828,6 +828,60 @@ const docTemplate = `{
             }
         },
         "/user/admin/{userID}/user": {
+            "get": {
+                "description": "Get user by admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get user by admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user informations",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "description": "Delete user by admin.",
                 "consumes": [
@@ -863,7 +917,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is protected",
+                        "description": "current user is protected",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -910,7 +964,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "user is not admin",
+                        "description": "current user is not admin",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }

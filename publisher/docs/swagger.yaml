@@ -197,7 +197,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is not admin
+          description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
         "409":
@@ -234,7 +234,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is not admin
+          description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -281,7 +281,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is not admin
+          description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -483,7 +483,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is protected
+          description: current user is protected
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -550,7 +550,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is not admin
+          description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
         "409":
@@ -628,7 +628,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is not admin
+          description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -668,7 +668,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is not admin
+          description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -705,7 +705,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is protected
+          description: current user is protected
           schema:
             $ref: '#/definitions/controllers.sent'
         "404":
@@ -717,6 +717,42 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Delete user admin
+      tags:
+      - user
+    get:
+      consumes:
+      - application/json
+      description: Get user by admin.
+      parameters:
+      - description: user id
+        in: path
+        name: userID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user informations
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "403":
+          description: current user is not admin
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get user by admin
       tags:
       - user
   /user/all:
@@ -736,7 +772,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
         "403":
-          description: user is not admin
+          description: current user is not admin
           schema:
             $ref: '#/definitions/controllers.sent'
         "500":
