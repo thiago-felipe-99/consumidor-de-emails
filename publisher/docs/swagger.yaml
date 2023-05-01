@@ -27,6 +27,8 @@ definitions:
         items:
           $ref: '#/definitions/model.Receiver'
         type: array
+      sentAt:
+        type: string
       subject:
         type: string
       template:
@@ -103,8 +105,6 @@ definitions:
           type: string
         type: array
       template:
-        type: string
-      useId:
         type: string
     type: object
   model.TemplateData:
@@ -814,6 +814,50 @@ paths:
       tags:
       - admin
   /user/role:
+    delete:
+      consumes:
+      - application/json
+      description: Delete current user roles.
+      parameters:
+      - description: role params
+        in: body
+        name: role
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/model.RolePartial'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user role deleted successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: was sent a invalid role params
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "403":
+          description: current user does not have all roles
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Delete current user roles
+      tags:
+      - role
+      - user
     get:
       consumes:
       - application/json
@@ -889,7 +933,7 @@ paths:
       - application/json
       description: Delete user roles.
       parameters:
-      - description: user id to be promoted
+      - description: user id to be deleted
         in: path
         name: userID
         required: true
@@ -929,7 +973,7 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Delete roles
+      summary: Delete user roles
       tags:
       - role
       - admin
@@ -979,6 +1023,56 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Add roles
+      tags:
+      - role
+      - admin
+  /user/role/{userID}/admin:
+    delete:
+      consumes:
+      - application/json
+      description: Delete user roles by admin.
+      parameters:
+      - description: user id to be deleted
+        in: path
+        name: userID
+        required: true
+        type: string
+      - description: role params
+        in: body
+        name: role
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/model.RolePartial'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user role deleted successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: was sent a invalid role params
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "403":
+          description: current user does not have all roles
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Delete user roles by admin
       tags:
       - role
       - admin

@@ -1081,6 +1081,72 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "description": "Delete current user roles.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "role",
+                    "user"
+                ],
+                "summary": "Delete current user roles",
+                "parameters": [
+                    {
+                        "description": "role params",
+                        "name": "role",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.RolePartial"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user role deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid role params",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user does not have all roles",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
             }
         },
         "/user/role/{userID}": {
@@ -1169,11 +1235,86 @@ const docTemplate = `{
                     "role",
                     "admin"
                 ],
-                "summary": "Delete roles",
+                "summary": "Delete user roles",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "user id to be promoted",
+                        "description": "user id to be deleted",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "role params",
+                        "name": "role",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.RolePartial"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user role deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid role params",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user does not have all roles",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/role/{userID}/admin": {
+            "delete": {
+                "description": "Delete user roles by admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "role",
+                    "admin"
+                ],
+                "summary": "Delete user roles by admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be deleted",
                         "name": "userID",
                         "in": "path",
                         "required": true
@@ -1359,6 +1500,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/model.Receiver"
                     }
                 },
+                "sentAt": {
+                    "type": "string"
+                },
                 "subject": {
                     "type": "string"
                 },
@@ -1474,9 +1618,6 @@ const docTemplate = `{
                     }
                 },
                 "template": {
-                    "type": "string"
-                },
-                "useId": {
                     "type": "string"
                 }
             }

@@ -782,12 +782,12 @@ func (core *Queue) Delete(name string) error {
 	return nil
 }
 
-func (core *Queue) SendEmail(queue string, email model.Email) error {
+func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uuid.UUID) error {
 	if len(queue) == 0 {
 		return ErrInvalidName
 	}
 
-	err := validate(core.validator, email)
+	err := validate(core.validator, partial)
 	if err != nil {
 		return err
 	}
@@ -801,8 +801,8 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 		return ErrQueueDoesNotExist
 	}
 
-	if email.Template != nil {
-		exist, err := core.template.Exist(email.Template.Name)
+	if partial.Template != nil {
+		exist, err := core.template.Exist(partial.Template.Name)
 		if err != nil {
 			return fmt.Errorf("error checking if template exist: %w", err)
 		}
@@ -811,24 +811,37 @@ func (core *Queue) SendEmail(queue string, email model.Email) error {
 			return ErrTemplateDoesNotExist
 		}
 
-		fields, err := core.template.GetFields(email.Template.Name)
+		fields, err := core.template.GetFields(partial.Template.Name)
 		if err != nil {
 			return fmt.Errorf("error getting templates fields: %w", err)
 		}
 
 		for _, field := range fields {
-			if _, found := email.Template.Data[field]; !found {
+			if _, found := partial.Template.Data[field]; !found {
 				return ErrMissingFieldTemplates
 			}
 		}
 	}
 
-	err = core.rabbit.SendMessage(context.Background(), queue, email)
+	// add logic to get emails from mail list
+
+	err = core.rabbit.SendMessage(context.Background(), queue, partial)
 	if err != nil {
 		return fmt.Errorf("error sending email: %w", err)
 	}
 
-	email.ID = uuid.New()
+	email := model.Email{
+		ID:             uuid.New(),
+		UserID:         userID,
+		EmailLists:     partial.EmailLists,
+		Receivers:      partial.Receivers,
+		BlindReceivers: partial.BlindReceivers,
+		Subject:        partial.Subject,
+		Message:        partial.Message,
+		Template:       partial.Template,
+		Attachments:    partial.Attachments,
+		SentAt:         time.Now(),
+	}
 
 	err = core.database.SaveEmail(email)
 	if err != nil {
@@ -862,7 +875,9 @@ type Template struct {
 
 func (core *Template) getFields(template string) []string {
 	fieldsRaw := core.regexFields.FindAllString(template, -1)
+
 	fields := make([]string, 0, len(fieldsRaw))
+
 	existField := func(fields []string, find string) bool {
 		for _, field := range fields {
 			if field == find {
@@ -884,7 +899,7 @@ func (core *Template) getFields(template string) []string {
 	return fields
 }
 
-func (core *Template) Create(partial model.TemplatePartial) error {
+func (core *Template) Create(partial model.TemplatePartial, userID uuid.UUID) error {
 	err := validate(core.validate, partial)
 	if err != nil {
 		return err
@@ -904,10 +919,15 @@ func (core *Template) Create(partial model.TemplatePartial) error {
 	}
 
 	template := model.Template{
-		ID:       uuid.New(),
-		Name:     partial.Name,
-		Template: partial.Template,
-		Fields:   core.getFields(partial.Template),
+		ID:        uuid.New(),
+		Name:      partial.Name,
+		Template:  partial.Template,
+		Fields:    core.getFields(partial.Template),
+		Roles:     []string{},
+		CreatedAt: time.Now(),
+		CreatedBy: userID,
+		DeletedAt: time.Time{},
+		DeletedBy: uuid.UUID{},
 	}
 
 	templateReader := strings.NewReader(template.Template)
@@ -953,17 +973,13 @@ func (core *Template) Update(name string, partial model.TemplatePartial) error {
 		return ErrTemplateDoesNotExist
 	}
 
-	templateID, err := core.database.GetID(name)
+	template, err := core.database.Get(name)
 	if err != nil {
 		return fmt.Errorf("error getting template ID: %w", err)
 	}
 
-	template := model.Template{
-		ID:       templateID,
-		Name:     name,
-		Template: partial.Template,
-		Fields:   core.getFields(partial.Template),
-	}
+	template.Template = partial.Template
+	template.Fields = core.getFields(partial.Template)
 
 	templateReader := strings.NewReader(template.Template)
 
@@ -981,7 +997,7 @@ func (core *Template) Update(name string, partial model.TemplatePartial) error {
 		return fmt.Errorf("error updating template in Minio: %w", err)
 	}
 
-	err = core.database.Update(template)
+	err = core.database.Update(*template)
 	if err != nil {
 		return fmt.Errorf("error updating template in database: %w", err)
 	}
@@ -1038,31 +1054,30 @@ func (core *Template) Get(name string) (*model.Template, error) {
 	return template, nil
 }
 
-func (core *Template) Delete(name string) error {
+func (core *Template) Delete(name string, userID uuid.UUID) error {
 	if len(name) == 0 {
 		return ErrInvalidName
 	}
 
-	exist, err := core.database.Exist(name)
+	template, err := core.Get(name)
 	if err != nil {
-		return fmt.Errorf("error checking if template exist: %w", err)
-	}
-
-	if !exist {
-		return ErrTemplateDoesNotExist
+		return err
 	}
 
 	err = core.minio.RemoveObject(
 		context.Background(),
 		core.bucket,
-		name,
+		template.Name,
 		minio.RemoveObjectOptions{},
 	)
 	if err != nil {
 		return fmt.Errorf("error deleting template from Minio: %w", err)
 	}
 
-	err = core.database.Delete(name)
+	template.DeletedAt = time.Now()
+	template.DeletedBy = userID
+
+	err = core.database.Update(*template)
 	if err != nil {
 		return fmt.Errorf("error deleting template from database: %w", err)
 	}

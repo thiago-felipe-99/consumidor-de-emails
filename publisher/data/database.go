@@ -276,6 +276,10 @@ func (database *Template) Update(template model.Template) error {
 		{Key: "$set", Value: bson.D{
 			{Key: "template", Value: template.Template},
 			{Key: "fields", Value: template.Fields},
+			{Key: "createdAt", Value: template.CreatedAt},
+			{Key: "createdBy", Value: template.CreatedBy},
+			{Key: "deletedAt", Value: template.DeletedAt},
+			{Key: "deletedBy", Value: template.DeletedBy},
 		}},
 	}
 
@@ -289,7 +293,10 @@ func (database *Template) Update(template model.Template) error {
 }
 
 func (database *Template) Exist(name string) (bool, error) {
-	filter := bson.D{{Key: "name", Value: name}}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
 	count, err := database.db.Collection("templates").CountDocuments(context.Background(), filter)
 	if err != nil {
@@ -300,7 +307,10 @@ func (database *Template) Exist(name string) (bool, error) {
 }
 
 func (database *Template) Get(name string) (*model.Template, error) {
-	filter := bson.D{{Key: "name", Value: name}}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
 	template := &model.Template{}
 
@@ -312,21 +322,6 @@ func (database *Template) Get(name string) (*model.Template, error) {
 	}
 
 	return template, nil
-}
-
-func (database *Template) GetID(name string) (uuid.UUID, error) {
-	filter := bson.D{{Key: "name", Value: name}}
-
-	template := &model.Template{}
-
-	err := database.db.Collection("templates").
-		FindOne(context.Background(), filter).
-		Decode(template)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("error getting template from database: %w", err)
-	}
-
-	return template.ID, nil
 }
 
 func (database *Template) GetAll() ([]model.Template, error) {
@@ -343,17 +338,6 @@ func (database *Template) GetAll() ([]model.Template, error) {
 	}
 
 	return templates, nil
-}
-
-func (database *Template) Delete(name string) error {
-	filter := bson.D{{Key: "name", Value: name}}
-
-	result := database.db.Collection("templates").FindOneAndDelete(context.Background(), filter)
-	if result.Err() != nil {
-		return fmt.Errorf("error deleting template from database: %w", result.Err())
-	}
-
-	return nil
 }
 
 func NewTemplateDatabase(client *mongo.Client) *Template {

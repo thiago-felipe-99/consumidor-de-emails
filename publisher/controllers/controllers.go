@@ -1012,14 +1012,22 @@ func (controller *Queue) delete(handler *fiber.Ctx) error {
 //	@Router			/email/queue/{name}/send [post]
 //	@Description	Sends an email to the RabbitMQ queue.
 func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
-	body := &model.Email{}
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	body := &model.EmailPartial{}
 
 	err := handler.BodyParser(body)
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	funcCore := func() error { return controller.core.SendEmail(handler.Params("name"), *body) }
+	funcCore := func() error { return controller.core.SendEmail(handler.Params("name"), *body, userID) }
 
 	expectErrors := []expectError{
 		{core.ErrQueueDoesNotExist, fiber.StatusNotFound},
@@ -1073,6 +1081,14 @@ func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //
 //	@Router			/email/template [post]
 //	@Description	Create a email template.
 func (controller *Template) create(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
 	body := &model.TemplatePartial{}
 
 	err := handler.BodyParser(body)
@@ -1080,7 +1096,7 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	funcCore := func() error { return controller.core.Create(*body) }
+	funcCore := func() error { return controller.core.Create(*body, userID) }
 
 	expectErrors := []expectError{
 		{core.ErrTemplateNameAlreadyExist, fiber.StatusConflict},
@@ -1200,7 +1216,15 @@ func (controller *Template) update(handler *fiber.Ctx) error {
 //	@Router			/email/template/{name} [delete]
 //	@Description	Delete a email template.
 func (controller *Template) delete(handler *fiber.Ctx) error {
-	funcCore := func() error { return controller.core.Delete(handler.Params("name")) }
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() error { return controller.core.Delete(handler.Params("name"), userID) }
 
 	expectErrors := []expectError{{core.ErrTemplateDoesNotExist, fiber.StatusNotFound}}
 

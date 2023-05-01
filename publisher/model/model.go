@@ -107,6 +107,7 @@ type Email struct {
 	Message        string        `json:"message,omitempty"        bson:"message"`
 	Template       *TemplateData `json:"template,omitempty"       bson:"template"`
 	Attachments    []string      `json:"attachments,omitempty"    bson:"attachments"`
+	SentAt         time.Time     `json:"sentAt"                   bson:"sent_at"`
 }
 
 type EmailListPartial struct {
@@ -136,7 +137,6 @@ type TemplatePartial struct {
 
 type Template struct {
 	ID        uuid.UUID `json:"id"                  bson:"_id"`
-	UserID    uuid.UUID `json:"useId"               bson:"user_id"`
 	Name      string    `json:"name"                bson:"name"`
 	Template  string    `json:"template"            bson:"template"`
 	Fields    []string  `json:"fields,omitempty"    bson:"fields"`
