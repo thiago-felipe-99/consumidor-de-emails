@@ -60,6 +60,22 @@ func (database *User) GetByNameOrEmail(name, email string) (*model.User, error) 
 	return user, nil
 }
 
+func (database *User) GetAll() ([]model.User, error) {
+	users := []model.User{}
+
+	cursor, err := database.db.Collection("users").Find(context.Background(), bson.D{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting all users from database: %w", err)
+	}
+
+	err = cursor.All(context.Background(), &users)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing users: %w", err)
+	}
+
+	return users, nil
+}
+
 func (database *User) Update(user model.User) error {
 	update := bson.D{
 		{Key: "$set", Value: bson.D{

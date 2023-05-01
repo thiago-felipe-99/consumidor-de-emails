@@ -174,6 +174,19 @@ func (core *User) Get(userID uuid.UUID) (*model.User, error) {
 	return user, nil
 }
 
+func (core *User) GetAll() ([]model.User, error) {
+	users, err := core.database.GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("error getting alls users from database: %w", err)
+	}
+
+	for index := range users {
+		users[index].Password = ""
+	}
+
+	return users, nil
+}
+
 func (core *User) GetByNameOrEmail(name, email string) (*model.User, error) {
 	exist, err := core.ExistByNameOrEmail(name, email)
 	if err != nil {

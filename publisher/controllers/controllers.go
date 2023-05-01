@@ -83,7 +83,7 @@ func (controller *User) create(handler *fiber.Ctx) error {
 //	@Failure		404	{object}	sent	"user does not exist"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user [get]
-//	@Description	Get current user informatios.
+//	@Description	Get current user informations.
 func (controller *User) get(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
@@ -98,6 +98,33 @@ func (controller *User) get(handler *fiber.Ctx) error {
 	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
 
 	unexpectMessageError := "error getting user"
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		handler,
+	)
+}
+
+// Get all users informations
+//
+//	@Summary		Get user
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	sent	"user informations"
+//	@Failure		401	{object}	sent	"user session has expired"
+//	@Failure		403	{object}	sent	"user is not admin"
+//	@Failure		500	{object}	sent	"internal server error"
+//	@Router			/user/all [get]
+//	@Description	Get all users informations.
+func (controller *User) getAll(handler *fiber.Ctx) error {
+	funcCore := func() ([]model.User, error) { return controller.core.GetAll() }
+
+	expectErrors := []expectError{}
+
+	unexpectMessageError := "error getting all users"
 
 	return callingCoreWithReturn(
 		funcCore,
@@ -163,6 +190,7 @@ func (controller *User) update(handler *fiber.Ctx) error {
 //	@Produce		json
 //	@Success		200	{object}	sent	"user deleted"
 //	@Failure		401	{object}	sent	"user session has expired"
+//	@Failure		403	{object}	sent	"user is protected"
 //	@Failure		404	{object}	sent	"user dont exist"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user [delete]
