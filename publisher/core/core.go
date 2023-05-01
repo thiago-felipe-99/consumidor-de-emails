@@ -156,7 +156,7 @@ func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {
 	return nil
 }
 
-func (core *User) Get(userID uuid.UUID) (*model.User, error) {
+func (core *User) GetByID(userID uuid.UUID) (*model.User, error) {
 	exist, err := core.existByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
@@ -215,7 +215,7 @@ func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
 		return err
 	}
 
-	user, err := core.Get(userID)
+	user, err := core.GetByID(userID)
 	if err != nil {
 		return fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -236,7 +236,7 @@ func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
 }
 
 func (core *User) Delete(userID uuid.UUID, deleteByID uuid.UUID) error {
-	user, err := core.Get(userID)
+	user, err := core.GetByID(userID)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (core *User) Delete(userID uuid.UUID, deleteByID uuid.UUID) error {
 }
 
 func (core *User) IsAdmin(userID uuid.UUID) (bool, error) {
-	user, err := core.Get(userID)
+	user, err := core.GetByID(userID)
 	if err != nil {
 		return false, err
 	}
@@ -266,18 +266,9 @@ func (core *User) IsAdmin(userID uuid.UUID) (bool, error) {
 }
 
 func (core *User) NewAdmin(userID uuid.UUID) error {
-	exist, err := core.existByID(userID)
+	user, err := core.GetByID(userID)
 	if err != nil {
-		return fmt.Errorf("error checking if user exist in database: %w", err)
-	}
-
-	if !exist {
-		return ErrUserDoesNotExist
-	}
-
-	user, err := core.database.GetByID(userID)
-	if err != nil {
-		return fmt.Errorf("error getting user from database: %w", err)
+		return err
 	}
 
 	user.IsAdmin = true
@@ -291,18 +282,9 @@ func (core *User) NewAdmin(userID uuid.UUID) error {
 }
 
 func (core *User) RemoveAdmin(userID uuid.UUID) error {
-	exist, err := core.existByID(userID)
+	user, err := core.GetByID(userID)
 	if err != nil {
-		return fmt.Errorf("error checking if user exist in database: %w", err)
-	}
-
-	if !exist {
-		return ErrUserDoesNotExist
-	}
-
-	user, err := core.database.GetByID(userID)
-	if err != nil {
-		return fmt.Errorf("error getting user from database: %w", err)
+		return err
 	}
 
 	if user.IsProtected {
@@ -324,18 +306,9 @@ func (core *User) RemoveAdmin(userID uuid.UUID) error {
 }
 
 func (core *User) Protected(userID uuid.UUID) error {
-	exist, err := core.existByID(userID)
+	user, err := core.GetByID(userID)
 	if err != nil {
-		return fmt.Errorf("error checking if user exist in database: %w", err)
-	}
-
-	if !exist {
-		return ErrUserDoesNotExist
-	}
-
-	user, err := core.database.GetByID(userID)
-	if err != nil {
-		return fmt.Errorf("error getting user from database: %w", err)
+		return err
 	}
 
 	user.IsAdmin = true
@@ -347,6 +320,15 @@ func (core *User) Protected(userID uuid.UUID) error {
 	}
 
 	return nil
+}
+
+func (core *User) GetRoles(userID uuid.UUID) ([]model.UserRole, error) {
+	user, err := core.GetByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return user.Roles, nil
 }
 
 func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSession, error) {

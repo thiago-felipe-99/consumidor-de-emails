@@ -59,11 +59,11 @@ func (controller *User) isAdmin(handler *fiber.Ctx) error {
 //	@Tags			user
 //	@Accept			json
 //	@Produce		json
-//	@Success		201		{object}	sent				"session created successfully"
-//	@Failure		400		{object}	sent				"an invalid user param was sent"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			user	body		model.UserPartial	true	"user params"
+//	@Success		201		{object}	sent						"session created successfully"
+//	@Failure		400		{object}	sent						"an invalid user param was sent"
+//	@Failure		404		{object}	sent						"user does not exist"
+//	@Failure		500		{object}	sent						"internal server error"
+//	@Param			user	body		model.UserSessionPartial	true	"user params"
 //	@Router			/user/session [post]
 //	@Description	Create a user session and set in the response cookie.
 func (controller *User) newSession(handler *fiber.Ctx) error {
@@ -325,7 +325,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	funcCore := func() (*model.User, error) { return controller.core.Get(userID) }
+	funcCore := func() (*model.User, error) { return controller.core.GetByID(userID) }
 
 	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
 
@@ -360,7 +360,7 @@ func (controller *User) getByAdmin(handler *fiber.Ctx) error {
 			JSON(sent{"was sent a invalid user ID"})
 	}
 
-	funcCore := func() (*model.User, error) { return controller.core.Get(userID) }
+	funcCore := func() (*model.User, error) { return controller.core.GetByID(userID) }
 
 	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
 
@@ -542,6 +542,41 @@ func (controller *User) deleteUserAdmin(handler *fiber.Ctx) error {
 		unexpectMessageError,
 		okay,
 		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Get current user roles
+//
+//	@Summary		Get user
+//	@Tags			role
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	sent	"roles informations"
+//	@Failure		401	{object}	sent	"user session has expired"
+//	@Failure		404	{object}	sent	"user does not exist"
+//	@Failure		500	{object}	sent	"internal server error"
+//	@Router			/user/role [get]
+//	@Description	Get current user informations.
+func (controller *User) getRoles(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() ([]model.UserRole, error) { return controller.core.GetRoles(userID) }
+
+	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error getting user roles"
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
 		handler,
 	)
 }

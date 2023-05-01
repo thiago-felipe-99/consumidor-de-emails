@@ -153,6 +153,17 @@ definitions:
     required:
     - role
     type: object
+  model.UserSessionPartial:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    required:
+    - password
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -797,6 +808,33 @@ paths:
       summary: Get all users
       tags:
       - admin
+  /user/role:
+    get:
+      consumes:
+      - application/json
+      description: Get current user informations.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: roles informations
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get user
+      tags:
+      - role
   /user/session:
     post:
       consumes:
@@ -808,7 +846,7 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/model.UserPartial'
+          $ref: '#/definitions/model.UserSessionPartial'
       produces:
       - application/json
       responses:

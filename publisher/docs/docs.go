@@ -978,6 +978,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/role": {
+            "get": {
+                "description": "Get current user informations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "role"
+                ],
+                "summary": "Get user",
+                "responses": {
+                    "200": {
+                        "description": "roles informations",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
         "/user/session": {
             "put": {
                 "description": "Refresh a user session and set in the response cookie.",
@@ -1031,7 +1072,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.UserPartial"
+                            "$ref": "#/definitions/model.UserSessionPartial"
                         }
                     }
                 ],
@@ -1293,6 +1334,23 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserSessionPartial": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
                     "type": "string"
                 }
             }
