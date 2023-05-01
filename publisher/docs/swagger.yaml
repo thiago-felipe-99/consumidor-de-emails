@@ -598,10 +598,50 @@ paths:
       tags:
       - user
   /user/admin/{userID}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove the admin role from the user.
+      parameters:
+      - description: user id to be removed from admin role
+        in: path
+        name: userID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: admin role removed
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: was sent a invalid user ID
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "403":
+          description: user is not admin
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Remove admin
+      tags:
+      - user
     post:
       consumes:
       - application/json
-      description: Create a user session and set in the response cookie.
+      description: Create a user admin.
       parameters:
       - description: user id to be promoted to admin
         in: path
@@ -613,6 +653,10 @@ paths:
       responses:
         "201":
           description: admin created successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: was sent a invalid user ID
           schema:
             $ref: '#/definitions/controllers.sent'
         "401":

@@ -230,13 +230,14 @@ func (controller *User) isAdmin(handler *fiber.Ctx) error {
 //	@Accept			json
 //	@Produce		json
 //	@Success		201		{object}	sent	"admin created successfully"
+//	@Failure		400		{object}	sent	"was sent a invalid user ID"
 //	@Failure		401		{object}	sent	"user session has expired"
 //	@Failure		403		{object}	sent	"user is not admin"
 //	@Failure		404		{object}	sent	"user does not exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			userID	path		string	true	"user id to be promoted to admin"
 //	@Router			/user/admin/{userID} [post]
-//	@Description	Create a user session and set in the response cookie.
+//	@Description	Create a user admin.
 func (controller *User) newAdmin(handler *fiber.Ctx) error {
 	userID, err := uuid.Parse(handler.Params("userID"))
 	if err != nil {
@@ -251,6 +252,50 @@ func (controller *User) newAdmin(handler *fiber.Ctx) error {
 	unexpectMessageError := "error promoting user"
 
 	okay := okay{"user promoted to admin", fiber.StatusCreated}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Remove the admin role from the user
+//
+//	@Summary		Remove admin
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent	"admin role removed"
+//	@Failure		400		{object}	sent	"was sent a invalid user ID"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		403		{object}	sent	"user is not admin"
+//	@Failure		404		{object}	sent	"user does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			userID	path		string	true	"user id to be removed from admin role"
+//	@Router			/user/admin/{userID} [delete]
+//	@Description	Remove the admin role from the user.
+func (controller *User) removeAdmin(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	funcCore := func() error { return controller.core.RemoveAdmin(userID) }
+
+	expectErrors := []expectError{
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+		{core.ErrUserIsNotAdmin, fiber.StatusNotFound},
+		{core.ErrUserIsProtected, fiber.StatusForbidden},
+	}
+
+	unexpectMessageError := "error removing admin role"
+
+	okay := okay{"admin role removed", fiber.StatusOK}
 
 	return callingCore(
 		funcCore,

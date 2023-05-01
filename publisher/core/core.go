@@ -274,6 +274,39 @@ func (core *User) NewAdmin(userID uuid.UUID) error {
 	return nil
 }
 
+func (core *User) RemoveAdmin(userID uuid.UUID) error {
+	exist, err := core.existByID(userID)
+	if err != nil {
+		return fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return ErrUserDoesNotExist
+	}
+
+	user, err := core.database.GetByID(userID)
+	if err != nil {
+		return fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	if user.Protected {
+		return ErrUserIsProtected
+	}
+
+	if !user.IsAdmin {
+		return ErrUserIsNotAdmin
+	}
+
+	user.IsAdmin = false
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error updating user in database: %w", err)
+	}
+
+	return nil
+}
+
 func (core *User) Protected(userID uuid.UUID) error {
 	exist, err := core.existByID(userID)
 	if err != nil {
