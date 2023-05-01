@@ -729,6 +729,9 @@ const docTemplate = `{
                         "$ref": "#/definitions/model.Receiver"
                     }
                 },
+                "id": {
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 },
@@ -759,10 +762,19 @@ const docTemplate = `{
                 "dlx": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "maxRetries": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "userIdCreated": {
+                    "type": "string"
+                },
+                "userIdDeleted": {
                     "type": "string"
                 }
             }
@@ -774,7 +786,8 @@ const docTemplate = `{
             ],
             "properties": {
                 "maxRetries": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "name": {
                     "type": "string"
@@ -811,6 +824,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -821,6 +837,15 @@ const docTemplate = `{
                     }
                 },
                 "template": {
+                    "type": "string"
+                },
+                "useId": {
+                    "type": "string"
+                },
+                "userIdCreated": {
+                    "type": "string"
+                },
+                "userIdDeleted": {
                     "type": "string"
                 }
             }
@@ -866,6 +891,8 @@ const docTemplate = `{
         "model.UserPartial": {
             "type": "object",
             "required": [
+                "email",
+                "name",
                 "password"
             ],
             "properties": {

@@ -15,8 +15,6 @@ import (
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
-const sessionDuration = 5 * time.Second
-
 // @title			Publisher Emails
 // @version		1.0
 // @host			localhost:8080
@@ -110,7 +108,7 @@ func main() {
 	cores := core.NewCores(
 		databases,
 		validate,
-		sessionDuration,
+		time.Duration(configs.Session.DurationMinutes)*time.Minute,
 		rabbitConnection,
 		minio,
 		configs.Minio.TemplateBucket,

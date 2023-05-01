@@ -722,6 +722,9 @@
                         "$ref": "#/definitions/model.Receiver"
                     }
                 },
+                "id": {
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 },
@@ -752,10 +755,19 @@
                 "dlx": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "maxRetries": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "userIdCreated": {
+                    "type": "string"
+                },
+                "userIdDeleted": {
                     "type": "string"
                 }
             }
@@ -767,7 +779,8 @@
             ],
             "properties": {
                 "maxRetries": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "name": {
                     "type": "string"
@@ -804,6 +817,9 @@
                         "type": "string"
                     }
                 },
+                "id": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -814,6 +830,15 @@
                     }
                 },
                 "template": {
+                    "type": "string"
+                },
+                "useId": {
+                    "type": "string"
+                },
+                "userIdCreated": {
+                    "type": "string"
+                },
+                "userIdDeleted": {
                     "type": "string"
                 }
             }
@@ -859,6 +884,8 @@
         "model.UserPartial": {
             "type": "object",
             "required": [
+                "email",
+                "name",
                 "password"
             ],
             "properties": {

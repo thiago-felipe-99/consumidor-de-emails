@@ -16,6 +16,8 @@ definitions:
           $ref: '#/definitions/model.Receiver'
         minItems: 1
         type: array
+      id:
+        type: string
       message:
         type: string
       receivers:
@@ -38,14 +40,21 @@ definitions:
         type: string
       dlx:
         type: string
+      id:
+        type: string
       maxRetries:
         type: integer
       name:
+        type: string
+      userIdCreated:
+        type: string
+      userIdDeleted:
         type: string
     type: object
   model.QueuePartial:
     properties:
       maxRetries:
+        minimum: 1
         type: integer
       name:
         type: string
@@ -72,6 +81,8 @@ definitions:
         items:
           type: string
         type: array
+      id:
+        type: string
       name:
         type: string
       roles:
@@ -79,6 +90,12 @@ definitions:
           type: string
         type: array
       template:
+        type: string
+      useId:
+        type: string
+      userIdCreated:
+        type: string
+      userIdDeleted:
         type: string
     type: object
   model.TemplateData:
@@ -115,6 +132,8 @@ definitions:
       password:
         type: string
     required:
+    - email
+    - name
     - password
     type: object
 host: localhost:8080

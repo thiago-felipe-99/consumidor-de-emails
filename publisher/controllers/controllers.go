@@ -43,7 +43,7 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 //	@Router			/user [post]
 //	@Description	Create a user in application.
 func (controller *User) create(handler *fiber.Ctx) error {
-	body := &model.User{}
+	body := &model.UserPartial{}
 
 	err := handler.BodyParser(body)
 	if err != nil {
@@ -208,7 +208,7 @@ func (controller *User) delete(handler *fiber.Ctx) error {
 //	@Router			/user/session [post]
 //	@Description	Create a user session and set in the response cookie.
 func (controller *User) newSession(handler *fiber.Ctx) error {
-	body := &model.UserPartial{}
+	body := &model.UserSessionPartial{}
 
 	err := handler.BodyParser(body)
 	if err != nil {

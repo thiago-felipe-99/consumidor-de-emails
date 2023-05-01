@@ -113,17 +113,13 @@ func (core *User) existByNameOrEmail(name, email string) (bool, error) {
 	return user.DeletedAt.IsZero(), nil
 }
 
-func (core *User) Create(user model.User) error {
-	user.DeletedAt = time.Time{}
-
-	err := validate(core.validator, user)
+func (core *User) Create(partial model.UserPartial) error {
+	err := validate(core.validator, partial)
 	if err != nil {
 		return err
 	}
 
-	user.ID = uuid.New()
-
-	exist, err := core.existByNameOrEmail(user.Name, user.Email)
+	exist, err := core.existByNameOrEmail(partial.Name, partial.Email)
 	if err != nil {
 		return fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -132,12 +128,21 @@ func (core *User) Create(user model.User) error {
 		return ErrUserAlreadyExist
 	}
 
-	hash, err := argon2id.CreateHash(user.Password, &core.argon2id)
+	hash, err := argon2id.CreateHash(partial.Password, &core.argon2id)
 	if err != nil {
 		return fmt.Errorf("error creating password hash: %w", err)
 	}
 
-	user.Password = hash
+	user := model.User{
+		ID:         uuid.New(),
+		Name:       partial.Name,
+		Email:      partial.Email,
+		Password:   hash,
+		Roles:      []string{},
+		CreateadAt: time.Now(),
+		IsAdmin:    false,
+		DeletedAt:  time.Time{},
+	}
 
 	err = core.database.Create(user)
 	if err != nil {
@@ -147,7 +152,69 @@ func (core *User) Create(user model.User) error {
 	return nil
 }
 
-func (core *User) NewSession(partial model.UserPartial) (*model.UserSession, error) {
+func (core *User) Get(userID uuid.UUID) (*model.User, error) {
+	exist, err := core.existByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrUserDoesNotExist
+	}
+
+	user, err := core.database.GetByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user from database: %w", err)
+	}
+
+	user.Password = ""
+
+	return user, nil
+}
+
+func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
+	err := validate(core.validator, partial)
+	if err != nil {
+		return err
+	}
+
+	user, err := core.Get(userID)
+	if err != nil {
+		return fmt.Errorf("error checking if user exist in database: %w", err)
+	}
+
+	hash, err := argon2id.CreateHash(partial.Password, &core.argon2id)
+	if err != nil {
+		return fmt.Errorf("error creating password hash: %w", err)
+	}
+
+	user.Password = hash
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error updating user in database: %w", err)
+	}
+
+	return nil
+}
+
+func (core *User) Delete(userID uuid.UUID) error {
+	user, err := core.Get(userID)
+	if err != nil {
+		return err
+	}
+
+	user.DeletedAt = time.Now()
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error deleting user from database: %w", err)
+	}
+
+	return nil
+}
+
+func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSession, error) {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return nil, err
@@ -246,70 +313,6 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 	}
 
 	return &newSession, nil
-}
-
-func (core *User) Get(userID uuid.UUID) (*model.User, error) {
-	exist, err := core.existByID(userID)
-	if err != nil {
-		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
-	}
-
-	if !exist {
-		return nil, ErrUserDoesNotExist
-	}
-
-	user, err := core.database.GetByID(userID)
-	if err != nil {
-		return nil, fmt.Errorf("error getting user from database: %w", err)
-	}
-
-	user.Password = ""
-
-	return user, nil
-}
-
-func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
-	user, err := core.Get(userID)
-	if err != nil {
-		return fmt.Errorf("error checking if user exist in database: %w", err)
-	}
-
-	user.Password = partial.Password
-
-	err = validate(core.validator, user)
-	if err != nil {
-		return err
-	}
-
-	hash, err := argon2id.CreateHash(user.Password, &core.argon2id)
-	if err != nil {
-		return fmt.Errorf("error creating password hash: %w", err)
-	}
-
-	user.Password = hash
-
-	err = core.database.Update(*user)
-	if err != nil {
-		return fmt.Errorf("error updating user in database: %w", err)
-	}
-
-	return nil
-}
-
-func (core *User) Delete(userID uuid.UUID) error {
-	user, err := core.Get(userID)
-	if err != nil {
-		return err
-	}
-
-	user.DeletedAt = time.Now()
-
-	err = core.database.Update(*user)
-	if err != nil {
-		return fmt.Errorf("error deleting user from database: %w", err)
-	}
-
-	return nil
 }
 
 func NewUser(
