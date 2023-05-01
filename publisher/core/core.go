@@ -29,7 +29,7 @@ var (
 	ErrUserIsNotAdmin           = errors.New("user is not admin")
 	ErrUserIsProtected          = errors.New("user is protected")
 	ErrRoleAlreadyExist         = errors.New("role already exist")
-	ErrRolrDoesNotExist         = errors.New("role does not exist")
+	ErrRoleDoesNotExist         = errors.New("role does not exist")
 	ErrQueueAlreadyExist        = errors.New("queue already exist")
 	ErrQueueDoesNotExist        = errors.New("queue does not exist")
 	ErrBodyValidate             = errors.New("unable to parse body")
@@ -173,8 +173,6 @@ func (core *User) GetByID(userID uuid.UUID) (*model.User, error) {
 		return nil, fmt.Errorf("error getting user from database: %w", err)
 	}
 
-	user.Password = ""
-
 	return user, nil
 }
 
@@ -182,10 +180,6 @@ func (core *User) GetAll() ([]model.User, error) {
 	users, err := core.database.GetAll()
 	if err != nil {
 		return nil, fmt.Errorf("error getting alls users from database: %w", err)
-	}
-
-	for index := range users {
-		users[index].Password = ""
 	}
 
 	return users, nil
@@ -205,8 +199,6 @@ func (core *User) GetByNameOrEmail(name, email string) (*model.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting user from database: %w", err)
 	}
-
-	user.Password = ""
 
 	return user, nil
 }
@@ -346,6 +338,40 @@ func (core *User) existRole(role string) (bool, error) {
 	return true, nil
 }
 
+func existsInSlice[T comparable](slice []T, find T) (int, bool) {
+	for index, element := range slice {
+		if element == find {
+			return index, true
+		}
+	}
+
+	return 0, false
+}
+
+func (core *User) existRoles(roles []string) (bool, error) {
+	if len(roles) == 0 {
+		return true, nil
+	}
+
+	rolesRaw, err := core.database.GetAllRoles()
+	if err != nil {
+		return false, fmt.Errorf("error getting role from database: %w", err)
+	}
+
+	rolesNames := make([]string, 0, len(rolesRaw))
+	for _, role := range rolesRaw {
+		rolesNames = append(rolesNames, role.Name)
+	}
+
+	for _, role := range roles {
+		if _, exist := existsInSlice(rolesNames, role); !exist {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 func (core *User) CreateRole(partial model.RolePartial, userID uuid.UUID) error {
 	err := validate(core.validator, partial)
 	if err != nil {
@@ -378,17 +404,11 @@ func (core *User) CreateRole(partial model.RolePartial, userID uuid.UUID) error 
 	return nil
 }
 
-func existSlice[T comparable](slice []T, find T) bool {
-	for _, element := range slice {
-		if element == find {
-			return true
-		}
+func (core *User) HasRoles(userID uuid.UUID, roles []model.UserRole) (bool, error) {
+	if len(roles) == 0 {
+		return true, nil
 	}
 
-	return false
-}
-
-func (core *User) HasRoles(userID uuid.UUID, roles []model.RolePartial) (bool, error) {
 	user, err := core.GetByID(userID)
 	if err != nil {
 		return false, err
@@ -404,12 +424,71 @@ func (core *User) HasRoles(userID uuid.UUID, roles []model.RolePartial) (bool, e
 	}
 
 	for _, role := range roles {
-		if !existSlice(userRoles, role.Name) {
+		index, exist := existsInSlice(userRoles, role.Name)
+		if !exist {
+			return false, nil
+		}
+
+		if (role.IsAdmin && !user.Roles[index].IsAdmin) ||
+			(role.IsProtected && !user.Roles[index].IsProtected) {
 			return false, nil
 		}
 	}
 
 	return true, nil
+}
+
+func (core *User) AddRoles(roles []model.UserRole, userID uuid.UUID) error {
+	if len(roles) == 0 {
+		return nil
+	}
+
+	user, err := core.GetByID(userID)
+	if err != nil {
+		return err
+	}
+
+	rolesName := make([]string, 0, len(roles))
+	for _, role := range roles {
+		rolesName = append(rolesName, role.Name)
+	}
+
+	exist, err := core.existRoles(rolesName)
+	if err != nil {
+		return fmt.Errorf("eror checking if roles exist: %w", err)
+	}
+
+	if !exist {
+		return ErrRoleDoesNotExist
+	}
+
+	userRolesName := make([]string, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		userRolesName = append(userRolesName, role.Name)
+	}
+
+	for _, role := range roles {
+		index, exist := existsInSlice(userRolesName, role.Name)
+		if !exist {
+			newRole := model.UserRole{
+				Name:        role.Name,
+				IsAdmin:     role.IsAdmin || role.IsProtected,
+				IsProtected: role.IsProtected,
+			}
+
+			user.Roles = append(user.Roles, newRole)
+		} else if !user.Roles[index].IsProtected {
+			user.Roles[index].IsAdmin = role.IsAdmin || role.IsProtected
+			user.Roles[index].IsProtected = role.IsProtected
+		}
+	}
+
+	err = core.database.Update(*user)
+	if err != nil {
+		return fmt.Errorf("error updating user: %w", err)
+	}
+
+	return nil
 }
 
 func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSession, error) {

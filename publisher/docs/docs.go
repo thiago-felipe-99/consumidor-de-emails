@@ -1089,6 +1089,81 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/role/{userID}": {
+            "put": {
+                "description": "Add role to user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "role",
+                    "admin"
+                ],
+                "summary": "Add role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be promoted",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "role params",
+                        "name": "role",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.UserRole"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "role created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid role params",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user does not have all roles",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
         "/user/session": {
             "put": {
                 "description": "Refresh a user session and set in the response cookie.",
@@ -1404,9 +1479,6 @@ const docTemplate = `{
         },
         "model.UserRole": {
             "type": "object",
-            "required": [
-                "name"
-            ],
             "properties": {
                 "isAdmin": {
                     "type": "boolean"

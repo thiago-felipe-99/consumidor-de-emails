@@ -21,9 +21,9 @@ type Role struct {
 }
 
 type UserRole struct {
-	Name        string `json:"name"        bson:"name"         validate:"required"`
-	IsAdmin     bool   `json:"isAdmin"     bson:"is_admin"     validate:"-"`
-	IsProtected bool   `json:"isProtected" bson:"is_protected" validate:"-"`
+	Name        string `json:"name"        bson:"name"`
+	IsAdmin     bool   `json:"isAdmin"     bson:"is_admin"`
+	IsProtected bool   `json:"isProtected" bson:"is_protected"`
 }
 
 type UserPartial struct {

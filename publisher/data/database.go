@@ -84,6 +84,7 @@ func (database *User) Update(user model.User) error {
 			{Key: "deleted_by", Value: user.DeletedBy},
 			{Key: "is_admin", Value: user.IsAdmin},
 			{Key: "protected", Value: user.IsProtected},
+			{Key: "roles", Value: user.Roles},
 		}},
 	}
 
@@ -161,6 +162,24 @@ func (database *User) GetRole(name string) (*model.Role, error) {
 	err := database.db.Collection("roles").FindOne(context.Background(), filter).Decode(role)
 	if err != nil {
 		return nil, fmt.Errorf("error getting role from database: %w", err)
+	}
+
+	return role, nil
+}
+
+func (database *User) GetAllRoles() ([]model.Role, error) {
+	filter := bson.D{}
+
+	role := []model.Role{}
+
+	cursor, err := database.db.Collection("roles").Find(context.Background(), filter)
+	if err != nil {
+		return nil, fmt.Errorf("error getting role from database: %w", err)
+	}
+
+	err = cursor.All(context.Background(), &role)
+	if err != nil {
+		return nil, fmt.Errorf("error getting all roles: %w", err)
 	}
 
 	return role, nil

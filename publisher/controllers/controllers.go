@@ -325,7 +325,16 @@ func (controller *User) get(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	funcCore := func() (*model.User, error) { return controller.core.GetByID(userID) }
+	funcCore := func() (*model.User, error) {
+		user, err := controller.core.GetByID(userID)
+		if err != nil {
+			return nil, err
+		}
+
+		user.Password = ""
+
+		return user, nil
+	}
 
 	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
 
@@ -360,7 +369,16 @@ func (controller *User) getByAdmin(handler *fiber.Ctx) error {
 			JSON(sent{"was sent a invalid user ID"})
 	}
 
-	funcCore := func() (*model.User, error) { return controller.core.GetByID(userID) }
+	funcCore := func() (*model.User, error) {
+		user, err := controller.core.GetByID(userID)
+		if err != nil {
+			return nil, err
+		}
+
+		user.Password = ""
+
+		return user, nil
+	}
 
 	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
 
@@ -387,7 +405,18 @@ func (controller *User) getByAdmin(handler *fiber.Ctx) error {
 //	@Router			/user/all [get]
 //	@Description	Get all users informations.
 func (controller *User) getAll(handler *fiber.Ctx) error {
-	funcCore := func() ([]model.User, error) { return controller.core.GetAll() }
+	funcCore := func() ([]model.User, error) {
+		users, err := controller.core.GetAll()
+		if err != nil {
+			return nil, err
+		}
+
+		for index := range users {
+			users[index].Password = ""
+		}
+
+		return users, nil
+	}
 
 	expectErrors := []expectError{}
 
@@ -581,7 +610,7 @@ func (controller *User) getRoles(handler *fiber.Ctx) error {
 	)
 }
 
-func (controller *User) hasRoles(handler *fiber.Ctx) error { //nolint: unused
+func (controller *User) hasRoles(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(uuid.UUID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
@@ -590,7 +619,7 @@ func (controller *User) hasRoles(handler *fiber.Ctx) error { //nolint: unused
 			JSON(sent{"error refreshing session"})
 	}
 
-	roles := &[]model.RolePartial{}
+	roles := &[]model.UserRole{}
 
 	err := handler.BodyParser(roles)
 	if err != nil {
@@ -651,6 +680,54 @@ func (controller *User) createRole(handler *fiber.Ctx) error {
 	unexpectMessageError := "error creating role"
 
 	okay := okay{"role created", fiber.StatusCreated}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Add role to user
+//
+//	@Summary		Add role
+//	@Tags			role, admin
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent				"role created successfully"
+//	@Failure		400		{object}	sent				"was sent a invalid role params"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"current user does not have all roles"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			userID	path		string				true	"user id to be promoted"
+//	@Param			role	body		[]model.UserRole	true	"role params"
+//	@Router			/user/role/{userID} [put]
+//	@Description	Add role to user.
+func (controller *User) addRoles(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	roles := &[]model.UserRole{}
+
+	err = handler.BodyParser(roles)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	funcCore := func() error { return controller.core.AddRoles(*roles, userID) }
+
+	expectErrors := []expectError{{core.ErrRoleDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error adding roles"
+
+	okay := okay{"added roles", fiber.StatusOK}
 
 	return callingCore(
 		funcCore,
