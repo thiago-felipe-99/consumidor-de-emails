@@ -85,7 +85,7 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 
 	expectErrors := []expectError{
 		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-		{core.ErrDifferentPassword, fiber.StatusBadRequest},
+		{core.ErrUserWrongPassword, fiber.StatusBadRequest},
 	}
 
 	unexpectMessageError := "error creating user session"
@@ -549,7 +549,7 @@ func (controller *User) deleteUserAdmin(handler *fiber.Ctx) error {
 // Get current user roles
 //
 //	@Summary		Get user
-//	@Tags			role
+//	@Tags			role, user
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	sent	"roles informations"
@@ -577,6 +577,56 @@ func (controller *User) getRoles(handler *fiber.Ctx) error {
 		funcCore,
 		expectErrors,
 		unexpectMessageError,
+		handler,
+	)
+}
+
+// Create a role
+//
+//	@Summary		Create role
+//	@Tags			role, admin
+//	@Accept			json
+//	@Produce		json
+//	@Success		201		{object}	sent				"role created successfully"
+//	@Failure		400		{object}	sent				"was sent a invalid role params"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"current user is not admin"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		409		{object}	sent				"role already exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			role	body		model.RolePartial	true	"role params"
+//	@Router			/user/role [post]
+//	@Description	Create a role.
+func (controller *User) createRole(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	role := &model.RolePartial{}
+
+	err := handler.BodyParser(role)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	funcCore := func() error { return controller.core.CreateRole(*role, userID) }
+
+	expectErrors := []expectError{{core.ErrRoleAlreadyExist, fiber.StatusConflict}}
+
+	unexpectMessageError := "error creating role"
+
+	okay := okay{"role created", fiber.StatusCreated}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
 		handler,
 	)
 }

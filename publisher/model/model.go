@@ -7,6 +7,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type RolePartial struct {
+	Name string `json:"name" validate:"required"`
+}
+
 type Role struct {
 	ID        uuid.UUID `json:"id"                  bson:"_id"`
 	Name      string    `json:"name"                bson:"name"`

@@ -144,6 +144,28 @@ func (database *User) UpdateSession(session model.UserSession) error {
 	return nil
 }
 
+func (database *User) CreateRole(role model.Role) error {
+	_, err := database.db.Collection("roles").InsertOne(context.Background(), role)
+	if err != nil {
+		return fmt.Errorf("error creating role in database: %w", err)
+	}
+
+	return nil
+}
+
+func (database *User) GetRole(name string) (*model.Role, error) {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	role := &model.Role{}
+
+	err := database.db.Collection("roles").FindOne(context.Background(), filter).Decode(role)
+	if err != nil {
+		return nil, fmt.Errorf("error getting role from database: %w", err)
+	}
+
+	return role, nil
+}
+
 func NewUserDatabase(client *mongo.Client) *User {
 	return &User{client.Database("user")}
 }

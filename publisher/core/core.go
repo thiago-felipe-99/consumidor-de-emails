@@ -20,14 +20,16 @@ import (
 )
 
 var (
+	ErrInvalidID                = errors.New("was sent a invalid ID")
+	ErrInvalidName              = errors.New("was sent a invalid name")
 	ErrUserAlreadyExist         = errors.New("user already exist")
 	ErrUserDoesNotExist         = errors.New("user does not exist")
+	ErrUserWrongPassword        = errors.New("was sent a wrong password")
 	ErrUserSessionDoesNotExist  = errors.New("user session does not exist")
 	ErrUserIsNotAdmin           = errors.New("user is not admin")
 	ErrUserIsProtected          = errors.New("user is protected")
-	ErrInvalidID                = errors.New("was sent a invalid ID")
-	ErrDifferentPassword        = errors.New("was sent a different password")
-	ErrInvalidName              = errors.New("was sent a invalid name")
+	ErrRoleAlreadyExist         = errors.New("role already exist")
+	ErrRolrDoesNotExist         = errors.New("role does not exist")
 	ErrQueueAlreadyExist        = errors.New("queue already exist")
 	ErrQueueDoesNotExist        = errors.New("queue does not exist")
 	ErrBodyValidate             = errors.New("unable to parse body")
@@ -331,6 +333,51 @@ func (core *User) GetRoles(userID uuid.UUID) ([]model.UserRole, error) {
 	return user.Roles, nil
 }
 
+func (core *User) existRole(role string) (bool, error) {
+	_, err := core.database.GetRole(role)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("error getting role from database: %w", err)
+	}
+
+	return true, nil
+}
+
+func (core *User) CreateRole(partial model.RolePartial, userID uuid.UUID) error {
+	err := validate(core.validator, partial)
+	if err != nil {
+		return err
+	}
+
+	exist, err := core.existRole(partial.Name)
+	if err != nil {
+		return fmt.Errorf("error checking if role exist: %w", err)
+	}
+
+	if exist {
+		return ErrRoleAlreadyExist
+	}
+
+	role := model.Role{
+		ID:        uuid.New(),
+		Name:      partial.Name,
+		CreatedAt: time.Now(),
+		CreatedBy: userID,
+		DeletedAt: time.Time{},
+		DeletedBy: uuid.UUID{},
+	}
+
+	err = core.database.CreateRole(role)
+	if err != nil {
+		return fmt.Errorf("error creating role in database: %w", err)
+	}
+
+	return nil
+}
+
 func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSession, error) {
 	err := validate(core.validator, partial)
 	if err != nil {
@@ -357,7 +404,7 @@ func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSessi
 	}
 
 	if !equals {
-		return nil, ErrDifferentPassword
+		return nil, ErrUserWrongPassword
 	}
 
 	session := model.UserSession{

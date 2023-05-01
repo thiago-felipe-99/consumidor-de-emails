@@ -73,6 +73,13 @@ definitions:
     - email
     - name
     type: object
+  model.RolePartial:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
   model.Template:
     properties:
       createdAt:
@@ -835,6 +842,53 @@ paths:
       summary: Get user
       tags:
       - role
+      - user
+    post:
+      consumes:
+      - application/json
+      description: Create a role.
+      parameters:
+      - description: role params
+        in: body
+        name: role
+        required: true
+        schema:
+          $ref: '#/definitions/model.RolePartial'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: role created successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: was sent a invalid role params
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "403":
+          description: current user is not admin
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: user does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "409":
+          description: role already exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Create role
+      tags:
+      - role
+      - admin
   /user/session:
     post:
       consumes:
