@@ -45,6 +45,14 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 //	@Router			/user [post]
 //	@Description	Create a user in application.
 func (controller *User) create(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
 	body := &model.UserPartial{}
 
 	err := handler.BodyParser(body)
@@ -52,7 +60,7 @@ func (controller *User) create(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	funcCore := func() error { return controller.core.Create(*body) }
+	funcCore := func() error { return controller.core.Create(*body, userID) }
 
 	expectErrors := []expectError{
 		{core.ErrUserAlreadyExist, fiber.StatusConflict},
@@ -191,7 +199,7 @@ func (controller *User) update(handler *fiber.Ctx) error {
 //	@Success		200	{object}	sent	"user deleted"
 //	@Failure		401	{object}	sent	"user session has expired"
 //	@Failure		403	{object}	sent	"user is protected"
-//	@Failure		404	{object}	sent	"user dont exist"
+//	@Failure		404	{object}	sent	"user does not exist"
 //	@Failure		500	{object}	sent	"internal server error"
 //	@Router			/user [delete]
 //	@Description	Delete current user.
@@ -204,7 +212,59 @@ func (controller *User) delete(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	funcCore := func() error { return controller.core.Delete(userID) }
+	funcCore := func() error { return controller.core.Delete(userID, userID) }
+
+	expectErrors := []expectError{
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+		{core.ErrUserIsProtected, fiber.StatusForbidden},
+	}
+
+	unexpectMessageError := "error deleting user"
+
+	okay := okay{"user deleted", fiber.StatusOK}
+
+	handler.Locals("deleteSession", true)
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Delete user by admin
+//
+//	@Summary		Delete user admin
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent	"user deleted"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		403		{object}	sent	"user is protected"
+//	@Failure		404		{object}	sent	"user does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			userID	path		string	true	"user id to be deleted"
+//	@Router			/user/admin/{userID}/user [delete]
+//	@Description	Delete user by admin.
+func (controller *User) deleteUserAdmin(handler *fiber.Ctx) error {
+	adminID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	funcCore := func() error { return controller.core.Delete(userID, adminID) }
 
 	expectErrors := []expectError{
 		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
@@ -306,7 +366,7 @@ func (controller *User) newAdmin(handler *fiber.Ctx) error {
 //	@Param			userID	path		string	true	"user id to be removed from admin role"
 //	@Router			/user/admin/{userID} [delete]
 //	@Description	Remove the admin role from the user.
-func (controller *User) removeAdmin(handler *fiber.Ctx) error {
+func (controller *User) removeAdminRole(handler *fiber.Ctx) error {
 	userID, err := uuid.Parse(handler.Params("userID"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
@@ -540,7 +600,7 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 //	@Success		200		{object}	sent	"queue deleted"
 //	@Failure		401		{object}	sent	"user session has expired"
 //	@Failure		403		{object}	sent	"user is not admin"
-//	@Failure		404		{object}	sent	"queue dont exist"
+//	@Failure		404		{object}	sent	"queue does not exist"
 //	@Failure		500		{object}	sent	"internal server error"
 //	@Param			name	path		string	true	"queue name"
 //	@Router			/email/queue/{name} [delete]

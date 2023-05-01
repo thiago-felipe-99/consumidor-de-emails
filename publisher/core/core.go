@@ -115,7 +115,7 @@ func (core *User) ExistByNameOrEmail(name, email string) (bool, error) {
 	return user.DeletedAt.IsZero(), nil
 }
 
-func (core *User) Create(partial model.UserPartial) error {
+func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return err
@@ -136,14 +136,16 @@ func (core *User) Create(partial model.UserPartial) error {
 	}
 
 	user := model.User{
-		ID:         uuid.New(),
-		Name:       partial.Name,
-		Email:      partial.Email,
-		Password:   hash,
-		Roles:      []string{},
-		CreateadAt: time.Now(),
-		IsAdmin:    false,
-		DeletedAt:  time.Time{},
+		ID:        uuid.New(),
+		Name:      partial.Name,
+		Email:     partial.Email,
+		Password:  hash,
+		Roles:     []string{},
+		CreatedAt: time.Now(),
+		CreatedBy: adminID,
+		IsAdmin:   false,
+		DeletedAt: time.Time{},
+		DeletedBy: uuid.UUID{},
 	}
 
 	err = core.database.Create(user)
@@ -233,7 +235,7 @@ func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
 	return nil
 }
 
-func (core *User) Delete(userID uuid.UUID) error {
+func (core *User) Delete(userID uuid.UUID, deleteByID uuid.UUID) error {
 	user, err := core.Get(userID)
 	if err != nil {
 		return err
@@ -244,6 +246,7 @@ func (core *User) Delete(userID uuid.UUID) error {
 	}
 
 	user.DeletedAt = time.Now()
+	user.DeletedBy = deleteByID
 
 	err = core.database.Update(*user)
 	if err != nil {
@@ -376,11 +379,11 @@ func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSessi
 	}
 
 	session := model.UserSession{
-		ID:         uuid.New(),
-		UserID:     user.ID,
-		CreateadAt: time.Now(),
-		Expires:    time.Now().Add(core.durationSession),
-		DeletedAt:  time.Now().Add(core.durationSession),
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		CreateaAt: time.Now(),
+		Expires:   time.Now().Add(core.durationSession),
+		DeletedAt: time.Now().Add(core.durationSession),
 	}
 
 	err = core.database.SaveSession(session)
@@ -432,11 +435,11 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 	}
 
 	newSession := model.UserSession{
-		ID:         uuid.New(),
-		UserID:     currentSession.UserID,
-		CreateadAt: time.Now(),
-		Expires:    time.Now().Add(core.durationSession),
-		DeletedAt:  time.Now().Add(core.durationSession),
+		ID:        uuid.New(),
+		UserID:    currentSession.UserID,
+		CreateaAt: time.Now(),
+		Expires:   time.Now().Add(core.durationSession),
+		DeletedAt: time.Now().Add(core.durationSession),
 	}
 
 	err = core.database.SaveSession(newSession)

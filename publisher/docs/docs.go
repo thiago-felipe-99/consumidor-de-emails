@@ -158,7 +158,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "queue dont exist",
+                        "description": "queue does not exist",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -691,7 +691,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "user dont exist",
+                        "description": "user does not exist",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -808,6 +808,62 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/admin/{userID}/user": {
+            "delete": {
+                "description": "Delete user by admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Delete user admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be deleted",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "user is protected",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -1013,7 +1069,13 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "createdBy": {
+                    "type": "string"
+                },
                 "deletedAt": {
+                    "type": "string"
+                },
+                "deletedBy": {
                     "type": "string"
                 },
                 "dlx": {
@@ -1026,12 +1088,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "name": {
-                    "type": "string"
-                },
-                "userIdCreated": {
-                    "type": "string"
-                },
-                "userIdDeleted": {
                     "type": "string"
                 }
             }
@@ -1072,7 +1128,13 @@ const docTemplate = `{
                 "createdAt": {
                     "type": "string"
                 },
+                "createdBy": {
+                    "type": "string"
+                },
                 "deletedAt": {
+                    "type": "string"
+                },
+                "deletedBy": {
                     "type": "string"
                 },
                 "fields": {
@@ -1097,12 +1159,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "useId": {
-                    "type": "string"
-                },
-                "userIdCreated": {
-                    "type": "string"
-                },
-                "userIdDeleted": {
                     "type": "string"
                 }
             }

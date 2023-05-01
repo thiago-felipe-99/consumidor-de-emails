@@ -14,15 +14,17 @@ type UserPartial struct {
 }
 
 type User struct {
-	ID         uuid.UUID `json:"id"                  bson:"_id"`
-	Name       string    `json:"name"                bson:"name"`
-	Email      string    `json:"email"               bson:"email"`
-	Password   string    `json:"password,omitempty"  bson:"password"`
-	CreateadAt time.Time `json:"createdAt"           bson:"created_at"`
-	DeletedAt  time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
-	Roles      []string  `json:"roles,omitempty"     bson:"roles"`
-	IsAdmin    bool      `json:"isAdmin,omitempty"   bson:"is_admin"`
-	Protected  bool      `json:"protected,omitempty" bson:"protected"`
+	ID        uuid.UUID `json:"id"                  bson:"_id"`
+	Name      string    `json:"name"                bson:"name"`
+	Email     string    `json:"email"               bson:"email"`
+	Password  string    `json:"password,omitempty"  bson:"password"`
+	CreatedAt time.Time `json:"createdAt"           bson:"created_at"`
+	CreatedBy uuid.UUID `json:"createdBy"           bson:"created_by"`
+	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
+	Roles     []string  `json:"roles,omitempty"     bson:"roles"`
+	IsAdmin   bool      `json:"isAdmin,omitempty"   bson:"is_admin"`
+	Protected bool      `json:"protected,omitempty" bson:"protected"`
 }
 
 type UserRoles struct {
@@ -30,12 +32,12 @@ type UserRoles struct {
 }
 
 type Role struct {
-	ID            uuid.UUID `json:"id"                      bson:"_id"`
-	Name          string    `json:"name"                    bson:"name"`
-	CreatedAt     time.Time `json:"createdAt"               bson:"created_at"`
-	UserIDCreated uuid.UUID `json:"userIdCreated"           bson:"user_id_created"`
-	DeletedAt     time.Time `json:"deletedAt,omitempty"     bson:"deleted_at"`
-	UserIDDeleted uuid.UUID `json:"userIdDeleted,omitempty" bson:"user_id_deleted"`
+	ID        uuid.UUID `json:"id"                  bson:"_id"`
+	Name      string    `json:"name"                bson:"name"`
+	CreatedAt time.Time `json:"createdAt"           bson:"created_at"`
+	CreatedBy uuid.UUID `json:"createdBy"           bson:"created_by"`
+	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type UserSessionPartial struct {
@@ -45,11 +47,11 @@ type UserSessionPartial struct {
 }
 
 type UserSession struct {
-	ID         uuid.UUID `json:"id"                  bson:"_id"`
-	UserID     uuid.UUID `json:"userId"              bson:"user_id"`
-	CreateadAt time.Time `json:"createdAt"           bson:"created_at"`
-	Expires    time.Time `json:"expires"             bson:"expires"`
-	DeletedAt  time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
+	ID        uuid.UUID `json:"id"                  bson:"_id"`
+	UserID    uuid.UUID `json:"userId"              bson:"user_id"`
+	CreateaAt time.Time `json:"createdAt"           bson:"created_at"`
+	Expires   time.Time `json:"expires"             bson:"expires"`
+	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
 }
 
 type QueuePartial struct {
@@ -58,14 +60,14 @@ type QueuePartial struct {
 }
 
 type Queue struct {
-	ID            uuid.UUID `json:"id"                      bson:"_id"`
-	Name          string    `json:"name"                    bson:"name"`
-	DLX           string    `json:"dlx"                     bson:"dlx"`
-	MaxRetries    int64     `json:"maxRetries"              bson:"max_retries"`
-	CreatedAt     time.Time `json:"createdAt"               bson:"created_at"`
-	UserIDCreated uuid.UUID `json:"userIdCreated"           bson:"user_id_created"`
-	DeletedAt     time.Time `json:"deletedAt,omitempty"     bson:"deleted_at"`
-	UserIDDeleted uuid.UUID `json:"userIdDeleted,omitempty" bson:"user_id_deleted"`
+	ID         uuid.UUID `json:"id"                  bson:"_id"`
+	Name       string    `json:"name"                bson:"name"`
+	DLX        string    `json:"dlx"                 bson:"dlx"`
+	MaxRetries int64     `json:"maxRetries"          bson:"max_retries"`
+	CreatedAt  time.Time `json:"createdAt"           bson:"created_at"`
+	CreatedBy  uuid.UUID `json:"createdBy"           bson:"created_by"`
+	DeletedAt  time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy  uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type Receiver struct {
@@ -108,15 +110,15 @@ type EmailListPartial struct {
 }
 
 type EmailList struct {
-	ID            uuid.UUID `json:"id"                      bson:"_id"`
-	Emails        []string  `json:"emails"                  bson:"emails"`
-	Name          string    `json:"name"                    bson:"name"`
-	Description   string    `json:"description"             bson:"description"`
-	Roles         []string  `json:"roles,omitempty"         bson:"roles"`
-	CreatedAt     time.Time `json:"createdAt"               bson:"created_at"`
-	UserIDCreated uuid.UUID `json:"userIdCreated"           bson:"user_id_created"`
-	DeletedAt     time.Time `json:"deletedAt,omitempty"     bson:"deleted_at"`
-	UserIDDeleted uuid.UUID `json:"userIdDeleted,omitempty" bson:"user_id_deleted"`
+	ID          uuid.UUID `json:"id"                  bson:"_id"`
+	Emails      []string  `json:"emails"              bson:"emails"`
+	Name        string    `json:"name"                bson:"name"`
+	Description string    `json:"description"         bson:"description"`
+	Roles       []string  `json:"roles,omitempty"     bson:"roles"`
+	CreatedAt   time.Time `json:"createdAt"           bson:"created_at"`
+	CreatedBy   uuid.UUID `json:"createdBy"           bson:"created_by"`
+	DeletedAt   time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy   uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type TemplatePartial struct {
@@ -126,16 +128,16 @@ type TemplatePartial struct {
 }
 
 type Template struct {
-	ID            uuid.UUID `json:"id"                      bson:"_id"`
-	UserID        uuid.UUID `json:"useId"                   bson:"user_id"`
-	Name          string    `json:"name"                    bson:"name"`
-	Template      string    `json:"template"                bson:"template"`
-	Fields        []string  `json:"fields,omitempty"        bson:"fields"`
-	Roles         []string  `json:"roles,omitempty"         bson:"roles"`
-	CreatedAt     time.Time `json:"createdAt"               bson:"created_at"`
-	UserIDCreated uuid.UUID `json:"userIdCreated"           bson:"user_id_created"`
-	DeletedAt     time.Time `json:"deletedAt,omitempty"     bson:"deleted_at"`
-	UserIDDeleted uuid.UUID `json:"userIdDeleted,omitempty" bson:"user_id_deleted"`
+	ID        uuid.UUID `json:"id"                  bson:"_id"`
+	UserID    uuid.UUID `json:"useId"               bson:"user_id"`
+	Name      string    `json:"name"                bson:"name"`
+	Template  string    `json:"template"            bson:"template"`
+	Fields    []string  `json:"fields,omitempty"    bson:"fields"`
+	Roles     []string  `json:"roles,omitempty"     bson:"roles"`
+	CreatedAt time.Time `json:"createdAt"           bson:"created_at"`
+	CreatedBy uuid.UUID `json:"createdBy"           bson:"created_by"`
+	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type AttachmentPartial struct {
