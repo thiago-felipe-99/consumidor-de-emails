@@ -29,6 +29,230 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 	return language
 }
 
+func (controller *User) isAdmin(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	isAdmin, err := controller.core.IsAdmin(userID)
+	if err != nil {
+		log.Printf("[ERROR] - error getting if user is admin: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error getting if user is admin"})
+	}
+
+	if !isAdmin {
+		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user is not admin"})
+	}
+
+	return handler.Next()
+}
+
+// Create a user session
+//
+//	@Summary		Create session
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		201		{object}	sent				"session created successfully"
+//	@Failure		400		{object}	sent				"an invalid user param was sent"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			user	body		model.UserPartial	true	"user params"
+//	@Router			/user/session [post]
+//	@Description	Create a user session and set in the response cookie.
+func (controller *User) newSession(handler *fiber.Ctx) error {
+	body := &model.UserSessionPartial{}
+
+	err := handler.BodyParser(body)
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	}
+
+	session := &model.UserSession{}
+
+	funcCore := func() error {
+		sessionTemp, err := controller.core.NewSession(*body)
+		session = sessionTemp
+
+		return err
+	}
+
+	expectErrors := []expectError{
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+		{core.ErrDifferentPassword, fiber.StatusBadRequest},
+	}
+
+	unexpectMessageError := "error creating user session"
+
+	okay := okay{"session created", fiber.StatusCreated}
+
+	err = callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+
+	cookie := &fiber.Cookie{
+		Name:     "session",
+		Value:    "",
+		Expires:  time.Now(),
+		HTTPOnly: true,
+		Secure:   true,
+	}
+
+	deleteSession, ok := handler.Locals("deleteSession").(bool)
+
+	if session != nil && !(ok && deleteSession) {
+		cookie.Value = session.ID.String()
+		cookie.Expires = session.Expires
+	}
+
+	handler.Cookie(cookie)
+
+	return err
+}
+
+// Refresh a user session
+//
+//	@Summary		Refresh session
+//	@Tags			user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	sent	"user session refreshed successfully"
+//	@Failure		401	{object}	sent	"user session has expired"
+//	@Failure		500	{object}	sent	"internal server error"
+//	@Router			/user/session [put]
+//	@Description	Refresh a user session and set in the response cookie.
+func (controller *User) refreshSession(handler *fiber.Ctx) error {
+	sessionID := handler.Cookies("session", "invalid_session")
+
+	cookie := &fiber.Cookie{
+		Name:     "session",
+		Value:    "",
+		Expires:  time.Now(),
+		HTTPOnly: true,
+		Secure:   true,
+	}
+
+	session, err := controller.core.RefreshSession(sessionID)
+	if err != nil {
+		handler.Cookie(cookie)
+
+		if errors.Is(err, core.ErrUserSessionDoesNotExist) || errors.Is(err, core.ErrInvalidID) {
+			return handler.Status(fiber.StatusUnauthorized).
+				JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
+		}
+
+		log.Printf("[ERROR] - error refreshing session: %s", err)
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	if session != nil {
+		cookie.Value = session.ID.String()
+		cookie.Expires = session.Expires
+	}
+
+	handler.Cookie(cookie)
+	handler.Locals("userID", session.UserID)
+
+	return handler.Next()
+}
+
+// Create a user admin
+//
+//	@Summary		Create admin
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Success		201		{object}	sent	"admin created successfully"
+//	@Failure		400		{object}	sent	"was sent a invalid user ID"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		403		{object}	sent	"current user is not admin"
+//	@Failure		404		{object}	sent	"user does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			userID	path		string	true	"user id to be promoted to admin"
+//	@Router			/user/admin/{userID} [post]
+//	@Description	Create a user admin.
+func (controller *User) newAdmin(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	funcCore := func() error { return controller.core.NewAdmin(userID) }
+
+	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error promoting user"
+
+	okay := okay{"user promoted to admin", fiber.StatusCreated}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Remove the admin role from the user
+//
+//	@Summary		Remove admin
+//	@Tags			admin
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent	"admin role removed"
+//	@Failure		400		{object}	sent	"was sent a invalid user ID"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		403		{object}	sent	"current user is not admin"
+//	@Failure		404		{object}	sent	"user does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			userID	path		string	true	"user id to be removed from admin role"
+//	@Router			/user/admin/{userID} [delete]
+//	@Description	Remove the admin role from the user.
+func (controller *User) removeAdminRole(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	funcCore := func() error { return controller.core.RemoveAdmin(userID) }
+
+	expectErrors := []expectError{
+		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
+		{core.ErrUserIsNotAdmin, fiber.StatusNotFound},
+		{core.ErrUserIsProtected, fiber.StatusForbidden},
+	}
+
+	unexpectMessageError := "error removing admin role"
+
+	okay := okay{"admin role removed", fiber.StatusOK}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
 // Create a user in application
 //
 //	@Summary		Create user
@@ -320,230 +544,6 @@ func (controller *User) deleteUserAdmin(handler *fiber.Ctx) error {
 		controller.getTranslator(handler),
 		handler,
 	)
-}
-
-func (controller *User) isAdmin(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	isAdmin, err := controller.core.IsAdmin(userID)
-	if err != nil {
-		log.Printf("[ERROR] - error getting if user is admin: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting if user is admin"})
-	}
-
-	if !isAdmin {
-		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user is not admin"})
-	}
-
-	return handler.Next()
-}
-
-// Create a user admin
-//
-//	@Summary		Create admin
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		201		{object}	sent	"admin created successfully"
-//	@Failure		400		{object}	sent	"was sent a invalid user ID"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"current user is not admin"
-//	@Failure		404		{object}	sent	"user does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			userID	path		string	true	"user id to be promoted to admin"
-//	@Router			/user/admin/{userID} [post]
-//	@Description	Create a user admin.
-func (controller *User) newAdmin(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	funcCore := func() error { return controller.core.NewAdmin(userID) }
-
-	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error promoting user"
-
-	okay := okay{"user promoted to admin", fiber.StatusCreated}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Remove the admin role from the user
-//
-//	@Summary		Remove admin
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent	"admin role removed"
-//	@Failure		400		{object}	sent	"was sent a invalid user ID"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"current user is not admin"
-//	@Failure		404		{object}	sent	"user does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			userID	path		string	true	"user id to be removed from admin role"
-//	@Router			/user/admin/{userID} [delete]
-//	@Description	Remove the admin role from the user.
-func (controller *User) removeAdminRole(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	funcCore := func() error { return controller.core.RemoveAdmin(userID) }
-
-	expectErrors := []expectError{
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-		{core.ErrUserIsNotAdmin, fiber.StatusNotFound},
-		{core.ErrUserIsProtected, fiber.StatusForbidden},
-	}
-
-	unexpectMessageError := "error removing admin role"
-
-	okay := okay{"admin role removed", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Create a user session
-//
-//	@Summary		Create session
-//	@Tags			user
-//	@Accept			json
-//	@Produce		json
-//	@Success		201		{object}	sent				"session created successfully"
-//	@Failure		400		{object}	sent				"an invalid user param was sent"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			user	body		model.UserPartial	true	"user params"
-//	@Router			/user/session [post]
-//	@Description	Create a user session and set in the response cookie.
-func (controller *User) newSession(handler *fiber.Ctx) error {
-	body := &model.UserSessionPartial{}
-
-	err := handler.BodyParser(body)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	session := &model.UserSession{}
-
-	funcCore := func() error {
-		sessionTemp, err := controller.core.NewSession(*body)
-		session = sessionTemp
-
-		return err
-	}
-
-	expectErrors := []expectError{
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-		{core.ErrDifferentPassword, fiber.StatusBadRequest},
-	}
-
-	unexpectMessageError := "error creating user session"
-
-	okay := okay{"session created", fiber.StatusCreated}
-
-	err = callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-
-	cookie := &fiber.Cookie{
-		Name:     "session",
-		Value:    "",
-		Expires:  time.Now(),
-		HTTPOnly: true,
-		Secure:   true,
-	}
-
-	deleteSession, ok := handler.Locals("deleteSession").(bool)
-
-	if session != nil && !(ok && deleteSession) {
-		cookie.Value = session.ID.String()
-		cookie.Expires = session.Expires
-	}
-
-	handler.Cookie(cookie)
-
-	return err
-}
-
-// Refresh a user session
-//
-//	@Summary		Refresh session
-//	@Tags			user
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	sent	"user session refreshed successfully"
-//	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		500	{object}	sent	"internal server error"
-//	@Router			/user/session [put]
-//	@Description	Refresh a user session and set in the response cookie.
-func (controller *User) refreshSession(handler *fiber.Ctx) error {
-	sessionID := handler.Cookies("session", "invalid_session")
-
-	cookie := &fiber.Cookie{
-		Name:     "session",
-		Value:    "",
-		Expires:  time.Now(),
-		HTTPOnly: true,
-		Secure:   true,
-	}
-
-	session, err := controller.core.RefreshSession(sessionID)
-	if err != nil {
-		handler.Cookie(cookie)
-
-		if errors.Is(err, core.ErrUserSessionDoesNotExist) || errors.Is(err, core.ErrInvalidID) {
-			return handler.Status(fiber.StatusUnauthorized).
-				JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
-		}
-
-		log.Printf("[ERROR] - error refreshing session: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	if session != nil {
-		cookie.Value = session.ID.String()
-		cookie.Expires = session.Expires
-	}
-
-	handler.Cookie(cookie)
-	handler.Locals("userID", session.UserID)
-
-	return handler.Next()
 }
 
 type Queue struct {
