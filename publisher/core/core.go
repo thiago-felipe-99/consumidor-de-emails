@@ -524,7 +524,7 @@ func (core *User) AddRoles(roles []model.UserRole, userID uuid.UUID) error {
 	return nil
 }
 
-func (core *User) DeleteRoles(roles []model.RolePartial, userID uuid.UUID) error {
+func (core *User) DeleteRoles(roles []model.RolePartial, userID uuid.UUID, protected bool) error {
 	if len(roles) == 0 {
 		return nil
 	}
@@ -555,7 +555,7 @@ func (core *User) DeleteRoles(roles []model.RolePartial, userID uuid.UUID) error
 
 	for _, role := range roles {
 		index, exist := existsInSlice(userRolesName, role.Name)
-		if exist && !user.Roles[index].IsProtected {
+		if exist && (!user.Roles[index].IsProtected || protected) {
 			lastIndex := len(user.Roles) - 1
 
 			user.Roles[index] = user.Roles[lastIndex]

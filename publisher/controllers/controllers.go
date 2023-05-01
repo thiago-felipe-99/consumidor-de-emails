@@ -774,37 +774,15 @@ func (controller *User) addRoles(handler *fiber.Ctx) error {
 	)
 }
 
-// Delete user roles
-//
-//	@Summary		Delete roles
-//	@Tags			role, admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent				"user role deleted successfully"
-//	@Failure		400		{object}	sent				"was sent a invalid role params"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user does not have all roles"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			userID	path		string				true	"user id to be promoted"
-//	@Param			role	body		[]model.RolePartial	true	"role params"
-//	@Router			/user/role/{userID} [delete]
-//	@Description	Delete user roles.
-func (controller *User) deleteRoles(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
+func (controller *User) deleteRolesRaw(userID uuid.UUID, protected bool, handler *fiber.Ctx) error {
 	roles := &[]model.RolePartial{}
 
-	err = handler.BodyParser(roles)
+	err := handler.BodyParser(roles)
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	funcCore := func() error { return controller.core.DeleteRoles(*roles, userID) }
+	funcCore := func() error { return controller.core.DeleteRoles(*roles, userID, protected) }
 
 	expectErrors := []expectError{
 		{core.ErrRoleDoesNotExist, fiber.StatusNotFound},
@@ -823,6 +801,85 @@ func (controller *User) deleteRoles(handler *fiber.Ctx) error {
 		controller.getTranslator(handler),
 		handler,
 	)
+}
+
+// Delete current user roles
+//
+//	@Summary		Delete current user roles
+//	@Tags			role, user
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent				"user role deleted successfully"
+//	@Failure		400		{object}	sent				"was sent a invalid role params"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"current user does not have all roles"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			role	body		[]model.RolePartial	true	"role params"
+//	@Router			/user/role [delete]
+//	@Description	Delete current user roles.
+func (controller *User) deleteRolesByCurrentUser(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	return controller.deleteRolesRaw(userID, true, handler)
+}
+
+// Delete user roles
+//
+//	@Summary		Delete user roles
+//	@Tags			role, admin
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent				"user role deleted successfully"
+//	@Failure		400		{object}	sent				"was sent a invalid role params"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"current user does not have all roles"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			userID	path		string				true	"user id to be deleted"
+//	@Param			role	body		[]model.RolePartial	true	"role params"
+//	@Router			/user/role/{userID} [delete]
+//	@Description	Delete user roles.
+func (controller *User) deleteRolesByRolesAdmin(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	return controller.deleteRolesRaw(userID, false, handler)
+}
+
+// Delete user roles by admin
+//
+//	@Summary		Delete user roles by admin
+//	@Tags			role, admin
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent				"user role deleted successfully"
+//	@Failure		400		{object}	sent				"was sent a invalid role params"
+//	@Failure		401		{object}	sent				"user session has expired"
+//	@Failure		403		{object}	sent				"current user does not have all roles"
+//	@Failure		404		{object}	sent				"user does not exist"
+//	@Failure		500		{object}	sent				"internal server error"
+//	@Param			userID	path		string				true	"user id to be deleted"
+//	@Param			role	body		[]model.RolePartial	true	"role params"
+//	@Router			/user/role/{userID}/admin [delete]
+//	@Description	Delete user roles by admin.
+func (controller *User) deleteRolesByAdmin(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("userID"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid user ID"})
+	}
+
+	return controller.deleteRolesRaw(userID, true, handler)
 }
 
 type Queue struct {
