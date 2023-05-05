@@ -135,7 +135,7 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uu
 		return err
 	}
 
-	queueExist, err := core.database.Exist(queue)
+	queueExist, err := core.Exist(queue)
 	if err != nil {
 		return fmt.Errorf("error checking if queue exist: %w", err)
 	}

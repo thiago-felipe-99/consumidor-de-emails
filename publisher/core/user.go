@@ -21,29 +21,21 @@ type User struct {
 }
 
 func (core *User) existByID(userID uuid.UUID) (bool, error) {
-	user, err := core.database.GetByID(userID)
+	exist, err := core.database.ExistByID(userID)
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return false, nil
-		}
-
 		return false, fmt.Errorf("error checking if user exist in database: %w", err)
 	}
 
-	return user.DeletedAt.IsZero(), nil
+	return exist, nil
 }
 
 func (core *User) ExistByNameOrEmail(name, email string) (bool, error) {
-	user, err := core.database.GetByNameOrEmail(name, email)
+	exist, err := core.database.ExistByNameOrEmail(name, email)
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return false, nil
-		}
-
 		return false, fmt.Errorf("error checking if user exist in database: %w", err)
 	}
 
-	return user.DeletedAt.IsZero(), nil
+	return exist, nil
 }
 
 func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {

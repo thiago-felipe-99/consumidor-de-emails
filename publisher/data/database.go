@@ -157,6 +157,19 @@ func (database *User) Create(user model.User) error {
 	return database.users.create(user)
 }
 
+func (database *User) ExistByID(userID uuid.UUID) (bool, error) {
+	return database.users.existByID(userID)
+}
+
+func (database *User) ExistByNameOrEmail(name, email string) (bool, error) {
+	filter := map[string]any{
+		"name":  name,
+		"email": email,
+	}
+
+	return database.users.existByFieldsOr(filter)
+}
+
 func (database *User) GetByID(userID uuid.UUID) (*model.User, error) {
 	return database.users.getByID(userID)
 }
