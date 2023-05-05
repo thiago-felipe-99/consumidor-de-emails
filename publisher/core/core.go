@@ -701,6 +701,15 @@ type Queue struct {
 	validator *validator.Validate
 }
 
+func (core *Queue) Exist(name string) (bool, error) {
+	exist, err := core.database.Exist(name)
+	if err != nil {
+		return false, fmt.Errorf("error checking if queue exist in database: %w", err)
+	}
+
+	return exist, nil
+}
+
 func (core *Queue) Create(partial model.QueuePartial, userID uuid.UUID) error {
 	err := validate(core.validator, partial)
 	if err != nil {
@@ -718,12 +727,12 @@ func (core *Queue) Create(partial model.QueuePartial, userID uuid.UUID) error {
 		DeletedBy:  uuid.UUID{},
 	}
 
-	queueExist, err := core.database.Exist(queue.Name)
+	queueExist, err := core.Exist(queue.Name)
 	if err != nil {
 		return fmt.Errorf("error checking if queue exist in database: %w", err)
 	}
 
-	dlxExist, err := core.database.Exist(queue.Name)
+	dlxExist, err := core.Exist(queue.Name)
 	if err != nil {
 		return fmt.Errorf("error checking if dlx queue exist in database: %w", err)
 	}
@@ -746,7 +755,7 @@ func (core *Queue) Create(partial model.QueuePartial, userID uuid.UUID) error {
 }
 
 func (core *Queue) Get(name string) (*model.Queue, error) {
-	exist, err := core.database.Exist(name)
+	exist, err := core.Exist(name)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if queue exist: %w", err)
 	}
