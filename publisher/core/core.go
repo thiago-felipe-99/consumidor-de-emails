@@ -710,7 +710,7 @@ func (core *Queue) Create(partial model.QueuePartial, userID uuid.UUID) error {
 	queue := model.Queue{
 		ID:         uuid.New(),
 		Name:       partial.Name,
-		DLX:        partial.Name + "dlx",
+		DLX:        partial.Name + "-dlx",
 		MaxRetries: partial.MaxRetries,
 		CreatedAt:  time.Now(),
 		CreatedBy:  userID,
@@ -915,6 +915,15 @@ func (core *Template) getFields(template string) []string {
 	return fields
 }
 
+func (core *Template) Exist(name string) (bool, error) {
+	exist, err := core.database.Exist(name)
+	if err != nil {
+		return false, fmt.Errorf("error checking if template exist in database: %w", err)
+	}
+
+	return exist, nil
+}
+
 func (core *Template) Create(partial model.TemplatePartial, userID uuid.UUID) error {
 	err := validate(core.validate, partial)
 	if err != nil {
@@ -925,7 +934,7 @@ func (core *Template) Create(partial model.TemplatePartial, userID uuid.UUID) er
 		return ErrMaxSizeTemplate
 	}
 
-	exist, err := core.database.Exist(partial.Name)
+	exist, err := core.Exist(partial.Name)
 	if err != nil {
 		return fmt.Errorf("error checking if template exist: %w", err)
 	}
@@ -970,6 +979,46 @@ func (core *Template) Create(partial model.TemplatePartial, userID uuid.UUID) er
 	return nil
 }
 
+func (core *Template) GetAll() ([]model.Template, error) {
+	templates, err := core.database.GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("error getting templates from database: %w", err)
+	}
+
+	return templates, nil
+}
+
+func (core *Template) Get(name string) (*model.Template, error) {
+	if len(name) == 0 {
+		return nil, ErrInvalidName
+	}
+
+	exist, err := core.Exist(name)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if template exist: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrTemplateDoesNotExist
+	}
+
+	template, err := core.database.Get(name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting template from database: %w", err)
+	}
+
+	return template, nil
+}
+
+func (core *Template) GetFields(name string) ([]string, error) {
+	template, err := core.Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return template.Fields, nil
+}
+
 func (core *Template) Update(name string, partial model.TemplatePartial) error {
 	err := validate(core.validate, partial)
 	if err != nil {
@@ -980,18 +1029,9 @@ func (core *Template) Update(name string, partial model.TemplatePartial) error {
 		return ErrMaxSizeTemplate
 	}
 
-	exist, err := core.database.Exist(name)
+	template, err := core.Get(name)
 	if err != nil {
-		return fmt.Errorf("error checking if template exist: %w", err)
-	}
-
-	if !exist {
-		return ErrTemplateDoesNotExist
-	}
-
-	template, err := core.database.Get(name)
-	if err != nil {
-		return fmt.Errorf("error getting template ID: %w", err)
+		return fmt.Errorf("error getting template: %w", err)
 	}
 
 	template.Template = partial.Template
@@ -1019,55 +1059,6 @@ func (core *Template) Update(name string, partial model.TemplatePartial) error {
 	}
 
 	return nil
-}
-
-func (core *Template) Exist(name string) (bool, error) {
-	exist, err := core.database.Exist(name)
-	if err != nil {
-		return false, fmt.Errorf("error checking if template exist in database: %w", err)
-	}
-
-	return exist, nil
-}
-
-func (core *Template) GetFields(name string) ([]string, error) {
-	template, err := core.database.Get(name)
-	if err != nil {
-		return nil, fmt.Errorf("error getting template from database: %w", err)
-	}
-
-	return template.Fields, nil
-}
-
-func (core *Template) GetAll() ([]model.Template, error) {
-	templates, err := core.database.GetAll()
-	if err != nil {
-		return nil, fmt.Errorf("error getting templates from database: %w", err)
-	}
-
-	return templates, nil
-}
-
-func (core *Template) Get(name string) (*model.Template, error) {
-	if len(name) == 0 {
-		return nil, ErrInvalidName
-	}
-
-	exist, err := core.database.Exist(name)
-	if err != nil {
-		return nil, fmt.Errorf("error checking if template exist: %w", err)
-	}
-
-	if !exist {
-		return nil, ErrTemplateDoesNotExist
-	}
-
-	template, err := core.database.Get(name)
-	if err != nil {
-		return nil, fmt.Errorf("error getting template from database: %w", err)
-	}
-
-	return template, nil
 }
 
 func (core *Template) Delete(name string, userID uuid.UUID) error {
