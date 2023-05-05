@@ -202,6 +202,22 @@ func (database *Queue) Create(queue model.Queue) error {
 	return nil
 }
 
+func (database *Queue) Get(name string) (*model.Queue, error) {
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
+
+	queue := &model.Queue{}
+
+	err := database.db.Collection("queues").FindOne(context.Background(), filter).Decode(queue)
+	if err != nil {
+		return nil, fmt.Errorf("error getting queue from database: %w", err)
+	}
+
+	return queue, nil
+}
+
 func (database *Queue) GetAll() ([]model.Queue, error) {
 	queues := []model.Queue{}
 
@@ -224,6 +240,7 @@ func (database *Queue) Exist(name string) (bool, error) {
 			bson.D{{Key: "name", Value: name}},
 			bson.D{{Key: "dlx", Value: name}},
 		}},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 
 	count, err := database.db.Collection("queues").CountDocuments(context.Background(), filter)
@@ -234,12 +251,17 @@ func (database *Queue) Exist(name string) (bool, error) {
 	return count >= 1, nil
 }
 
-func (database *Queue) Delete(name string) error {
-	filter := bson.D{{Key: "name", Value: name}}
+func (database *Queue) Update(queue model.Queue) error {
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "deleted_at", Value: queue.DeletedAt},
+			{Key: "deleted_by", Value: queue.DeletedBy},
+		}},
+	}
 
-	result := database.db.Collection("queues").FindOneAndDelete(context.Background(), filter)
-	if result.Err() != nil {
-		return fmt.Errorf("error deleting queue from database: %w", result.Err())
+	_, err := database.db.Collection("queues").UpdateByID(context.Background(), queue.ID, update)
+	if err != nil {
+		return fmt.Errorf("error updating queue from database: %w", err)
 	}
 
 	return nil

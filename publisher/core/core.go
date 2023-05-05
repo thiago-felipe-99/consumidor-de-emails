@@ -694,10 +694,6 @@ func NewUser(
 	}
 }
 
-func dlxName(name string) string {
-	return name + "-dlx"
-}
-
 type Queue struct {
 	template  *Template
 	rabbit    *rabbit.Rabbit
@@ -705,7 +701,7 @@ type Queue struct {
 	validator *validator.Validate
 }
 
-func (core *Queue) Create(partial model.QueuePartial) error {
+func (core *Queue) Create(partial model.QueuePartial, userID uuid.UUID) error {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return err
@@ -714,9 +710,12 @@ func (core *Queue) Create(partial model.QueuePartial) error {
 	queue := model.Queue{
 		ID:         uuid.New(),
 		Name:       partial.Name,
-		DLX:        dlxName(partial.Name),
+		DLX:        partial.Name + "dlx",
 		MaxRetries: partial.MaxRetries,
 		CreatedAt:  time.Now(),
+		CreatedBy:  userID,
+		DeletedAt:  time.Time{},
+		DeletedBy:  uuid.UUID{},
 	}
 
 	queueExist, err := core.database.Exist(queue.Name)
@@ -746,6 +745,24 @@ func (core *Queue) Create(partial model.QueuePartial) error {
 	return nil
 }
 
+func (core *Queue) Get(name string) (*model.Queue, error) {
+	exist, err := core.database.Exist(name)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if queue exist: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrQueueDoesNotExist
+	}
+
+	queue, err := core.database.Get(name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting queue from database: %w", err)
+	}
+
+	return queue, nil
+}
+
 func (core *Queue) GetAll() ([]model.Queue, error) {
 	queues, err := core.database.GetAll()
 	if err != nil {
@@ -755,26 +772,25 @@ func (core *Queue) GetAll() ([]model.Queue, error) {
 	return queues, nil
 }
 
-func (core *Queue) Delete(name string) error {
+func (core *Queue) Delete(name string, userID uuid.UUID) error {
 	if len(name) == 0 {
 		return ErrInvalidName
 	}
 
-	exist, err := core.database.Exist(name)
+	queue, err := core.Get(name)
 	if err != nil {
-		return fmt.Errorf("error checking if queue exist: %w", err)
+		return err
 	}
 
-	if !exist {
-		return ErrQueueDoesNotExist
-	}
-
-	err = core.rabbit.DeleteQueueWithDLX(name, dlxName(name))
+	err = core.rabbit.DeleteQueueWithDLX(queue.Name, queue.DLX)
 	if err != nil {
 		return fmt.Errorf("error deleting queue from RabbitMQ: %w", err)
 	}
 
-	err = core.database.Delete(name)
+	queue.DeletedAt = time.Now()
+	queue.DeletedBy = userID
+
+	err = core.database.Update(*queue)
 	if err != nil {
 		return fmt.Errorf("error deleting queue from database: %w", err)
 	}

@@ -915,6 +915,14 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 //	@Router			/email/queue [post]
 //	@Description	Create a RabbitMQ queue with DLX.
 func (controller *Queue) create(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
 	body := &model.QueuePartial{
 		MaxRetries: 10, //nolint:gomnd
 	}
@@ -924,7 +932,7 @@ func (controller *Queue) create(handler *fiber.Ctx) error {
 		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
 	}
 
-	funcCore := func() error { return controller.core.Create(*body) }
+	funcCore := func() error { return controller.core.Create(*body, userID) }
 
 	expectErrors := []expectError{{core.ErrQueueAlreadyExist, fiber.StatusConflict}}
 
@@ -977,7 +985,15 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 //	@Router			/email/queue/{name} [delete]
 //	@Description	Delete a queue with DLX.
 func (controller *Queue) delete(handler *fiber.Ctx) error {
-	funcCore := func() error { return controller.core.Delete(handler.Params("name")) }
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() error { return controller.core.Delete(handler.Params("name"), userID) }
 
 	expectErrors := []expectError{{core.ErrQueueDoesNotExist, fiber.StatusNotFound}}
 
