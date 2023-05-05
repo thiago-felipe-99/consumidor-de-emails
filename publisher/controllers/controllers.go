@@ -2,1258 +2,202 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"log"
-	"time"
 
+	"github.com/ansrivas/fiberprometheus/v2"
+	"github.com/go-playground/locales/en"
+	"github.com/go-playground/locales/pt"
+	"github.com/go-playground/locales/pt_BR"
 	ut "github.com/go-playground/universal-translator"
+	"github.com/go-playground/validator/v10"
+	en_translations "github.com/go-playground/validator/v10/translations/en"
+	ptTranslations "github.com/go-playground/validator/v10/translations/pt"
+	pt_br_translations "github.com/go-playground/validator/v10/translations/pt_BR"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/swagger"
 	"github.com/thiago-felipe-99/mail/publisher/core"
-	"github.com/thiago-felipe-99/mail/publisher/model"
 )
 
-type User struct {
-	core       *core.User
-	translator *ut.UniversalTranslator
-	languages  []string
+type sent struct {
+	Message string `json:"message" bson:"message"`
 }
 
-func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //nolint:ireturn
-	accept := handler.AcceptsLanguages(controller.languages...)
-	if accept == "" {
-		accept = controller.languages[0]
-	}
-
-	language, _ := controller.translator.GetTranslator(accept)
-
-	return language
+type expectError struct {
+	err    error
+	status int
 }
 
-func (controller *User) isAdmin(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
+type okay struct {
+	message string
+	status  int
+}
 
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	isAdmin, err := controller.core.IsAdmin(userID)
+func callingCore(
+	coreFunc func() error,
+	expectErrors []expectError,
+	unexpectMessageError string,
+	okay okay,
+	language ut.Translator,
+	handler *fiber.Ctx,
+) error {
+	err := coreFunc()
 	if err != nil {
-		log.Printf("[ERROR] - error getting if user is admin: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting if user is admin"})
-	}
-
-	if !isAdmin {
-		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user is not admin"})
-	}
-
-	return handler.Next()
-}
-
-// Create a user session
-//
-//	@Summary		Create session
-//	@Tags			user
-//	@Accept			json
-//	@Produce		json
-//	@Success		201		{object}	sent						"session created successfully"
-//	@Failure		400		{object}	sent						"an invalid user param was sent"
-//	@Failure		404		{object}	sent						"user does not exist"
-//	@Failure		500		{object}	sent						"internal server error"
-//	@Param			user	body		model.UserSessionPartial	true	"user params"
-//	@Router			/user/session [post]
-//	@Description	Create a user session and set in the response cookie.
-func (controller *User) newSession(handler *fiber.Ctx) error {
-	body := &model.UserSessionPartial{}
-
-	err := handler.BodyParser(body)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	session := &model.UserSession{}
-
-	funcCore := func() error {
-		sessionTemp, err := controller.core.NewSession(*body)
-		session = sessionTemp
-
-		return err
-	}
-
-	expectErrors := []expectError{
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-		{core.ErrUserWrongPassword, fiber.StatusBadRequest},
-	}
-
-	unexpectMessageError := "error creating user session"
-
-	okay := okay{"session created", fiber.StatusCreated}
-
-	err = callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-
-	cookie := &fiber.Cookie{
-		Name:     "session",
-		Value:    "",
-		Expires:  time.Now(),
-		HTTPOnly: true,
-		Secure:   true,
-	}
-
-	deleteSession, ok := handler.Locals("deleteSession").(bool)
-
-	if session != nil && !(ok && deleteSession) {
-		cookie.Value = session.ID.String()
-		cookie.Expires = session.Expires
-	}
-
-	handler.Cookie(cookie)
-
-	return err
-}
-
-// Refresh a user session
-//
-//	@Summary		Refresh session
-//	@Tags			user
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	sent	"user session refreshed successfully"
-//	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		500	{object}	sent	"internal server error"
-//	@Router			/user/session [put]
-//	@Description	Refresh a user session and set in the response cookie.
-func (controller *User) refreshSession(handler *fiber.Ctx) error {
-	sessionID := handler.Cookies("session", "invalid_session")
-
-	cookie := &fiber.Cookie{
-		Name:     "session",
-		Value:    "",
-		Expires:  time.Now(),
-		HTTPOnly: true,
-		Secure:   true,
-	}
-
-	session, err := controller.core.RefreshSession(sessionID)
-	if err != nil {
-		handler.Cookie(cookie)
-
-		if errors.Is(err, core.ErrUserSessionDoesNotExist) || errors.Is(err, core.ErrInvalidID) {
-			return handler.Status(fiber.StatusUnauthorized).
-				JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
+		modelInvalid := core.ModelInvalidError{}
+		if okay := errors.As(err, &modelInvalid); okay {
+			return handler.Status(fiber.StatusBadRequest).
+				JSON(sent{modelInvalid.Translate(language)})
 		}
 
-		log.Printf("[ERROR] - error refreshing session: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	if session != nil {
-		cookie.Value = session.ID.String()
-		cookie.Expires = session.Expires
-	}
-
-	handler.Cookie(cookie)
-	handler.Locals("userID", session.UserID)
-
-	return handler.Next()
-}
-
-// Create a user admin
-//
-//	@Summary		Create admin
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		201		{object}	sent	"admin created successfully"
-//	@Failure		400		{object}	sent	"was sent a invalid user ID"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"current user is not admin"
-//	@Failure		404		{object}	sent	"user does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			userID	path		string	true	"user id to be promoted to admin"
-//	@Router			/user/admin/{userID} [post]
-//	@Description	Create a user admin.
-func (controller *User) newAdmin(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	funcCore := func() error { return controller.core.NewAdmin(userID) }
-
-	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error promoting user"
-
-	okay := okay{"user promoted to admin", fiber.StatusCreated}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Remove the admin role from the user
-//
-//	@Summary		Remove admin
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent	"admin role removed"
-//	@Failure		400		{object}	sent	"was sent a invalid user ID"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"current user is not admin"
-//	@Failure		404		{object}	sent	"user does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			userID	path		string	true	"user id to be removed from admin role"
-//	@Router			/user/admin/{userID} [delete]
-//	@Description	Remove the admin role from the user.
-func (controller *User) removeAdminRole(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	funcCore := func() error { return controller.core.RemoveAdmin(userID) }
-
-	expectErrors := []expectError{
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-		{core.ErrUserIsNotAdmin, fiber.StatusNotFound},
-		{core.ErrUserIsProtected, fiber.StatusForbidden},
-	}
-
-	unexpectMessageError := "error removing admin role"
-
-	okay := okay{"admin role removed", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Create a user in application
-//
-//	@Summary		Create user
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		201		{object}	sent				"user created successfully"
-//	@Failure		400		{object}	sent				"an invalid user param was sent"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user is not admin"
-//	@Failure		409		{object}	sent				"user already exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			user	body		model.UserPartial	true	"user params"
-//	@Router			/user [post]
-//	@Description	Create a user in application.
-func (controller *User) create(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	body := &model.UserPartial{}
-
-	err := handler.BodyParser(body)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.Create(*body, userID) }
-
-	expectErrors := []expectError{
-		{core.ErrUserAlreadyExist, fiber.StatusConflict},
-	}
-
-	unexpectMessageError := "error creating user"
-
-	okay := okay{"user created", fiber.StatusCreated}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Get current user informations
-//
-//	@Summary		Get user
-//	@Tags			user
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	sent	"user informations"
-//	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		404	{object}	sent	"user does not exist"
-//	@Failure		500	{object}	sent	"internal server error"
-//	@Router			/user [get]
-//	@Description	Get current user informations.
-func (controller *User) get(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	funcCore := func() (*model.User, error) {
-		user, err := controller.core.GetByID(userID)
-		if err != nil {
-			return nil, err
+		for _, expectError := range expectErrors {
+			if errors.Is(err, expectError.err) {
+				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
+			}
 		}
 
-		user.Password = ""
+		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
 
-		return user, nil
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{unexpectMessageError})
 	}
 
-	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error getting user"
-
-	return callingCoreWithReturn(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		handler,
-	)
+	return handler.Status(okay.status).JSON(sent{okay.message})
 }
 
-// Get user by admin
-//
-//	@Summary		Get user
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent	"user informations"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"current user is not admin"
-//	@Failure		404		{object}	sent	"user does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			userID	path		string	true	"user id"
-//	@Router			/user/admin/{userID}/user [get]
-//	@Description	Get user by admin.
-func (controller *User) getByAdmin(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
+func callingCoreWithReturn[T any](
+	coreFunc func() (T, error),
+	expectErrors []expectError,
+	unexpectMessageError string,
+	handler *fiber.Ctx,
+) error {
+	data, err := coreFunc()
 	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	funcCore := func() (*model.User, error) {
-		user, err := controller.core.GetByID(userID)
-		if err != nil {
-			return nil, err
+		for _, expectError := range expectErrors {
+			if errors.Is(err, expectError.err) {
+				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
+			}
 		}
 
-		user.Password = ""
-
-		return user, nil
-	}
-
-	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error getting user"
-
-	return callingCoreWithReturn(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		handler,
-	)
-}
-
-// Get all users informations
-//
-//	@Summary		Get all users
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	sent	"user informations"
-//	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		403	{object}	sent	"current user is not admin"
-//	@Failure		500	{object}	sent	"internal server error"
-//	@Router			/user/all [get]
-//	@Description	Get all users informations.
-func (controller *User) getAll(handler *fiber.Ctx) error {
-	funcCore := func() ([]model.User, error) {
-		users, err := controller.core.GetAll()
-		if err != nil {
-			return nil, err
-		}
-
-		for index := range users {
-			users[index].Password = ""
-		}
-
-		return users, nil
-	}
-
-	expectErrors := []expectError{}
-
-	unexpectMessageError := "error getting all users"
-
-	return callingCoreWithReturn(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		handler,
-	)
-}
-
-// Update user informations
-//
-//	@Summary		Update user
-//	@Tags			user
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent				"user updated"
-//	@Failure		400		{object}	sent				"an invalid user param was sent"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			user	body		model.UserPartial	true	"user params"
-//	@Router			/user [put]
-//	@Description	Update user informatios.
-func (controller *User) update(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
+		log.Printf("[ERROR] - %s: %s", unexpectMessageError, err)
 
 		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error updating user"})
+			JSON(sent{unexpectMessageError})
 	}
 
-	user := &model.UserPartial{}
+	return handler.JSON(data)
+}
 
-	err := handler.BodyParser(user)
+func createTranslator(validate *validator.Validate) (*ut.UniversalTranslator, error) {
+	translator := ut.New(en.New(), pt.New(), pt_BR.New())
+
+	enTrans, _ := translator.GetTranslator("en")
+
+	err := en_translations.RegisterDefaultTranslations(validate, enTrans)
 	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+		return nil, fmt.Errorf("error register 'en' translation: %w", err)
 	}
 
-	funcCore := func() error { return controller.core.Update(userID, *user) }
+	ptTrans, _ := translator.GetTranslator("pt")
 
-	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error updating user"
-
-	okay := okay{"user updated", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Delete current user
-//
-//	@Summary		Delete user
-//	@Tags			user
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	sent	"user deleted"
-//	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		403	{object}	sent	"current user is protected"
-//	@Failure		404	{object}	sent	"user does not exist"
-//	@Failure		500	{object}	sent	"internal server error"
-//	@Router			/user [delete]
-//	@Description	Delete current user.
-func (controller *User) delete(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	funcCore := func() error { return controller.core.Delete(userID, userID) }
-
-	expectErrors := []expectError{
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-		{core.ErrUserIsProtected, fiber.StatusForbidden},
-	}
-
-	unexpectMessageError := "error deleting user"
-
-	okay := okay{"user deleted", fiber.StatusOK}
-
-	handler.Locals("deleteSession", true)
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Delete user by admin
-//
-//	@Summary		Delete user
-//	@Tags			admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent	"user deleted"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"current user is protected"
-//	@Failure		404		{object}	sent	"user does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			userID	path		string	true	"user id to be deleted"
-//	@Router			/user/admin/{userID}/user [delete]
-//	@Description	Delete user by admin.
-func (controller *User) deleteUserAdmin(handler *fiber.Ctx) error {
-	adminID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	userID, err := uuid.Parse(handler.Params("userID"))
+	err = ptTranslations.RegisterDefaultTranslations(validate, ptTrans)
 	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
+		return nil, fmt.Errorf("error register 'pt' translation: %w", err)
 	}
 
-	funcCore := func() error { return controller.core.Delete(userID, adminID) }
+	ptBRTrans, _ := translator.GetTranslator("pt_BR")
 
-	expectErrors := []expectError{
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-		{core.ErrUserIsProtected, fiber.StatusForbidden},
-	}
-
-	unexpectMessageError := "error deleting user"
-
-	okay := okay{"user deleted", fiber.StatusOK}
-
-	handler.Locals("deleteSession", true)
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Get current user roles
-//
-//	@Summary		Get user
-//	@Tags			role, user
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	sent	"roles informations"
-//	@Failure		401	{object}	sent	"user session has expired"
-//	@Failure		404	{object}	sent	"user does not exist"
-//	@Failure		500	{object}	sent	"internal server error"
-//	@Router			/user/role [get]
-//	@Description	Get current user informations.
-func (controller *User) getRoles(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	funcCore := func() ([]model.UserRole, error) { return controller.core.GetRoles(userID) }
-
-	expectErrors := []expectError{{core.ErrUserDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error getting user roles"
-
-	return callingCoreWithReturn(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		handler,
-	)
-}
-
-//nolint:dupl
-func (controller *User) hasRoles(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	roles := &[]model.UserRole{}
-
-	err := handler.BodyParser(roles)
+	err = pt_br_translations.RegisterDefaultTranslations(validate, ptBRTrans)
 	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+		return nil, fmt.Errorf("error register 'pt_BR' translation: %w", err)
 	}
 
-	hasRoles, err := controller.core.HasRoles(userID, *roles)
+	return translator, nil
+}
+
+func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.App, error) {
+	app := fiber.New()
+
+	prometheus := fiberprometheus.New("publisher")
+	prometheus.RegisterAt(app, "/metrics")
+
+	app.Use(logger.New(logger.Config{
+		//nolint:lll
+		Format:     "${time} [INFO] - Finished request | ${ip} | ${status} | ${latency} | ${method} | ${path} | ${bytesSent} | ${bytesReceived} | ${error}\n",
+		TimeFormat: "2006/01/02 15:04:05",
+	}))
+	app.Use(recover.New())
+	app.Use(prometheus.Middleware)
+
+	swaggerConfig := swagger.Config{
+		Title:                  "Emails Publisher",
+		WithCredentials:        true,
+		DisplayRequestDuration: true,
+	}
+
+	app.Get("/swagger/*", swagger.New(swaggerConfig))
+
+	translator, err := createTranslator(validate)
 	if err != nil {
-		log.Printf("[ERROR] - error getting if user has roles: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting if user has roles"})
+		return nil, err
 	}
 
-	if !hasRoles {
-		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user dont have all roles"})
+	languages := []string{"en", "pt_BR", "pt"}
+
+	user := User{
+		core:       cores.User,
+		translator: translator,
+		languages:  languages,
 	}
 
-	return handler.Next()
-}
-
-//nolint:dupl
-func (controller *User) hasRolesAdmin(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
+	template := Template{
+		core:       cores.Template,
+		translator: translator,
+		languages:  languages,
 	}
 
-	roles := &[]model.RolePartial{}
-
-	err := handler.BodyParser(roles)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
+	queue := Queue{
+		core:       cores.Queue,
+		translator: translator,
+		languages:  languages,
 	}
 
-	hasRoles, err := controller.core.HasRolesAdmin(userID, *roles)
-	if err != nil {
-		log.Printf("[ERROR] - error getting if user has roles: %s", err)
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error getting if user has roles"})
-	}
-
-	if !hasRoles {
-		return handler.Status(fiber.StatusForbidden).JSON(sent{"current user dont have all roles"})
-	}
-
-	return handler.Next()
-}
-
-// Create a role
-//
-//	@Summary		Create role
-//	@Tags			role, admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		201		{object}	sent				"role created successfully"
-//	@Failure		400		{object}	sent				"was sent a invalid role params"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user is not admin"
-//	@Failure		409		{object}	sent				"role already exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			role	body		model.RolePartial	true	"role params"
-//	@Router			/user/role [post]
-//	@Description	Create a role.
-func (controller *User) createRole(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	role := &model.RolePartial{}
-
-	err := handler.BodyParser(role)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.CreateRole(*role, userID) }
-
-	expectErrors := []expectError{{core.ErrRoleAlreadyExist, fiber.StatusConflict}}
-
-	unexpectMessageError := "error creating role"
-
-	okay := okay{"role created", fiber.StatusCreated}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Add user roles
-//
-//	@Summary		Add roles
-//	@Tags			role, admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent				"user role created successfully"
-//	@Failure		400		{object}	sent				"was sent a invalid roles params"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user does not have all roles"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			userID	path		string				true	"user id to be promoted"
-//	@Param			role	body		[]model.UserRole	true	"role params"
-//	@Router			/user/role/{userID} [put]
-//	@Description	Add user roles.
-func (controller *User) addRoles(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	roles := &[]model.UserRole{}
-
-	err = handler.BodyParser(roles)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.AddRoles(*roles, userID) }
-
-	expectErrors := []expectError{
-		{core.ErrRoleDoesNotExist, fiber.StatusNotFound},
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-	}
-
-	unexpectMessageError := "error adding roles"
-
-	okay := okay{"added roles", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-func (controller *User) deleteRolesRaw(userID uuid.UUID, protected bool, handler *fiber.Ctx) error {
-	roles := &[]model.RolePartial{}
-
-	err := handler.BodyParser(roles)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.DeleteRoles(*roles, userID, protected) }
-
-	expectErrors := []expectError{
-		{core.ErrRoleDoesNotExist, fiber.StatusNotFound},
-		{core.ErrUserDoesNotExist, fiber.StatusNotFound},
-	}
-
-	unexpectMessageError := "error deleting user roles"
-
-	okay := okay{"deleted user roles", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Delete current user roles
-//
-//	@Summary		Delete current user roles
-//	@Tags			role, user
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent				"user role deleted successfully"
-//	@Failure		400		{object}	sent				"was sent a invalid role params"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user does not have all roles"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			role	body		[]model.RolePartial	true	"role params"
-//	@Router			/user/role [delete]
-//	@Description	Delete current user roles.
-func (controller *User) deleteRolesByCurrentUser(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	return controller.deleteRolesRaw(userID, true, handler)
-}
-
-// Delete user roles
-//
-//	@Summary		Delete user roles
-//	@Tags			role, admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent				"user role deleted successfully"
-//	@Failure		400		{object}	sent				"was sent a invalid role params"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user does not have all roles"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			userID	path		string				true	"user id to be deleted"
-//	@Param			role	body		[]model.RolePartial	true	"role params"
-//	@Router			/user/role/{userID} [delete]
-//	@Description	Delete user roles.
-func (controller *User) deleteRolesByRolesAdmin(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	return controller.deleteRolesRaw(userID, false, handler)
-}
-
-// Delete user roles by admin
-//
-//	@Summary		Delete user roles by admin
-//	@Tags			role, admin
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent				"user role deleted successfully"
-//	@Failure		400		{object}	sent				"was sent a invalid role params"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user does not have all roles"
-//	@Failure		404		{object}	sent				"user does not exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			userID	path		string				true	"user id to be deleted"
-//	@Param			role	body		[]model.RolePartial	true	"role params"
-//	@Router			/user/role/{userID}/admin [delete]
-//	@Description	Delete user roles by admin.
-func (controller *User) deleteRolesByAdmin(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).
-			JSON(sent{"was sent a invalid user ID"})
-	}
-
-	return controller.deleteRolesRaw(userID, true, handler)
-}
-
-type Queue struct {
-	core       *core.Queue
-	translator *ut.UniversalTranslator
-	languages  []string
-}
-
-func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nolint:ireturn
-	accept := handler.AcceptsLanguages(controller.languages...)
-	if accept == "" {
-		accept = controller.languages[0]
-	}
-
-	language, _ := controller.translator.GetTranslator(accept)
-
-	return language
-}
-
-// Create a RabbitMQ queue with DLX
-//
-//	@Summary		Creating queue
-//	@Tags			queue
-//	@Accept			json
-//	@Produce		json
-//	@Success		201		{object}	sent				"create queue successfully"
-//	@Failure		400		{object}	sent				"an invalid queue param was sent"
-//	@Failure		401		{object}	sent				"user session has expired"
-//	@Failure		403		{object}	sent				"current user is not admin"
-//	@Failure		409		{object}	sent				"queue already exist"
-//	@Failure		500		{object}	sent				"internal server error"
-//	@Param			queue	body		model.QueuePartial	true	"queue params"
-//	@Router			/email/queue [post]
-//	@Description	Create a RabbitMQ queue with DLX.
-func (controller *Queue) create(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	body := &model.QueuePartial{
-		MaxRetries: 10, //nolint:gomnd
-	}
-
-	err := handler.BodyParser(body)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.Create(*body, userID) }
-
-	expectErrors := []expectError{{core.ErrQueueAlreadyExist, fiber.StatusConflict}}
-
-	unexpectMessageError := "error creating queue"
-
-	okay := okay{"queue created", fiber.StatusCreated}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Get all RabbitMQ queues
-//
-//	@Summary		Get queues
-//	@Tags			queue
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{array}		model.Queue	"all queues"
-//	@Failure		401	{object}	sent		"user session has expired"
-//	@Failure		500	{object}	sent		"internal server error"
-//	@Router			/email/queue [get]
-//	@Description	Get all RabbitMQ queues.
-func (controller *Queue) getAll(handler *fiber.Ctx) error {
-	return callingCoreWithReturn(
-		controller.core.GetAll,
-		[]expectError{},
-		"error getting all queues",
-		handler,
-	)
-}
-
-// Delete a queue with DLX
-//
-//	@Summary		Delete queues
-//	@Tags			queue
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent	"queue deleted"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		403		{object}	sent	"current user is not admin"
-//	@Failure		404		{object}	sent	"queue does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			name	path		string	true	"queue name"
-//	@Router			/email/queue/{name} [delete]
-//	@Description	Delete a queue with DLX.
-func (controller *Queue) delete(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	funcCore := func() error { return controller.core.Delete(handler.Params("name"), userID) }
-
-	expectErrors := []expectError{{core.ErrQueueDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error deleting queue"
-
-	okay := okay{"queue deleted", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Sends an email to the RabbitMQ queue
-//
-//	@Summary		Sends email
-//	@Tags			queue
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent		"email sent successfully"
-//	@Failure		400		{object}	sent		"an invalid email param was sent"
-//	@Failure		401		{object}	sent		"user session has expired"
-//	@Failure		403		{object}	sent		"current user is not admin"
-//	@Failure		404		{object}	sent		"queue does not exist"
-//	@Failure		500		{object}	sent		"internal server error"
-//	@Param			name	path		string		true	"queue name"
-//	@Param			queue	body		model.Email	true	"email"
-//	@Router			/email/queue/{name}/send [post]
-//	@Description	Sends an email to the RabbitMQ queue.
-func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	body := &model.EmailPartial{}
-
-	err := handler.BodyParser(body)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.SendEmail(handler.Params("name"), *body, userID) }
-
-	expectErrors := []expectError{
-		{core.ErrQueueDoesNotExist, fiber.StatusNotFound},
-		{core.ErrMissingFieldTemplates, fiber.StatusBadRequest},
-		{core.ErrTemplateDoesNotExist, fiber.StatusBadRequest},
-	}
-
-	unexpectMessageError := "error sending email"
-
-	okay := okay{"email sent", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-type Template struct {
-	core       *core.Template
-	translator *ut.UniversalTranslator
-	languages  []string
-}
-
-func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //nolint:ireturn
-	accept := handler.AcceptsLanguages(controller.languages...)
-	if accept == "" {
-		accept = controller.languages[0]
-	}
-
-	language, _ := controller.translator.GetTranslator(accept)
-
-	return language
-}
-
-// Create a email template
-//
-//	@Summary		Creating template
-//	@Tags			template
-//	@Accept			json
-//	@Produce		json
-//	@Success		201			{object}	sent					"create template successfully"
-//	@Failure		400			{object}	sent					"an invalid template param was sent"
-//	@Failure		401			{object}	sent					"user session has expired"
-//	@Failure		409			{object}	sent					"template name already exist"
-//	@Failure		500			{object}	sent					"internal server error"
-//	@Param			template	body		model.TemplatePartial	true	"template params"
-//	@Router			/email/template [post]
-//	@Description	Create a email template.
-func (controller *Template) create(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	body := &model.TemplatePartial{}
-
-	err := handler.BodyParser(body)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.Create(*body, userID) }
-
-	expectErrors := []expectError{
-		{core.ErrTemplateNameAlreadyExist, fiber.StatusConflict},
-		{core.ErrMaxSizeTemplate, fiber.StatusBadRequest},
-	}
-
-	unexpectMessageError := "error creating template"
-
-	okay := okay{"template created", fiber.StatusCreated}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Get all email templates
-//
-//	@Summary		Get templates
-//	@Tags			template
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{array}		model.Template	"all templates"
-//	@Failure		401	{object}	sent			"user session has expired"
-//	@Failure		500	{object}	sent			"internal server error"
-//	@Router			/email/template [get]
-//	@Description	Get all email templates.
-func (controller *Template) getAll(handler *fiber.Ctx) error {
-	return callingCoreWithReturn(
-		controller.core.GetAll,
-		[]expectError{},
-		"error getting all templates",
-		handler,
-	)
-}
-
-// Get a email template
-//
-//	@Summary		Get template
-//	@Tags			template
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	model.Template	"all templates"
-//	@Failure		401		{object}	sent			"user session has expired"
-//	@Success		404		{array}		sent			"template does not exist"
-//	@Failure		500		{object}	sent			"internal server error"
-//	@Param			name	path		string			true	"template name"
-//	@Router			/email/template/{name} [get]
-//	@Description	Get a email template.
-func (controller *Template) get(handler *fiber.Ctx) error {
-	coreFunc := func() (*model.Template, error) { return controller.core.Get(handler.Params("name")) }
-
-	expectErros := []expectError{{core.ErrTemplateDoesNotExist, fiber.StatusNotFound}}
-
-	return callingCoreWithReturn(coreFunc, expectErros, "error getting template", handler)
-}
-
-// Update a email template
-//
-//	@Summary		Update template
-//	@Tags			template
-//	@Accept			json
-//	@Produce		json
-//	@Success		200			{object}	sent					"template updated"
-//	@Failure		400			{object}	sent					"an invalid template param was sent"
-//	@Failure		401			{object}	sent					"user session has expired"
-//	@Failure		404			{object}	sent					"template does not exist"
-//	@Failure		500			{object}	sent					"internal server error"
-//	@Param			name		path		string					true	"template name"
-//	@Param			template	body		model.TemplatePartial	true	"template params"
-//	@Router			/email/template/{name} [put]
-//	@Description	Update a email template.
-func (controller *Template) update(handler *fiber.Ctx) error {
-	body := &model.TemplatePartial{}
-
-	err := handler.BodyParser(body)
-	if err != nil {
-		return handler.Status(fiber.StatusBadRequest).JSON(sent{err.Error()})
-	}
-
-	funcCore := func() error { return controller.core.Update(handler.Params("name"), *body) }
-
-	expectErrors := []expectError{
-		{core.ErrTemplateDoesNotExist, fiber.StatusNotFound},
-		{core.ErrMaxSizeTemplate, fiber.StatusBadRequest},
-	}
-
-	unexpectMessageError := "error updating template"
-
-	okay := okay{"template updated", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
-}
-
-// Delete a email template
-//
-//	@Summary		Delete template
-//	@Tags			template
-//	@Accept			json
-//	@Produce		json
-//	@Success		200		{object}	sent	"template deleted"
-//	@Failure		401		{object}	sent	"user session has expired"
-//	@Failure		404		{object}	sent	"template does not exist"
-//	@Failure		500		{object}	sent	"internal server error"
-//	@Param			name	path		string	true	"template name"
-//	@Router			/email/template/{name} [delete]
-//	@Description	Delete a email template.
-func (controller *Template) delete(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
-	if !ok {
-		log.Printf("[ERROR] - error getting user ID")
-
-		return handler.Status(fiber.StatusInternalServerError).
-			JSON(sent{"error refreshing session"})
-	}
-
-	funcCore := func() error { return controller.core.Delete(handler.Params("name"), userID) }
-
-	expectErrors := []expectError{{core.ErrTemplateDoesNotExist, fiber.StatusNotFound}}
-
-	unexpectMessageError := "error deleting template"
-
-	okay := okay{"template deleted", fiber.StatusOK}
-
-	return callingCore(
-		funcCore,
-		expectErrors,
-		unexpectMessageError,
-		okay,
-		controller.getTranslator(handler),
-		handler,
-	)
+	app.Post("/user/session", user.newSession)
+
+	app.Use(user.refreshSession)
+
+	app.Get("/user", user.get)
+	app.Post("/user", user.isAdmin, user.create)
+	app.Put("/user", user.update)
+	app.Delete("/user", user.delete)
+
+	app.Put("/user/session", func(c *fiber.Ctx) error { return c.JSON(sent{"session refreshed"}) })
+
+	app.Get("/user/admin/:userID", user.isAdmin, user.getByAdmin)
+	app.Post("/user/admin/:userID", user.isAdmin, user.newAdmin)
+	app.Delete("/user/admin/:userID", user.isAdmin, user.removeAdminRole)
+	app.Delete("/user/admin/:userID/user", user.isAdmin, user.deleteUserAdmin)
+	app.Get("/user/all", user.isAdmin, user.getAll)
+
+	app.Get("/user/role", user.getRoles)
+	app.Post("/user/role", user.isAdmin, user.createRole)
+	app.Delete("/user/role", user.deleteRolesByCurrentUser)
+	app.Put("/user/role/:userID", user.hasRoles, user.addRoles)
+	app.Delete("/user/role/:userID", user.hasRolesAdmin, user.deleteRolesByRolesAdmin)
+	app.Delete("/user/role/:userID/admin", user.isAdmin, user.deleteRolesByAdmin)
+
+	app.Get("/email/queue", queue.getAll)
+	app.Post("/email/queue", user.isAdmin, queue.create)
+	app.Delete("/email/queue/:name", user.isAdmin, queue.delete)
+	app.Post("/email/queue/:name/send", queue.sendEmail)
+
+	// app.Get("/email/template", template.getByUser)
+	app.Post("/email/template", template.create)
+	app.Get("/email/template/all", user.isAdmin, template.getAll)
+	app.Get("/email/template/:name", template.get)
+	app.Put("/email/template/:name", template.update)
+	app.Delete("/email/template/:name", template.delete)
+
+	return app, nil
 }
