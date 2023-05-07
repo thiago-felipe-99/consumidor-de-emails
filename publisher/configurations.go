@@ -67,8 +67,8 @@ func defaultConfigurations() configurations {
 			Vhost: "/",
 		},
 		Minio: minioConfig{
-			Port:   9000,
-			Secure: true,
+			Port:         9000,
+			Secure:       true,
 			MaxEntrySize: 3,
 		},
 		Mongo: mongoConfig{

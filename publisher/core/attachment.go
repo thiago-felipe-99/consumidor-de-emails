@@ -42,37 +42,19 @@ func (core *Attachment) Create(
 		MinioName: userID.String() + "/" + nowString + "-" + partial.Name,
 	}
 
-	policy := minio.NewPostPolicy()
-
-	err = policy.SetBucket(core.bucket)
-	if err != nil {
-		return nil, fmt.Errorf("error setting POST policy key 'Bucket': %w", err)
-	}
-
-	err = policy.SetKey(attachment.MinioName)
-	if err != nil {
-		return nil, fmt.Errorf("error setting POST policy key 'Key': %w", err)
-	}
-
-	err = policy.SetExpires(now.Add(core.expires))
-	if err != nil {
-		return nil, fmt.Errorf("error setting POST policy key 'Expires': %w", err)
-	}
-
-	err = policy.SetContentLengthRange(1, maxSizeTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("error setting POST policy key 'ContentLengthRange': %w", err)
-	}
-
-	link, formData, err := core.minio.PresignedPostPolicy(context.Background(), policy)
+	link, err := core.minio.PresignedPutObject(
+		context.Background(),
+		core.bucket,
+		attachment.MinioName,
+		core.expires,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error creating minio link: %w", err)
 	}
 
 	attachmentLink := model.AttachmentLink{
-		Name:     attachment.MinioName,
-		Link:     link.String(),
-		FormData: formData,
+		Name: attachment.MinioName,
+		Link: link.String(),
 	}
 
 	err = core.database.Create(attachment)

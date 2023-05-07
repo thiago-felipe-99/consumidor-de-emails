@@ -148,7 +148,8 @@ type Template struct {
 }
 
 type AttachmentPartial struct {
-	Name string `json:"name" validate:"required"`
+	Name        string `json:"name"        validate:"required"`
+	ContentType string `json:"contentType" validate:"required"`
 }
 
 type Attachment struct {

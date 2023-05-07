@@ -1652,6 +1652,9 @@ const docTemplate = `{
         "model.Attachment": {
             "type": "object",
             "properties": {
+                "contentType": {
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -1672,6 +1675,12 @@ const docTemplate = `{
         "model.AttachmentLink": {
             "type": "object",
             "properties": {
+                "formData": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "link": {
                     "type": "string"
                 },
@@ -1683,9 +1692,13 @@ const docTemplate = `{
         "model.AttachmentPartial": {
             "type": "object",
             "required": [
+                "contentType",
                 "name"
             ],
             "properties": {
+                "contentType": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 }

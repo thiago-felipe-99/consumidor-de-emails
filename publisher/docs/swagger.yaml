@@ -7,6 +7,8 @@ definitions:
     type: object
   model.Attachment:
     properties:
+      contentType:
+        type: string
       createdAt:
         type: string
       id:
@@ -20,6 +22,10 @@ definitions:
     type: object
   model.AttachmentLink:
     properties:
+      formData:
+        additionalProperties:
+          type: string
+        type: object
       link:
         type: string
       name:
@@ -27,9 +33,12 @@ definitions:
     type: object
   model.AttachmentPartial:
     properties:
+      contentType:
+        type: string
       name:
         type: string
     required:
+    - contentType
     - name
     type: object
   model.Email:

@@ -15,6 +15,7 @@ import (
 	ptTranslations "github.com/go-playground/validator/v10/translations/pt"
 	pt_br_translations "github.com/go-playground/validator/v10/translations/pt_BR"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
@@ -136,6 +137,14 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	}))
 	app.Use(recover.New())
 	app.Use(prometheus.Middleware)
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "*",
+		AllowHeaders:     "*",
+		AllowMethods:     "GET, POST, PUT, DELETE",
+		AllowCredentials: true,
+		MaxAge:           10, //nolint:gomnd
+		ExposeHeaders:    "session",
+	}))
 
 	swaggerConfig := swagger.Config{
 		Title:                  "Emails Publisher",
