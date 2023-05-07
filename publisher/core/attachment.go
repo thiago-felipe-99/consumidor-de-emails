@@ -31,30 +31,53 @@ func (core *Attachment) Create(
 		return nil, err
 	}
 
-	now := time.Now()
+	if partial.Size > core.maxEntrySize {
+		return nil, ErrMaxSizeAttachment
+	}
+
+	now := time.Now().UTC()
 	nowString := now.Format("2006-01-02_15-04-05.000")
 
 	attachment := model.Attachment{
-		ID:        uuid.New(),
-		UserID:    userID,
-		CreatedAt: now,
-		Name:      partial.Name,
-		MinioName: userID.String() + "/" + nowString + "-" + partial.Name,
+		ID:          uuid.New(),
+		UserID:      userID,
+		CreatedAt:   now,
+		Name:        partial.Name,
+		MinioName:   userID.String() + "/" + nowString + "-" + partial.Name,
+		ContentType: partial.ContentType,
+		Size:        partial.Size,
 	}
 
-	link, err := core.minio.PresignedPutObject(
-		context.Background(),
-		core.bucket,
-		attachment.MinioName,
-		core.expires,
-	)
+	policy := minio.NewPostPolicy()
+
+	err = policy.SetBucket(core.bucket)
+	if err != nil {
+		return nil, fmt.Errorf("error setting POST policy key 'Bucket': %w", err)
+	}
+
+	err = policy.SetKey(attachment.MinioName)
+	if err != nil {
+		return nil, fmt.Errorf("error setting POST policy key 'Key': %w", err)
+	}
+
+	err = policy.SetExpires(time.Now().UTC().Add(core.expires))
+	if err != nil {
+		return nil, fmt.Errorf("error setting POST policy key 'Expires': %w", err)
+	}
+
+	err = policy.SetContentLengthRange(1, int64(partial.Size))
+	if err != nil {
+		return nil, fmt.Errorf("error setting POST policy key 'ContentLengthRange': %w", err)
+	}
+
+	link, formData, err := core.minio.PresignedPostPolicy(context.Background(), policy)
 	if err != nil {
 		return nil, fmt.Errorf("error creating minio link: %w", err)
 	}
 
 	attachmentLink := model.AttachmentLink{
-		Name: attachment.MinioName,
-		Link: link.String(),
+		Link:     link.String(),
+		FormData: formData,
 	}
 
 	err = core.database.Create(attachment)
@@ -97,7 +120,6 @@ func (core *Attachment) Get(attachmentID uuid.UUID) (*model.AttachmentLink, erro
 	}
 
 	attachmentLink := model.AttachmentLink{
-		Name: attachment.MinioName,
 		Link: link.String(),
 	}
 
@@ -125,7 +147,7 @@ func newAttachment(
 		minio:        minio,
 		bucket:       bucket,
 		validator:    validate,
-		expires:      time.Minute * 30,          //nolint:gomnd
-		maxEntrySize: maxEntrySize * 1000 * 100, //nolint:gomnd
+		expires:      time.Minute * 30,           //nolint:gomnd
+		maxEntrySize: maxEntrySize * 1000 * 1000, //nolint:gomnd
 	}
 }

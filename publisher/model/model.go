@@ -150,6 +150,7 @@ type Template struct {
 type AttachmentPartial struct {
 	Name        string `json:"name"        validate:"required"`
 	ContentType string `json:"contentType" validate:"required"`
+	Size        int    `json:"size"        validate:"required,min=1"`
 }
 
 type Attachment struct {
@@ -157,12 +158,12 @@ type Attachment struct {
 	UserID      uuid.UUID `json:"userId"      bson:"user_id"`
 	CreatedAt   time.Time `json:"createdAt"   bson:"created_at"`
 	Name        string    `json:"name"        bson:"name"`
-	MinioName   string    `json:"minioName"   bson:"minio_name"`
 	ContentType string    `json:"contentType" bson:"content_type"`
+	Size        int       `json:"size"        bson:"size"`
+	MinioName   string    `json:"minioName"   bson:"minio_name"`
 }
 
 type AttachmentLink struct {
-	Name     string            `json:"name"`
 	Link     string            `json:"link"`
 	FormData map[string]string `json:"formData,omitempty"`
 }

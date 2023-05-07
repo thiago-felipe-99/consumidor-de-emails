@@ -17,6 +17,8 @@ definitions:
         type: string
       name:
         type: string
+      size:
+        type: integer
       userId:
         type: string
     type: object
@@ -28,8 +30,6 @@ definitions:
         type: object
       link:
         type: string
-      name:
-        type: string
     type: object
   model.AttachmentPartial:
     properties:
@@ -37,9 +37,13 @@ definitions:
         type: string
       name:
         type: string
+      size:
+        minimum: 1
+        type: integer
     required:
     - contentType
     - name
+    - size
     type: object
   model.Email:
     properties:

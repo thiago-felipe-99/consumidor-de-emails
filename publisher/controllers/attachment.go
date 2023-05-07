@@ -58,7 +58,7 @@ func (controller *Attachment) create(handler *fiber.Ctx) error {
 
 	funcCore := func() (*model.AttachmentLink, error) { return controller.core.Create(*body, userID) }
 
-	expectErrors := []expectError{}
+	expectErrors := []expectError{{core.ErrMaxSizeAttachment, fiber.StatusBadRequest}}
 
 	unexpectMessageError := "error creating attachment link"
 

@@ -1667,6 +1667,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "size": {
+                    "type": "integer"
+                },
                 "userId": {
                     "type": "string"
                 }
@@ -1683,9 +1686,6 @@ const docTemplate = `{
                 },
                 "link": {
                     "type": "string"
-                },
-                "name": {
-                    "type": "string"
                 }
             }
         },
@@ -1693,7 +1693,8 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "contentType",
-                "name"
+                "name",
+                "size"
             ],
             "properties": {
                 "contentType": {
@@ -1701,6 +1702,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "size": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },

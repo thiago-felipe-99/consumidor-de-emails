@@ -1660,6 +1660,9 @@
                 "name": {
                     "type": "string"
                 },
+                "size": {
+                    "type": "integer"
+                },
                 "userId": {
                     "type": "string"
                 }
@@ -1676,9 +1679,6 @@
                 },
                 "link": {
                     "type": "string"
-                },
-                "name": {
-                    "type": "string"
                 }
             }
         },
@@ -1686,7 +1686,8 @@
             "type": "object",
             "required": [
                 "contentType",
-                "name"
+                "name",
+                "size"
             ],
             "properties": {
                 "contentType": {
@@ -1694,6 +1695,10 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "size": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },

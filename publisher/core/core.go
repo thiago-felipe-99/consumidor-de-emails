@@ -30,6 +30,7 @@ var (
 	ErrMissingFieldTemplates    = errors.New("missing fields from template")
 	ErrTemplateDoesNotExist     = errors.New("template does not exist")
 	ErrAttachmentDoesNotExist   = errors.New("attachment does not exist")
+	ErrMaxSizeAttachment        = errors.New("attachment has a max size")
 )
 
 const (
@@ -97,9 +98,15 @@ func NewCores(
 	template := newTemplate(databases.Template, minio, bukcetTemplate, validate)
 
 	return &Cores{
-		User:       newUser(databases.User, validate, sessionDuration),
-		Template:   template,
-		Queue:      newQueue(template, rabbit, databases.Queue, validate),
-		Attachment: newAttachment(minio, bukcetAttachment, databases.Attachment, validate, maxEntrySize),
+		User:     newUser(databases.User, validate, sessionDuration),
+		Template: template,
+		Queue:    newQueue(template, rabbit, databases.Queue, validate),
+		Attachment: newAttachment(
+			minio,
+			bukcetAttachment,
+			databases.Attachment,
+			validate,
+			maxEntrySize,
+		),
 	}
 }
