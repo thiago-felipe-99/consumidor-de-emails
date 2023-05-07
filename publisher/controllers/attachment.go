@@ -70,3 +70,34 @@ func (controller *Attachment) create(handler *fiber.Ctx) error {
 		handler,
 	)
 }
+
+// Get all user attachments
+//
+//	@Summary		Get user attachments
+//	@Tags			attachment
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		model.Attachment	"all attachments"
+//	@Failure		401	{object}	sent				"user session has expired"
+//	@Failure		500	{object}	sent				"internal server error"
+//	@Router			/email/attachment/user [get]
+//	@Description	Get all user attachments.
+func (controller *Attachment) getAttachments(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() ([]model.Attachment, error) { return controller.core.GetAttachments(userID) }
+
+	return callingCoreWithReturn(
+		funcCore,
+		[]expectError{},
+		"error getting all attachments",
+		controller.getTranslator(handler),
+		handler,
+	)
+}

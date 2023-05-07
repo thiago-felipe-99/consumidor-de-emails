@@ -110,21 +110,30 @@ func (database *mongo[T]) getByFieldsOr(fields map[string]any) (*T, error) {
 	return data, nil
 }
 
-func (database *mongo[T]) update(dataID uuid.UUID, fields map[string]any) error {
-	fieldsBson := bson.D{}
+func (database *mongo[T]) getMultiplesByFieldsOr(fields map[string]any) ([]T, error) {
+	fieldsBson := bson.A{}
 
 	for key, value := range fields {
-		fieldsBson = append(fieldsBson, bson.E{Key: key, Value: value})
+		fieldsBson = append(fieldsBson, bson.D{{Key: key, Value: value}})
 	}
 
-	update := bson.D{{Key: "$set", Value: fieldsBson}}
+	filter := bson.D{
+		{Key: "$or", Value: fieldsBson},
+	}
 
-	_, err := database.collection.UpdateByID(context.Background(), dataID, update)
+	data := []T{}
+
+	cursor, err := database.collection.Find(context.Background(), filter)
 	if err != nil {
-		return fmt.Errorf("error getting data from database: %w", err)
+		return nil, fmt.Errorf("error getting data from database: %w", err)
 	}
 
-	return nil
+	err = cursor.All(context.Background(), &data)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing data: %w", err)
+	}
+
+	return data, nil
 }
 
 func (database *mongo[T]) getAll() ([]T, error) {
@@ -141,6 +150,23 @@ func (database *mongo[T]) getAll() ([]T, error) {
 	}
 
 	return data, nil
+}
+
+func (database *mongo[T]) update(dataID uuid.UUID, fields map[string]any) error {
+	fieldsBson := bson.D{}
+
+	for key, value := range fields {
+		fieldsBson = append(fieldsBson, bson.E{Key: key, Value: value})
+	}
+
+	update := bson.D{{Key: "$set", Value: fieldsBson}}
+
+	_, err := database.collection.UpdateByID(context.Background(), dataID, update)
+	if err != nil {
+		return fmt.Errorf("error getting data from database: %w", err)
+	}
+
+	return nil
 }
 
 func createMongoDatabase[T any](client *mongodb.Client, database, collection string) *mongo[T] {
@@ -365,6 +391,12 @@ type Attachment struct {
 
 func (database *Attachment) Create(attachment model.Attachment) error {
 	return database.attachment.create(attachment)
+}
+
+func (database *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
+	filter := map[string]any{"user_id": userID}
+
+	return database.attachment.getMultiplesByFieldsOr(filter)
 }
 
 func newAttachmenteDatabase(client *mongodb.Client) *Attachment {

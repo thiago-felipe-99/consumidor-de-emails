@@ -16,11 +16,13 @@ import (
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
-// @title			Publisher Emails
-// @version		1.0
-// @host			localhost:8080
-// @BasePath		/
-// @description	This is an api that publishes emails in RabbitMQ.
+// Publisher main function
+//
+//	@title			Publisher Emails
+//	@version		1.0
+//	@host			localhost:8080
+//	@BasePath		/
+//	@description	This is an api that publishes emails in RabbitMQ.
 func main() {
 	configs, err := getConfigurations()
 	if err != nil {

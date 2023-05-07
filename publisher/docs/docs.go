@@ -68,6 +68,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/email/attachment/user": {
+            "get": {
+                "description": "Get all user attachments.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Get user attachments",
+                "responses": {
+                    "200": {
+                        "description": "all attachments",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Attachment"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
         "/email/queue": {
             "get": {
                 "description": "Get all RabbitMQ queues.",
@@ -1519,6 +1557,26 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Attachment": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "minioName": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
         "model.AttachmentLink": {
             "type": "object",
             "properties": {
@@ -1533,13 +1591,9 @@ const docTemplate = `{
         "model.AttachmentPartial": {
             "type": "object",
             "required": [
-                "contentType",
                 "name"
             ],
             "properties": {
-                "contentType": {
-                    "type": "string"
-                },
                 "name": {
                     "type": "string"
                 }

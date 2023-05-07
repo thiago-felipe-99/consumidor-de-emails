@@ -63,6 +63,15 @@ func (core *Attachment) Create(
 	return &attachmentLink, nil
 }
 
+func (core *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
+	attachments, err := core.database.GetAttachments(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting attachments from database: %w", err)
+	}
+
+	return attachments, nil
+}
+
 func newAttachment(
 	minio *minio.Client,
 	bucket string,

@@ -5,6 +5,19 @@ definitions:
       message:
         type: string
     type: object
+  model.Attachment:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      minioName:
+        type: string
+      name:
+        type: string
+      userId:
+        type: string
+    type: object
   model.AttachmentLink:
     properties:
       link:
@@ -14,12 +27,9 @@ definitions:
     type: object
   model.AttachmentPartial:
     properties:
-      contentType:
-        type: string
       name:
         type: string
     required:
-    - contentType
     - name
     type: object
   model.Email:
@@ -225,6 +235,31 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Creating attachment
+      tags:
+      - attachment
+  /email/attachment/user:
+    get:
+      consumes:
+      - application/json
+      description: Get all user attachments.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: all attachments
+          schema:
+            items:
+              $ref: '#/definitions/model.Attachment'
+            type: array
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get user attachments
       tags:
       - attachment
   /email/queue:
