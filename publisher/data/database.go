@@ -40,7 +40,7 @@ func (database *mongo[T]) existByID(id uuid.UUID) (bool, error) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("error getting data from database: %w", err)
+		return false, fmt.Errorf("error checking if data exist on database: %w", err)
 	}
 
 	return true, nil
@@ -66,7 +66,7 @@ func (database *mongo[T]) existByFieldsOr(fields map[string]any) (bool, error) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("error getting data from database: %w", err)
+		return false, fmt.Errorf("error checking if data exist on database: %w", err)
 	}
 
 	return true, nil
@@ -205,11 +205,39 @@ func (database *User) SaveSession(session model.UserSession) error {
 }
 
 func (database *User) ExistSession(sessionID uuid.UUID) (bool, error) {
-	return database.sessions.existByID(sessionID)
+	filter := bson.D{
+		{Key: "_id", Value: sessionID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$gt", Value: time.Now()}}},
+	}
+
+	session := new(model.UserSession)
+
+	err := database.sessions.collection.FindOne(context.Background(), filter).Decode(session)
+	if err != nil {
+		if errors.Is(err, mongodb.ErrNoDocuments) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("error checking if session exist: %w", err)
+	}
+
+	return true, nil
 }
 
 func (database *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error) {
-	return database.sessions.getByID(sessionID)
+	filter := bson.D{
+		{Key: "_id", Value: sessionID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$gt", Value: time.Now()}}},
+	}
+
+	session := new(model.UserSession)
+
+	err := database.sessions.collection.FindOne(context.Background(), filter).Decode(session)
+	if err != nil {
+		return nil, fmt.Errorf("error getting session from database: %w", err)
+	}
+
+	return session, nil
 }
 
 func (database *User) UpdateSession(session model.UserSession) error {
@@ -331,6 +359,20 @@ func newTemplateDatabase(client *mongodb.Client) *Template {
 	}
 }
 
+type Attachment struct {
+	attachment *mongo[model.Attachment]
+}
+
+func (database *Attachment) Create(attachment model.Attachment) error {
+	return database.attachment.create(attachment)
+}
+
+func newAttachmenteDatabase(client *mongodb.Client) *Attachment {
+	return &Attachment{
+		createMongoDatabase[model.Attachment](client, "attachment", "attachments"),
+	}
+}
+
 func NewMongoClient(uri string) (*mongodb.Client, error) {
 	connection, err := mongodb.Connect(context.Background(), options.Client().ApplyURI(uri))
 	if err != nil {
@@ -349,12 +391,14 @@ type Databases struct {
 	*User
 	*Queue
 	*Template
+	*Attachment
 }
 
 func NewDatabases(client *mongodb.Client) *Databases {
 	return &Databases{
-		User:     newUserDatabase(client),
-		Queue:    newQueueDatabase(client),
-		Template: newTemplateDatabase(client),
+		User:       newUserDatabase(client),
+		Queue:      newQueueDatabase(client),
+		Template:   newTemplateDatabase(client),
+		Attachment: newAttachmenteDatabase(client),
 	}
 }

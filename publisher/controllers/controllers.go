@@ -70,10 +70,17 @@ func callingCoreWithReturn[T any](
 	coreFunc func() (T, error),
 	expectErrors []expectError,
 	unexpectMessageError string,
+	language ut.Translator,
 	handler *fiber.Ctx,
 ) error {
 	data, err := coreFunc()
 	if err != nil {
+		modelInvalid := core.ModelInvalidError{}
+		if okay := errors.As(err, &modelInvalid); okay {
+			return handler.Status(fiber.StatusBadRequest).
+				JSON(sent{modelInvalid.Translate(language)})
+		}
+
 		for _, expectError := range expectErrors {
 			if errors.Is(err, expectError.err) {
 				return handler.Status(expectError.status).JSON(sent{expectError.err.Error()})
@@ -151,14 +158,20 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 		languages:  languages,
 	}
 
+	queue := Queue{
+		core:       cores.Queue,
+		translator: translator,
+		languages:  languages,
+	}
+
 	template := Template{
 		core:       cores.Template,
 		translator: translator,
 		languages:  languages,
 	}
 
-	queue := Queue{
-		core:       cores.Queue,
+	attachment := Attachment{
+		core:       cores.Attachment,
 		translator: translator,
 		languages:  languages,
 	}
@@ -198,6 +211,8 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Get("/email/template/:name", template.get)
 	app.Put("/email/template/:name", template.update)
 	app.Delete("/email/template/:name", template.delete)
+
+	app.Post("/email/attachment", attachment.create)
 
 	return app, nil
 }

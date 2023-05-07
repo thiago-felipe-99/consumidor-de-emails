@@ -80,6 +80,7 @@ type Cores struct {
 	*User
 	*Queue
 	*Template
+	*Attachment
 }
 
 func NewCores(
@@ -89,12 +90,14 @@ func NewCores(
 	rabbit *rabbit.Rabbit,
 	minio *minio.Client,
 	bukcetTemplate string,
+	bukcetAttachment string,
 ) *Cores {
-	template := NewTemplate(databases.Template, minio, bukcetTemplate, validate)
+	template := newTemplate(databases.Template, minio, bukcetTemplate, validate)
 
 	return &Cores{
-		User:     NewUser(databases.User, validate, sessionDuration),
-		Template: template,
-		Queue:    NewQueue(template, rabbit, databases.Queue, validate),
+		User:       newUser(databases.User, validate, sessionDuration),
+		Template:   template,
+		Queue:      newQueue(template, rabbit, databases.Queue, validate),
+		Attachment: newAttachment(minio, bukcetAttachment, databases.Attachment, validate),
 	}
 }

@@ -5,6 +5,23 @@ definitions:
       message:
         type: string
     type: object
+  model.AttachmentLink:
+    properties:
+      link:
+        type: string
+      name:
+        type: string
+    type: object
+  model.AttachmentPartial:
+    properties:
+      contentType:
+        type: string
+      name:
+        type: string
+    required:
+    - contentType
+    - name
+    type: object
   model.Email:
     properties:
       attachments:
@@ -176,6 +193,40 @@ info:
   title: Publisher Emails
   version: "1.0"
 paths:
+  /email/attachment:
+    post:
+      consumes:
+      - application/json
+      description: Create a attachment link.
+      parameters:
+      - description: attachment params
+        in: body
+        name: attachment
+        required: true
+        schema:
+          $ref: '#/definitions/model.AttachmentPartial'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: create attachment successfully
+          schema:
+            $ref: '#/definitions/model.AttachmentLink'
+        "400":
+          description: an invalid attachment param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Creating attachment
+      tags:
+      - attachment
   /email/queue:
     get:
       consumes:

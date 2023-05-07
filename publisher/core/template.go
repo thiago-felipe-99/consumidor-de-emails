@@ -225,7 +225,7 @@ func (core *Template) Delete(name string, userID uuid.UUID) error {
 	return nil
 }
 
-func NewTemplate(
+func newTemplate(
 	database *data.Template,
 	minio *minio.Client,
 	bucket string,

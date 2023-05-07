@@ -596,7 +596,7 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 	return &newSession, nil
 }
 
-func NewUser(
+func newUser(
 	database *data.User,
 	validate *validator.Validate,
 	durationSession time.Duration,

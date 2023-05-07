@@ -194,7 +194,7 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uu
 	return nil
 }
 
-func NewQueue(
+func newQueue(
 	template *Template,
 	rabbit *rabbit.Rabbit,
 	database *data.Queue,

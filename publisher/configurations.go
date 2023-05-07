@@ -24,12 +24,13 @@ type rabbitConfig struct {
 }
 
 type minioConfig struct {
-	Host           string `config:"host"            validate:"required"`
-	Port           int    `config:"port"            validate:"required"`
-	AccessKey      string `config:"access_key"      validate:"required"`
-	SecretKey      string `config:"secret_key"      validate:"required"`
-	Secure         bool   `config:"secure"`
-	TemplateBucket string `config:"template_bucket" validate:"required"`
+	Host               string `config:"host"                validate:"required"`
+	Port               int    `config:"port"                validate:"required"`
+	AccessKey          string `config:"access_key"          validate:"required"`
+	SecretKey          string `config:"secret_key"          validate:"required"`
+	Secure             bool   `config:"secure"`
+	TemplateBucket     string `config:"template_bucket"     validate:"required"`
+	TemplateAttachment string `config:"template_attachment" validate:"required"`
 }
 
 type mongoConfig struct {

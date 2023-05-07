@@ -16,6 +16,58 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/email/attachment": {
+            "post": {
+                "description": "Create a attachment link.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Creating attachment",
+                "parameters": [
+                    {
+                        "description": "attachment params",
+                        "name": "attachment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "create attachment successfully",
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentLink"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid attachment param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
         "/email/queue": {
             "get": {
                 "description": "Get all RabbitMQ queues.",
@@ -1463,6 +1515,32 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AttachmentLink": {
+            "type": "object",
+            "properties": {
+                "link": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AttachmentPartial": {
+            "type": "object",
+            "required": [
+                "contentType",
+                "name"
+            ],
+            "properties": {
+                "contentType": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }

@@ -94,6 +94,7 @@ func (controller *Template) getAll(handler *fiber.Ctx) error {
 		controller.core.GetAll,
 		[]expectError{},
 		"error getting all templates",
+		controller.getTranslator(handler),
 		handler,
 	)
 }
@@ -116,7 +117,13 @@ func (controller *Template) get(handler *fiber.Ctx) error {
 
 	expectErros := []expectError{{core.ErrTemplateDoesNotExist, fiber.StatusNotFound}}
 
-	return callingCoreWithReturn(coreFunc, expectErros, "error getting template", handler)
+	return callingCoreWithReturn(
+		coreFunc,
+		expectErros,
+		"error getting template",
+		controller.getTranslator(handler),
+		handler,
+	)
 }
 
 // Update a email template

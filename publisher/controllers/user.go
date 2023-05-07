@@ -344,6 +344,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 		funcCore,
 		expectErrors,
 		unexpectMessageError,
+		controller.getTranslator(handler),
 		handler,
 	)
 }
@@ -388,6 +389,7 @@ func (controller *User) getByAdmin(handler *fiber.Ctx) error {
 		funcCore,
 		expectErrors,
 		unexpectMessageError,
+		controller.getTranslator(handler),
 		handler,
 	)
 }
@@ -426,6 +428,7 @@ func (controller *User) getAll(handler *fiber.Ctx) error {
 		funcCore,
 		expectErrors,
 		unexpectMessageError,
+		controller.getTranslator(handler),
 		handler,
 	)
 }
@@ -606,6 +609,7 @@ func (controller *User) getRoles(handler *fiber.Ctx) error {
 		funcCore,
 		expectErrors,
 		unexpectMessageError,
+		controller.getTranslator(handler),
 		handler,
 	)
 }

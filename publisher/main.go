@@ -113,6 +113,7 @@ func main() {
 		rabbitConnection,
 		minio,
 		configs.Minio.TemplateBucket,
+		configs.Minio.TemplateAttachment,
 	)
 
 	exist, err := cores.User.ExistByNameOrEmail(configs.Admin.Name, configs.Admin.Email)

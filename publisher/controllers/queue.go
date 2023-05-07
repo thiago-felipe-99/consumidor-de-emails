@@ -94,6 +94,7 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 		controller.core.GetAll,
 		[]expectError{},
 		"error getting all queues",
+		controller.getTranslator(handler),
 		handler,
 	)
 }
