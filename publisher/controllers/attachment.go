@@ -71,6 +71,40 @@ func (controller *Attachment) create(handler *fiber.Ctx) error {
 	)
 }
 
+// Get a attachment link
+//
+//	@Summary		Get attachment link
+//	@Tags			attachment
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	model.AttachmentLink	"attachment link"
+//	@Failure		400	{object}	sent					"was sent a invalid attachment ID"
+//	@Failure		401	{object}	sent					"user session has expired"
+//	@Failure		404	{object}	sent					"attachment does not exist"
+//	@Failure		500	{object}	sent					"internal server error"
+//	@Param			id	path		string					true	"attachment id"
+//	@Router			/email/attachment/{id} [get]
+//	@Description	Get a attachment link.
+func (controller *Attachment) get(handler *fiber.Ctx) error {
+	userID, err := uuid.Parse(handler.Params("id"))
+	if err != nil {
+		return handler.Status(fiber.StatusBadRequest).
+			JSON(sent{"was sent a invalid attachment ID"})
+	}
+
+	funcCore := func() (*model.AttachmentLink, error) { return controller.core.Get(userID) }
+
+	expectErrors := []expectError{{core.ErrAttachmentDoesNotExist, fiber.StatusNotFound}}
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		"error getting attachment",
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
 // Get all user attachments
 //
 //	@Summary		Get user attachments

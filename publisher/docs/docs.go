@@ -106,6 +106,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/email/attachment/{id}": {
+            "get": {
+                "description": "Get a attachment link.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Get attachment link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "attachment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "attachment link",
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentLink"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid attachment ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "attachment does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
         "/email/queue": {
             "get": {
                 "description": "Get all RabbitMQ queues.",

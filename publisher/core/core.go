@@ -29,6 +29,7 @@ var (
 	ErrMaxSizeTemplate          = errors.New("template has a max size of 1MB")
 	ErrMissingFieldTemplates    = errors.New("missing fields from template")
 	ErrTemplateDoesNotExist     = errors.New("template does not exist")
+	ErrAttachmentDoesNotExist   = errors.New("attachment does not exist")
 )
 
 const (

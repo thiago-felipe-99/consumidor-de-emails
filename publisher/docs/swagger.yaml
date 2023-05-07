@@ -237,6 +237,43 @@ paths:
       summary: Creating attachment
       tags:
       - attachment
+  /email/attachment/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a attachment link.
+      parameters:
+      - description: attachment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: attachment link
+          schema:
+            $ref: '#/definitions/model.AttachmentLink'
+        "400":
+          description: was sent a invalid attachment ID
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: attachment does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get attachment link
+      tags:
+      - attachment
   /email/attachment/user:
     get:
       consumes:

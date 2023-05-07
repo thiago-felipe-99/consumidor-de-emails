@@ -63,6 +63,40 @@ func (core *Attachment) Create(
 	return &attachmentLink, nil
 }
 
+func (core *Attachment) Get(attachmentID uuid.UUID) (*model.AttachmentLink, error) {
+	exist, err := core.database.Exist(attachmentID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if attachment exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrAttachmentDoesNotExist
+	}
+
+	attachment, err := core.database.Get(attachmentID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting attachment from database: %w", err)
+	}
+
+	link, err := core.minio.PresignedGetObject(
+		context.Background(),
+		core.bucket,
+		attachment.MinioName,
+		core.expires,
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("error creating minio link: %w", err)
+	}
+
+	attachmentLink := model.AttachmentLink{
+		Name: attachment.MinioName,
+		Link: link.String(),
+	}
+
+	return &attachmentLink, nil
+}
+
 func (core *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
 	attachments, err := core.database.GetAttachments(userID)
 	if err != nil {
