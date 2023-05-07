@@ -204,6 +204,30 @@ info:
   version: "1.0"
 paths:
   /email/attachment:
+    get:
+      consumes:
+      - application/json
+      description: Get all user attachments.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: all attachments
+          schema:
+            items:
+              $ref: '#/definitions/model.Attachment'
+            type: array
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get user attachments
+      tags:
+      - attachment
     post:
       consumes:
       - application/json
@@ -272,31 +296,6 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Get attachment link
-      tags:
-      - attachment
-  /email/attachment/user:
-    get:
-      consumes:
-      - application/json
-      description: Get all user attachments.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: all attachments
-          schema:
-            items:
-              $ref: '#/definitions/model.Attachment'
-            type: array
-        "401":
-          description: user session has expired
-          schema:
-            $ref: '#/definitions/controllers.sent'
-        "500":
-          description: internal server error
-          schema:
-            $ref: '#/definitions/controllers.sent'
-      summary: Get user attachments
       tags:
       - attachment
   /email/queue:

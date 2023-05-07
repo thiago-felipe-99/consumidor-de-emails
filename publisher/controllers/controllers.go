@@ -212,9 +212,9 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Put("/email/template/:name", template.update)
 	app.Delete("/email/template/:name", template.delete)
 
+	app.Get("/email/attachment", attachment.getAttachments)
 	app.Post("/email/attachment", attachment.create)
 	app.Get("/email/attachment/:id", attachment.get)
-	app.Get("/email/attachment/user", attachment.getAttachments)
 
 	return app, nil
 }

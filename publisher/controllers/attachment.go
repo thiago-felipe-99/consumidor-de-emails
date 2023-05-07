@@ -114,7 +114,7 @@ func (controller *Attachment) get(handler *fiber.Ctx) error {
 //	@Success		200	{array}		model.Attachment	"all attachments"
 //	@Failure		401	{object}	sent				"user session has expired"
 //	@Failure		500	{object}	sent				"internal server error"
-//	@Router			/email/attachment/user [get]
+//	@Router			/email/attachment [get]
 //	@Description	Get all user attachments.
 func (controller *Attachment) getAttachments(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(uuid.UUID)

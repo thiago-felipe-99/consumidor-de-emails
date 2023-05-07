@@ -17,6 +17,42 @@ const docTemplate = `{
     "basePath": "{{.BasePath}}",
     "paths": {
         "/email/attachment": {
+            "get": {
+                "description": "Get all user attachments.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Get user attachments",
+                "responses": {
+                    "200": {
+                        "description": "all attachments",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Attachment"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Create a attachment link.",
                 "consumes": [
@@ -51,44 +87,6 @@ const docTemplate = `{
                         "description": "an invalid attachment param was sent",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
-                        }
-                    },
-                    "401": {
-                        "description": "user session has expired",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.sent"
-                        }
-                    },
-                    "500": {
-                        "description": "internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.sent"
-                        }
-                    }
-                }
-            }
-        },
-        "/email/attachment/user": {
-            "get": {
-                "description": "Get all user attachments.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "attachment"
-                ],
-                "summary": "Get user attachments",
-                "responses": {
-                    "200": {
-                        "description": "all attachments",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.Attachment"
-                            }
                         }
                     },
                     "401": {
