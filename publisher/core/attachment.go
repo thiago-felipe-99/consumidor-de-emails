@@ -111,7 +111,7 @@ func (core *Attachment) Get(attachmentID uuid.UUID) (*model.AttachmentLink, erro
 		attachment.MinioName,
 		core.expires,
 		url.Values{
-			"response-content-disposition": {"attachment;", fileName},
+			"response-content-disposition": {"attachment; " + fileName},
 			"response-content-type":        {attachment.ContentType},
 		},
 	)
