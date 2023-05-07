@@ -26,12 +26,7 @@ func (database *mongo[T]) create(data T) error {
 	return nil
 }
 
-func (database *mongo[T]) existByID(id uuid.UUID) (bool, error) {
-	filter := bson.D{
-		{Key: "_id", Value: id},
-		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
-	}
-
+func (database *mongo[T]) exist(filter bson.D) (bool, error) {
 	data := new(T)
 
 	err := database.collection.FindOne(context.Background(), filter).Decode(data)
@@ -46,38 +41,7 @@ func (database *mongo[T]) existByID(id uuid.UUID) (bool, error) {
 	return true, nil
 }
 
-func (database *mongo[T]) existByFieldsOr(fields map[string]any) (bool, error) {
-	fieldsBson := bson.A{}
-
-	for key, value := range fields {
-		fieldsBson = append(fieldsBson, bson.D{{Key: key, Value: value}})
-	}
-
-	filter := bson.D{
-		{Key: "$or", Value: fieldsBson},
-		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
-	}
-
-	data := new(T)
-
-	err := database.collection.FindOne(context.Background(), filter).Decode(data)
-	if err != nil {
-		if errors.Is(err, mongodb.ErrNoDocuments) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("error checking if data exist on database: %w", err)
-	}
-
-	return true, nil
-}
-
-func (database *mongo[T]) getByID(id uuid.UUID) (*T, error) {
-	filter := bson.D{
-		{Key: "_id", Value: id},
-		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
-	}
-
+func (database *mongo[T]) get(filter bson.D) (*T, error) {
 	data := new(T)
 
 	err := database.collection.FindOne(context.Background(), filter).Decode(data)
@@ -88,39 +52,7 @@ func (database *mongo[T]) getByID(id uuid.UUID) (*T, error) {
 	return data, nil
 }
 
-func (database *mongo[T]) getByFieldsOr(fields map[string]any) (*T, error) {
-	fieldsBson := bson.A{}
-
-	for key, value := range fields {
-		fieldsBson = append(fieldsBson, bson.D{{Key: key, Value: value}})
-	}
-
-	filter := bson.D{
-		{Key: "$or", Value: fieldsBson},
-		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
-	}
-
-	data := new(T)
-
-	err := database.collection.FindOne(context.Background(), filter).Decode(data)
-	if err != nil {
-		return nil, fmt.Errorf("error getting data from database: %w", err)
-	}
-
-	return data, nil
-}
-
-func (database *mongo[T]) getMultiplesByFieldsOr(fields map[string]any) ([]T, error) {
-	fieldsBson := bson.A{}
-
-	for key, value := range fields {
-		fieldsBson = append(fieldsBson, bson.D{{Key: key, Value: value}})
-	}
-
-	filter := bson.D{
-		{Key: "$or", Value: fieldsBson},
-	}
-
+func (database *mongo[T]) getMultiples(filter bson.D) ([]T, error) {
 	data := []T{}
 
 	cursor, err := database.collection.Find(context.Background(), filter)
@@ -137,30 +69,10 @@ func (database *mongo[T]) getMultiplesByFieldsOr(fields map[string]any) ([]T, er
 }
 
 func (database *mongo[T]) getAll() ([]T, error) {
-	data := []T{}
-
-	cursor, err := database.collection.Find(context.Background(), bson.D{})
-	if err != nil {
-		return nil, fmt.Errorf("error getting all data from database: %w", err)
-	}
-
-	err = cursor.All(context.Background(), &data)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing data: %w", err)
-	}
-
-	return data, nil
+	return database.getMultiples(bson.D{})
 }
 
-func (database *mongo[T]) update(dataID uuid.UUID, fields map[string]any) error {
-	fieldsBson := bson.D{}
-
-	for key, value := range fields {
-		fieldsBson = append(fieldsBson, bson.E{Key: key, Value: value})
-	}
-
-	update := bson.D{{Key: "$set", Value: fieldsBson}}
-
+func (database *mongo[T]) update(dataID uuid.UUID, update bson.D) error {
 	_, err := database.collection.UpdateByID(context.Background(), dataID, update)
 	if err != nil {
 		return fmt.Errorf("error getting data from database: %w", err)
@@ -184,29 +96,45 @@ func (database *User) Create(user model.User) error {
 }
 
 func (database *User) ExistByID(userID uuid.UUID) (bool, error) {
-	return database.users.existByID(userID)
+	filter := bson.D{
+		{Key: "_id", Value: userID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
+
+	return database.users.exist(filter)
 }
 
 func (database *User) ExistByNameOrEmail(name, email string) (bool, error) {
-	filter := map[string]any{
-		"name":  name,
-		"email": email,
+	filter := bson.D{
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "name", Value: name}},
+			bson.D{{Key: "email", Value: email}},
+		}},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 
-	return database.users.existByFieldsOr(filter)
+	return database.users.exist(filter)
 }
 
 func (database *User) GetByID(userID uuid.UUID) (*model.User, error) {
-	return database.users.getByID(userID)
+	filter := bson.D{
+		{Key: "_id", Value: userID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
+
+	return database.users.get(filter)
 }
 
 func (database *User) GetByNameOrEmail(name, email string) (*model.User, error) {
-	filter := map[string]any{
-		"name":  name,
-		"email": email,
+	filter := bson.D{
+		{Key: "$or", Value: bson.A{
+			bson.D{{Key: "name", Value: name}},
+			bson.D{{Key: "email", Value: email}},
+		}},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 
-	return database.users.getByFieldsOr(filter)
+	return database.users.get(filter)
 }
 
 func (database *User) GetAll() ([]model.User, error) {
@@ -214,13 +142,15 @@ func (database *User) GetAll() ([]model.User, error) {
 }
 
 func (database *User) Update(user model.User) error {
-	update := map[string]any{
-		"password":   user.Password,
-		"deleted_at": user.DeletedAt,
-		"deleted_by": user.DeletedBy,
-		"is_admin":   user.IsAdmin,
-		"protected":  user.IsProtected,
-		"roles":      user.Roles,
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "password", Value: user.Password},
+			{Key: "deleted_at", Value: user.DeletedAt},
+			{Key: "deleted_by", Value: user.DeletedBy},
+			{Key: "is_admin", Value: user.IsAdmin},
+			{Key: "protected", Value: user.IsProtected},
+			{Key: "roles", Value: user.Roles},
+		}},
 	}
 
 	return database.users.update(user.ID, update)
@@ -236,18 +166,7 @@ func (database *User) ExistSession(sessionID uuid.UUID) (bool, error) {
 		{Key: "deleted_at", Value: bson.D{{Key: "$gt", Value: time.Now()}}},
 	}
 
-	session := new(model.UserSession)
-
-	err := database.sessions.collection.FindOne(context.Background(), filter).Decode(session)
-	if err != nil {
-		if errors.Is(err, mongodb.ErrNoDocuments) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("error checking if session exist: %w", err)
-	}
-
-	return true, nil
+	return database.sessions.exist(filter)
 }
 
 func (database *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error) {
@@ -267,7 +186,11 @@ func (database *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error
 }
 
 func (database *User) UpdateSession(session model.UserSession) error {
-	update := map[string]any{"deleted_at": session.DeletedAt}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "deleted_at", Value: session.DeletedAt},
+		}},
+	}
 
 	return database.sessions.update(session.ID, update)
 }
@@ -277,9 +200,12 @@ func (database *User) CreateRole(role model.Role) error {
 }
 
 func (database *User) GetRole(name string) (*model.Role, error) {
-	filter := map[string]any{"name": name}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
-	return database.roles.getByFieldsOr(filter)
+	return database.roles.get(filter)
 }
 
 func (database *User) GetAllRoles() ([]model.Role, error) {
@@ -304,9 +230,12 @@ func (database *Queue) Create(queue model.Queue) error {
 }
 
 func (database *Queue) Get(name string) (*model.Queue, error) {
-	filter := map[string]any{"name": name}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
-	return database.queues.getByFieldsOr(filter)
+	return database.queues.get(filter)
 }
 
 func (database *Queue) GetAll() ([]model.Queue, error) {
@@ -314,18 +243,20 @@ func (database *Queue) GetAll() ([]model.Queue, error) {
 }
 
 func (database *Queue) Exist(name string) (bool, error) {
-	filter := map[string]any{
-		"name": name,
-		"dlx":  name,
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 
-	return database.queues.existByFieldsOr(filter)
+	return database.queues.exist(filter)
 }
 
 func (database *Queue) Update(queue model.Queue) error {
-	update := map[string]any{
-		"deleted_at": queue.DeletedAt,
-		"deleted_by": queue.DeletedBy,
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "deleted_at", Value: queue.DeletedAt},
+			{Key: "deleted_by", Value: queue.DeletedBy},
+		}},
 	}
 
 	return database.queues.update(queue.ID, update)
@@ -351,28 +282,36 @@ func (database *Template) Create(template model.Template) error {
 }
 
 func (database *Template) Update(template model.Template) error {
-	update := map[string]any{
-		"template":  template.Template,
-		"fields":    template.Fields,
-		"createdAt": template.CreatedAt,
-		"createdBy": template.CreatedBy,
-		"deletedAt": template.DeletedAt,
-		"deletedBy": template.DeletedBy,
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "template", Value: template.Template},
+			{Key: "fields", Value: template.Fields},
+			{Key: "createdAt", Value: template.CreatedAt},
+			{Key: "createdBy", Value: template.CreatedBy},
+			{Key: "deletedAt", Value: template.DeletedAt},
+			{Key: "deletedBy", Value: template.DeletedBy},
+		}},
 	}
 
 	return database.templates.update(template.ID, update)
 }
 
 func (database *Template) Exist(name string) (bool, error) {
-	filter := map[string]any{"name": name}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
-	return database.templates.existByFieldsOr(filter)
+	return database.templates.exist(filter)
 }
 
 func (database *Template) Get(name string) (*model.Template, error) {
-	filter := map[string]any{"name": name}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
-	return database.templates.getByFieldsOr(filter)
+	return database.templates.get(filter)
 }
 
 func (database *Template) GetAll() ([]model.Template, error) {
@@ -394,9 +333,9 @@ func (database *Attachment) Create(attachment model.Attachment) error {
 }
 
 func (database *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
-	filter := map[string]any{"user_id": userID}
+	filter := bson.D{{Key: "user_id", Value: userID}}
 
-	return database.attachment.getMultiplesByFieldsOr(filter)
+	return database.attachment.getMultiples(filter)
 }
 
 func newAttachmenteDatabase(client *mongodb.Client) *Attachment {
