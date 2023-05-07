@@ -152,6 +152,15 @@ func (core *Template) GetFields(name string) ([]string, error) {
 	return template.Fields, nil
 }
 
+func (core *Template) GetByUser(userID uuid.UUID) ([]model.Template, error) {
+	templates, err := core.database.GetByUser(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user templates from databas: %w", err)
+	}
+
+	return templates, nil
+}
+
 func (core *Template) Update(name string, partial model.TemplatePartial) error {
 	err := validate(core.validate, partial)
 	if err != nil {

@@ -87,7 +87,7 @@ func (controller *Template) create(handler *fiber.Ctx) error {
 //	@Success		200	{array}		model.Template	"all templates"
 //	@Failure		401	{object}	sent			"user session has expired"
 //	@Failure		500	{object}	sent			"internal server error"
-//	@Router			/email/template [get]
+//	@Router			/email/template/all [get]
 //	@Description	Get all email templates.
 func (controller *Template) getAll(handler *fiber.Ctx) error {
 	return callingCoreWithReturn(
@@ -121,6 +121,41 @@ func (controller *Template) get(handler *fiber.Ctx) error {
 		coreFunc,
 		expectErros,
 		"error getting template",
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Get all user templates
+//
+//	@Summary		Get user template
+//	@Tags			template
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		model.Template	"all user templates"
+//	@Failure		401	{object}	sent			"user session has expired"
+//	@Failure		500	{object}	sent			"internal server error"
+//	@Router			/email/template [get]
+//	@Description	Get all user templates.
+func (controller *Template) getByUser(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(uuid.UUID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() ([]model.Template, error) { return controller.core.GetByUser(userID) }
+
+	expectErrors := []expectError{}
+
+	unexpectMessageError := "error getting user templates"
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
 		controller.getTranslator(handler),
 		handler,
 	)

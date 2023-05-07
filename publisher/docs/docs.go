@@ -391,7 +391,7 @@ const docTemplate = `{
         },
         "/email/template": {
             "get": {
-                "description": "Get all email templates.",
+                "description": "Get all user templates.",
                 "consumes": [
                     "application/json"
                 ],
@@ -401,10 +401,10 @@ const docTemplate = `{
                 "tags": [
                     "template"
                 ],
-                "summary": "Get templates",
+                "summary": "Get user template",
                 "responses": {
                     "200": {
-                        "description": "all templates",
+                        "description": "all user templates",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -470,6 +470,44 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "template name already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/template/all": {
+            "get": {
+                "description": "Get all email templates.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Get templates",
+                "responses": {
+                    "200": {
+                        "description": "all templates",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Template"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }

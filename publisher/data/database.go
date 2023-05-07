@@ -314,6 +314,15 @@ func (database *Template) Get(name string) (*model.Template, error) {
 	return database.templates.get(filter)
 }
 
+func (database *Template) GetByUser(userID uuid.UUID) ([]model.Template, error) {
+	filter := bson.D{
+		{Key: "created_by", Value: userID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
+
+	return database.templates.getMultiples(filter)
+}
+
 func (database *Template) GetAll() ([]model.Template, error) {
 	return database.templates.getAll()
 }

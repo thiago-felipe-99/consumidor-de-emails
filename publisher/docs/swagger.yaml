@@ -453,12 +453,12 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get all email templates.
+      description: Get all user templates.
       produces:
       - application/json
       responses:
         "200":
-          description: all templates
+          description: all user templates
           schema:
             items:
               $ref: '#/definitions/model.Template'
@@ -471,7 +471,7 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Get templates
+      summary: Get user template
       tags:
       - template
     post:
@@ -618,6 +618,31 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Update template
+      tags:
+      - template
+  /email/template/all:
+    get:
+      consumes:
+      - application/json
+      description: Get all email templates.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: all templates
+          schema:
+            items:
+              $ref: '#/definitions/model.Template'
+            type: array
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get templates
       tags:
       - template
   /user:
