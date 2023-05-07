@@ -31,6 +31,7 @@ type minioConfig struct {
 	Secure             bool   `config:"secure"`
 	TemplateBucket     string `config:"template_bucket"     validate:"required"`
 	TemplateAttachment string `config:"template_attachment" validate:"required"`
+	MaxEntrySize       int    `config:"max_entry_size"      validate:"required"`
 }
 
 type mongoConfig struct {
@@ -68,6 +69,7 @@ func defaultConfigurations() configurations {
 		Minio: minioConfig{
 			Port:   9000,
 			Secure: true,
+			MaxEntrySize: 3,
 		},
 		Mongo: mongoConfig{
 			ConnectTimeoutMS: 10000,

@@ -92,6 +92,7 @@ func NewCores(
 	minio *minio.Client,
 	bukcetTemplate string,
 	bukcetAttachment string,
+	maxEntrySize int,
 ) *Cores {
 	template := newTemplate(databases.Template, minio, bukcetTemplate, validate)
 
@@ -99,6 +100,6 @@ func NewCores(
 		User:       newUser(databases.User, validate, sessionDuration),
 		Template:   template,
 		Queue:      newQueue(template, rabbit, databases.Queue, validate),
-		Attachment: newAttachment(minio, bukcetAttachment, databases.Attachment, validate),
+		Attachment: newAttachment(minio, bukcetAttachment, databases.Attachment, validate, maxEntrySize),
 	}
 }

@@ -152,14 +152,16 @@ type AttachmentPartial struct {
 }
 
 type Attachment struct {
-	ID        uuid.UUID `json:"id"        bson:"_id"`
-	UserID    uuid.UUID `json:"userId"    bson:"user_id"`
-	CreatedAt time.Time `json:"createdAt" bson:"created_at"`
-	Name      string    `json:"name"      bson:"name"`
-	MinioName string    `json:"minioName" bson:"minio_name"`
+	ID          uuid.UUID `json:"id"          bson:"_id"`
+	UserID      uuid.UUID `json:"userId"      bson:"user_id"`
+	CreatedAt   time.Time `json:"createdAt"   bson:"created_at"`
+	Name        string    `json:"name"        bson:"name"`
+	MinioName   string    `json:"minioName"   bson:"minio_name"`
+	ContentType string    `json:"contentType" bson:"content_type"`
 }
 
 type AttachmentLink struct {
-	Name string `json:"name"`
-	Link string `json:"link"`
+	Name     string            `json:"name"`
+	Link     string            `json:"link"`
+	FormData map[string]string `json:"formData,omitempty"`
 }

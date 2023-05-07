@@ -167,6 +167,7 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uu
 	}
 
 	// add logic to get emails from mail list
+	// add logic to verify templates
 
 	err = core.rabbit.SendMessage(context.Background(), queue, partial)
 	if err != nil {
