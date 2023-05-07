@@ -117,6 +117,7 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 	}
 
 	handler.Cookie(cookie)
+	handler.Set("session", session.ID.String())
 
 	return err
 }
@@ -133,7 +134,7 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 //	@Router			/user/session [put]
 //	@Description	Refresh a user session and set in the response cookie.
 func (controller *User) refreshSession(handler *fiber.Ctx) error {
-	sessionID := handler.Cookies("session", "invalid_session")
+	sessionID := handler.Cookies("session", handler.Get("session", "invalid_session"))
 
 	cookie := &fiber.Cookie{
 		Name:     "session",
@@ -165,6 +166,7 @@ func (controller *User) refreshSession(handler *fiber.Ctx) error {
 
 	handler.Cookie(cookie)
 	handler.Locals("userID", session.UserID)
+	handler.Set("session", session.ID.String())
 
 	return handler.Next()
 }
