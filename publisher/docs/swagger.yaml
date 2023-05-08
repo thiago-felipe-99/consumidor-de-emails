@@ -7,6 +7,8 @@ definitions:
     type: object
   model.Attachment:
     properties:
+      confirmedUpload:
+        type: boolean
       contentType:
         type: string
       createdAt:
@@ -22,15 +24,6 @@ definitions:
       userId:
         type: string
     type: object
-  model.AttachmentLink:
-    properties:
-      formData:
-        additionalProperties:
-          type: string
-        type: object
-      link:
-        type: string
-    type: object
   model.AttachmentPartial:
     properties:
       contentType:
@@ -44,6 +37,15 @@ definitions:
     - contentType
     - name
     - size
+    type: object
+  model.AttachmentURL:
+    properties:
+      formData:
+        additionalProperties:
+          type: string
+        type: object
+      url:
+        type: string
     type: object
   model.Email:
     properties:
@@ -258,7 +260,7 @@ paths:
         "200":
           description: create attachment successfully
           schema:
-            $ref: '#/definitions/model.AttachmentLink'
+            $ref: '#/definitions/model.AttachmentURL'
         "400":
           description: an invalid attachment param was sent
           schema:
@@ -291,7 +293,7 @@ paths:
         "200":
           description: attachment link
           schema:
-            $ref: '#/definitions/model.AttachmentLink'
+            $ref: '#/definitions/model.AttachmentURL'
         "400":
           description: was sent a invalid attachment ID
           schema:
@@ -309,6 +311,42 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Get attachment link
+      tags:
+      - attachment
+    post:
+      consumes:
+      - application/json
+      description: Refresh a attachment link.
+      parameters:
+      - description: attachment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: attachment link
+          schema:
+            $ref: '#/definitions/model.AttachmentURL'
+        "400":
+          description: was sent a invalid attachment ID
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: attachment does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Refresh attachment link
       tags:
       - attachment
   /email/queue:

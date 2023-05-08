@@ -80,7 +80,7 @@ const docTemplate = `{
                     "200": {
                         "description": "create attachment successfully",
                         "schema": {
-                            "$ref": "#/definitions/model.AttachmentLink"
+                            "$ref": "#/definitions/model.AttachmentURL"
                         }
                     },
                     "400": {
@@ -130,7 +130,61 @@ const docTemplate = `{
                     "200": {
                         "description": "attachment link",
                         "schema": {
-                            "$ref": "#/definitions/model.AttachmentLink"
+                            "$ref": "#/definitions/model.AttachmentURL"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid attachment ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "attachment does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Refresh a attachment link.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Refresh attachment link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "attachment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "attachment link",
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentURL"
                         }
                     },
                     "400": {
@@ -1652,6 +1706,9 @@ const docTemplate = `{
         "model.Attachment": {
             "type": "object",
             "properties": {
+                "confirmedUpload": {
+                    "type": "boolean"
+                },
                 "contentType": {
                     "type": "string"
                 },
@@ -1675,20 +1732,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.AttachmentLink": {
-            "type": "object",
-            "properties": {
-                "formData": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "link": {
-                    "type": "string"
-                }
-            }
-        },
         "model.AttachmentPartial": {
             "type": "object",
             "required": [
@@ -1706,6 +1749,20 @@ const docTemplate = `{
                 "size": {
                     "type": "integer",
                     "minimum": 1
+                }
+            }
+        },
+        "model.AttachmentURL": {
+            "type": "object",
+            "properties": {
+                "formData": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "url": {
+                    "type": "string"
                 }
             }
         },

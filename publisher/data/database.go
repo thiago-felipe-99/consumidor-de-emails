@@ -341,14 +341,20 @@ func (database *Attachment) Create(attachment model.Attachment) error {
 	return database.attachment.create(attachment)
 }
 
-func (database *Attachment) Exist(id uuid.UUID) (bool, error) {
-	filter := bson.D{{Key: "_id", Value: id}}
+func (database *Attachment) Exist(id uuid.UUID, userID uuid.UUID) (bool, error) {
+	filter := bson.D{
+		{Key: "_id", Value: id},
+		{Key: "user_id", Value: userID},
+	}
 
 	return database.attachment.exist(filter)
 }
 
-func (database *Attachment) Get(id uuid.UUID) (*model.Attachment, error) {
-	filter := bson.D{{Key: "_id", Value: id}}
+func (database *Attachment) Get(id uuid.UUID, userID uuid.UUID) (*model.Attachment, error) {
+	filter := bson.D{
+		{Key: "_id", Value: id},
+		{Key: "user_id", Value: userID},
+	}
 
 	return database.attachment.get(filter)
 }

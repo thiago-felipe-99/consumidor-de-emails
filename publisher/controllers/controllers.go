@@ -224,6 +224,7 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Get("/email/attachment", attachment.getAttachments)
 	app.Post("/email/attachment", attachment.create)
 	app.Get("/email/attachment/:id", attachment.get)
+	app.Post("/email/attachment/:id", attachment.refresh)
 
 	return app, nil
 }
