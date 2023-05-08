@@ -178,7 +178,6 @@ func (controller *Attachment) confirm(handler *fiber.Ctx) error {
 	expectErrors := []expectError{
 		{core.ErrAttachmentDoesNotExist, fiber.StatusNotFound},
 		{core.ErrAttachmentDoesNotExistOnMinio, fiber.StatusNotFound},
-		{core.ErrUploadAlreadyConfirmed, fiber.StatusConflict},
 	}
 
 	okay := okay{"upload confirmed", fiber.StatusOK}

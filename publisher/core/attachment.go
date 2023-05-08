@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"time"
 
@@ -22,6 +23,44 @@ type Attachment struct {
 	validator    *validator.Validate
 	expires      time.Duration
 	maxEntrySize int
+}
+
+func (core *Attachment) confirmUploads() {
+	events := core.minio.ListenBucketNotification(
+		context.Background(),
+		core.bucket,
+		"",
+		"",
+		[]string{"s3:ObjectCreated:*"},
+	)
+
+	for event := range events {
+		if event.Err != nil {
+			log.Printf("[ERROR] - Error processing minio event: %s", event.Err)
+
+			continue
+		}
+
+		for _, resource := range event.Records {
+			attachment, err := core.database.GetByMinioName(resource.S3.Object.Key)
+			if err != nil {
+				log.Printf("[ERROR] - Unable do get attachment from database: %s", err)
+
+				continue
+			}
+
+			attachment.ConfirmedUpload = true
+
+			err = core.database.Update(*attachment)
+			if err != nil {
+				log.Printf("[ERROR] - Error updating attachment on database: %s", err)
+
+				continue
+			}
+
+			log.Printf("[INFO] - Upload confirmed: %s", resource.S3.Object.Key)
+		}
+	}
 }
 
 func (core *Attachment) createUploadURL(
@@ -183,7 +222,7 @@ func (core *Attachment) ConfirmUpload(attachmentID uuid.UUID, userID uuid.UUID) 
 	}
 
 	if attachment.ConfirmedUpload {
-		return ErrUploadAlreadyConfirmed
+		return nil
 	}
 
 	_, err = core.minio.StatObject(
@@ -218,7 +257,7 @@ func newAttachment(
 	validate *validator.Validate,
 	maxEntrySize int,
 ) *Attachment {
-	return &Attachment{
+	attachment := &Attachment{
 		database:     database,
 		minio:        minio,
 		bucket:       bucket,
@@ -226,4 +265,8 @@ func newAttachment(
 		expires:      time.Minute * 30,           //nolint:gomnd
 		maxEntrySize: maxEntrySize * 1000 * 1000, //nolint:gomnd
 	}
+
+	go attachment.confirmUploads()
+
+	return attachment
 }

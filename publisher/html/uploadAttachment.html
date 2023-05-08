@@ -2,14 +2,13 @@
 <html>
 
 <head>
-  <title>Attachment Upload</title>
+  <title>Upload Attachment</title>
 </head>
 
 <body>
-  <h1>Attachment Upload</h1>
+  <h1>Upload Attachment</h1>
   <form id="upload-form">
-    <input type="file" id="file" name="file" onChange="handleFileSelect()">
-    <button type="submit">Upload</button>
+    <input type="file" id="files" name="files" onChange="handleFileSelect()" multiple>
   </form>
 
   <button id="button-login">Login</button>
@@ -17,25 +16,7 @@
   <script>
     let session = ''
 
-    fetch('http://localhost:8080/user/session', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'test',
-        password: 'test'
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-        'Session': session
-      }
-    }).then(response => {
-      session = response.headers.get('session');
-    }).catch(error => {
-      console.error(error);
-    });
-
-    const button = document.getElementById('button-login');
-
-    button.addEventListener('click', event => {
+    function login() {
       fetch('http://localhost:8080/user/session', {
         method: 'POST',
         body: JSON.stringify({
@@ -51,18 +32,22 @@
       }).catch(error => {
         console.error(error);
       });
+    }
+
+    login()
+
+    const button = document.getElementById('button-login');
+
+    button.addEventListener('click', event => {
+      login()
     });
 
-    async function handleFileSelect() {
-      const fileInput = document.getElementById('file');
-      const file = fileInput.files[0];
-
+    async function sendFile(file) {
       if (!file) {
-        alert('Please select a file to upload.');
         return;
       }
 
-      event.preventDefault();
+      console.log("sending: " + file.name)
 
       try {
         const responseAttachment = await fetch('http://localhost:8080/email/attachment', {
@@ -103,6 +88,10 @@
           return
         }
 
+        console.log("attachment sent successfully")
+
+        await new Promise(r => setTimeout(r, 2000));
+
         const confirmURL = 'http://localhost:8080/email/attachment/' + data.id + "/confirm"
         const responseConfirm = await fetch(confirmURL, {
           method: 'POST',
@@ -119,12 +108,20 @@
           return
         }
 
-        console.log("attachment sent successfully")
+        console.log("attachment confirmed successfully")
       } catch (error) {
         console.log(error)
       }
-
     }
+
+    async function handleFileSelect() {
+      event.preventDefault();
+
+      const files = document.getElementById('files').files;
+
+      Array.from(files).map(file => sendFile(file));
+    }
+
   </script>
 </body>
 

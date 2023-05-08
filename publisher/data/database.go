@@ -359,6 +359,14 @@ func (database *Attachment) Get(id uuid.UUID, userID uuid.UUID) (*model.Attachme
 	return database.attachments.get(filter)
 }
 
+func (database *Attachment) GetByMinioName(minioName string) (*model.Attachment, error) {
+	filter := bson.D{
+		{Key: "minio_name", Value: minioName},
+	}
+
+	return database.attachments.get(filter)
+}
+
 func (database *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
 	filter := bson.D{{Key: "user_id", Value: userID}}
 
