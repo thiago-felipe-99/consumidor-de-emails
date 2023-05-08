@@ -334,11 +334,11 @@ func newTemplateDatabase(client *mongodb.Client) *Template {
 }
 
 type Attachment struct {
-	attachment *mongo[model.Attachment]
+	attachments *mongo[model.Attachment]
 }
 
 func (database *Attachment) Create(attachment model.Attachment) error {
-	return database.attachment.create(attachment)
+	return database.attachments.create(attachment)
 }
 
 func (database *Attachment) Exist(id uuid.UUID, userID uuid.UUID) (bool, error) {
@@ -347,7 +347,7 @@ func (database *Attachment) Exist(id uuid.UUID, userID uuid.UUID) (bool, error) 
 		{Key: "user_id", Value: userID},
 	}
 
-	return database.attachment.exist(filter)
+	return database.attachments.exist(filter)
 }
 
 func (database *Attachment) Get(id uuid.UUID, userID uuid.UUID) (*model.Attachment, error) {
@@ -356,13 +356,23 @@ func (database *Attachment) Get(id uuid.UUID, userID uuid.UUID) (*model.Attachme
 		{Key: "user_id", Value: userID},
 	}
 
-	return database.attachment.get(filter)
+	return database.attachments.get(filter)
 }
 
 func (database *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
 	filter := bson.D{{Key: "user_id", Value: userID}}
 
-	return database.attachment.getMultiples(filter)
+	return database.attachments.getMultiples(filter)
+}
+
+func (database *Attachment) Update(attachment model.Attachment) error {
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "confirmed_upload", Value: attachment.ConfirmedUpload},
+		}},
+	}
+
+	return database.attachments.update(attachment.ID, update)
 }
 
 func newAttachmenteDatabase(client *mongodb.Client) *Attachment {

@@ -2,11 +2,13 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/thiago-felipe-99/mail/publisher/data"
@@ -22,7 +24,11 @@ type Attachment struct {
 	maxEntrySize int
 }
 
-func (core *Attachment) createUploadURL(path string, size int) (*model.AttachmentURL, error) {
+func (core *Attachment) createUploadURL(
+	attachmentID uuid.UUID,
+	path string,
+	size int,
+) (*model.AttachmentURL, error) {
 	policy := minio.NewPostPolicy()
 
 	err := policy.SetBucket(core.bucket)
@@ -47,10 +53,11 @@ func (core *Attachment) createUploadURL(path string, size int) (*model.Attachmen
 
 	url, formData, err := core.minio.PresignedPostPolicy(context.Background(), policy)
 	if err != nil {
-		return nil, fmt.Errorf("error creating minio link: %w", err)
+		return nil, fmt.Errorf("error creating minio url: %w", err)
 	}
 
 	attachmentURL := model.AttachmentURL{
+		ID:       attachmentID,
 		URL:      url.String(),
 		FormData: formData,
 	}
@@ -90,7 +97,7 @@ func (core *Attachment) Create(
 		return nil, fmt.Errorf("error creating attachment in database: %w", err)
 	}
 
-	return core.createUploadURL(attachment.MinioName, attachment.Size)
+	return core.createUploadURL(attachment.ID, attachment.MinioName, attachment.Size)
 }
 
 func (core *Attachment) get(attachmentID uuid.UUID, userID uuid.UUID) (*model.Attachment, error) {
@@ -120,7 +127,11 @@ func (core *Attachment) RefreshUploadURL(
 		return nil, err
 	}
 
-	return core.createUploadURL(attachment.MinioName, attachment.Size)
+	if attachment.ConfirmedUpload {
+		return nil, ErrUploadAlreadyConfirmed
+	}
+
+	return core.createUploadURL(attachment.ID, attachment.MinioName, attachment.Size)
 }
 
 func (core *Attachment) Get(
@@ -134,7 +145,7 @@ func (core *Attachment) Get(
 
 	fileName := "filename=\"" + attachment.Name + "\""
 
-	link, err := core.minio.PresignedGetObject(
+	url, err := core.minio.PresignedGetObject(
 		context.Background(),
 		core.bucket,
 		attachment.MinioName,
@@ -145,11 +156,12 @@ func (core *Attachment) Get(
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error creating minio link: %w", err)
+		return nil, fmt.Errorf("error creating minio url: %w", err)
 	}
 
 	attachmentURL := model.AttachmentURL{
-		URL: link.String(),
+		ID:  attachment.ID,
+		URL: url.String(),
 	}
 
 	return &attachmentURL, nil
@@ -162,6 +174,41 @@ func (core *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, er
 	}
 
 	return attachments, nil
+}
+
+func (core *Attachment) ConfirmUpload(attachmentID uuid.UUID, userID uuid.UUID) error {
+	attachment, err := core.get(attachmentID, userID)
+	if err != nil {
+		return err
+	}
+
+	if attachment.ConfirmedUpload {
+		return ErrUploadAlreadyConfirmed
+	}
+
+	_, err = core.minio.StatObject(
+		context.Background(),
+		core.bucket,
+		attachment.MinioName,
+		minio.StatObjectOptions{},
+	)
+	if err != nil {
+		errorResponse := minio.ErrorResponse{}
+		if errors.As(err, &errorResponse) && errorResponse.StatusCode == fiber.StatusNotFound {
+			return ErrAttachmentDoesNotExistOnMinio
+		}
+
+		return fmt.Errorf("error verifying if Attachment exist on minio: %w", err)
+	}
+
+	attachment.ConfirmedUpload = true
+
+	err = core.database.Update(*attachment)
+	if err != nil {
+		return fmt.Errorf("error updating attachment on database: %w", err)
+	}
+
+	return nil
 }
 
 func newAttachment(

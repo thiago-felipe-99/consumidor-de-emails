@@ -44,6 +44,8 @@ definitions:
         additionalProperties:
           type: string
         type: object
+      id:
+        type: string
       url:
         type: string
     type: object
@@ -246,7 +248,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a attachment link.
+      description: Create a upload attachment url.
       parameters:
       - description: attachment params
         in: body
@@ -280,7 +282,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a attachment link.
+      description: Get a download attachment url.
       parameters:
       - description: attachment id
         in: path
@@ -291,7 +293,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: attachment link
+          description: attachment url
           schema:
             $ref: '#/definitions/model.AttachmentURL'
         "400":
@@ -310,13 +312,13 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Get attachment link
+      summary: Get attachment url
       tags:
       - attachment
     post:
       consumes:
       - application/json
-      description: Refresh a attachment link.
+      description: Refresh a upload attachment url.
       parameters:
       - description: attachment id
         in: path
@@ -327,7 +329,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: attachment link
+          description: attachment url
           schema:
             $ref: '#/definitions/model.AttachmentURL'
         "400":
@@ -346,7 +348,44 @@ paths:
           description: internal server error
           schema:
             $ref: '#/definitions/controllers.sent'
-      summary: Refresh attachment link
+      summary: Refresh attachment url
+      tags:
+      - attachment
+  /email/attachment/{id}/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Confirm upload.
+      parameters:
+      - description: attachment id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: upload confimed
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: was sent a invalid attachment ID
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: attachment does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Confirm upload
       tags:
       - attachment
   /email/queue:

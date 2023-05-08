@@ -165,6 +165,7 @@ type Attachment struct {
 }
 
 type AttachmentURL struct {
+	ID       uuid.UUID         `json:"id"`
 	URL      string            `json:"url"`
 	FormData map[string]string `json:"formData,omitempty"`
 }

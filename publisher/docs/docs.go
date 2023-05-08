@@ -54,7 +54,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a attachment link.",
+                "description": "Create a upload attachment url.",
                 "consumes": [
                     "application/json"
                 ],
@@ -106,7 +106,7 @@ const docTemplate = `{
         },
         "/email/attachment/{id}": {
             "get": {
-                "description": "Get a attachment link.",
+                "description": "Get a download attachment url.",
                 "consumes": [
                     "application/json"
                 ],
@@ -116,7 +116,7 @@ const docTemplate = `{
                 "tags": [
                     "attachment"
                 ],
-                "summary": "Get attachment link",
+                "summary": "Get attachment url",
                 "parameters": [
                     {
                         "type": "string",
@@ -128,7 +128,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "attachment link",
+                        "description": "attachment url",
                         "schema": {
                             "$ref": "#/definitions/model.AttachmentURL"
                         }
@@ -160,7 +160,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Refresh a attachment link.",
+                "description": "Refresh a upload attachment url.",
                 "consumes": [
                     "application/json"
                 ],
@@ -170,7 +170,7 @@ const docTemplate = `{
                 "tags": [
                     "attachment"
                 ],
-                "summary": "Refresh attachment link",
+                "summary": "Refresh attachment url",
                 "parameters": [
                     {
                         "type": "string",
@@ -182,9 +182,65 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "attachment link",
+                        "description": "attachment url",
                         "schema": {
                             "$ref": "#/definitions/model.AttachmentURL"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid attachment ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "attachment does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/attachment/{id}/confirm": {
+            "post": {
+                "description": "Confirm upload.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Confirm upload",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "attachment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "upload confimed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
                         }
                     },
                     "400": {
@@ -1760,6 +1816,9 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "id": {
+                    "type": "string"
                 },
                 "url": {
                     "type": "string"
