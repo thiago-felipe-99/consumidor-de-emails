@@ -115,7 +115,7 @@ func main() {
 		rabbitConnection,
 		minio,
 		configs.Minio.TemplateBucket,
-		configs.Minio.TemplateAttachment,
+		configs.Minio.AttachmentBucket,
 		configs.Minio.MaxEntrySize,
 	)
 

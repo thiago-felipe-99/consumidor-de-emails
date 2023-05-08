@@ -26,11 +26,24 @@ services:
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=miniominio
     ports:
       - 9000:9000/tcp
       - 9001:9001/tcp
     volumes:
       - minio:/data
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set minio http://minio:9000 minio miniominio;
+      /usr/bin/mc mb minio/template minio/attachment;
+      exit 0;
+      "
   prometheus:
     image: prom/prometheus
     volumes:
