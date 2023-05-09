@@ -134,7 +134,7 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 //	@Router			/user/session [put]
 //	@Description	Refresh a user session and set in the response cookie.
 func (controller *User) refreshSession(handler *fiber.Ctx) error {
-	sessionID := handler.Cookies("session", handler.Get("session", "invalid_session"))
+	sessionIDRaw := handler.Cookies("session", handler.Get("session", "invalid_session"))
 
 	cookie := &fiber.Cookie{
 		Name:     "session",
@@ -144,11 +144,18 @@ func (controller *User) refreshSession(handler *fiber.Ctx) error {
 		Secure:   true,
 	}
 
-	session, err := controller.core.RefreshSession(sessionID)
+	sessionID, err := uuid.Parse(sessionIDRaw)
 	if err != nil {
-		handler.Cookie(cookie)
+		return handler.Status(fiber.StatusUnauthorized).
+			JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
+	}
 
-		if errors.Is(err, core.ErrUserSessionDoesNotExist) || errors.Is(err, core.ErrInvalidID) {
+	session, err := controller.core.GetSession(sessionID)
+	if err != nil {
+		if errors.Is(err, core.ErrUserSessionDoesNotExist) ||
+			errors.Is(err, core.ErrUserSessionDeleted) {
+			handler.Cookie(cookie)
+
 			return handler.Status(fiber.StatusUnauthorized).
 				JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
 		}
@@ -159,16 +166,25 @@ func (controller *User) refreshSession(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	if session != nil {
+	cookie.Value = session.ID.String()
+	cookie.Expires = session.Expires
+
+	handler.Locals("userID", session.UserID)
+
+	errNext := handler.Next()
+
+	session, err = controller.core.ReplaceSession(sessionID)
+	if err != nil {
+		log.Printf("[ERROR] - error replacing session: %s", err)
+	} else {
 		cookie.Value = session.ID.String()
 		cookie.Expires = session.Expires
 	}
 
 	handler.Cookie(cookie)
-	handler.Locals("userID", session.UserID)
 	handler.Set("session", session.ID.String())
 
-	return handler.Next()
+	return errNext
 }
 
 // Create a user admin

@@ -12,12 +12,12 @@ import (
 )
 
 var (
-	ErrInvalidID                     = errors.New("was sent a invalid ID")
 	ErrInvalidName                   = errors.New("was sent a invalid name")
 	ErrUserAlreadyExist              = errors.New("user already exist")
 	ErrUserDoesNotExist              = errors.New("user does not exist")
 	ErrUserWrongPassword             = errors.New("was sent a wrong password")
 	ErrUserSessionDoesNotExist       = errors.New("user session does not exist")
+	ErrUserSessionDeleted            = errors.New("user session deleted")
 	ErrUserIsNotAdmin                = errors.New("user is not admin")
 	ErrUserIsProtected               = errors.New("user is protected")
 	ErrRoleAlreadyExist              = errors.New("role already exist")

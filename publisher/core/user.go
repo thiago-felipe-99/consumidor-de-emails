@@ -501,18 +501,9 @@ func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSessi
 		return nil, err
 	}
 
-	exist, err := core.ExistByNameOrEmail(partial.Name, partial.Email)
+	user, err := core.GetByNameOrEmail(partial.Name, partial.Email)
 	if err != nil {
-		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
-	}
-
-	if !exist {
-		return nil, ErrUserDoesNotExist
-	}
-
-	user, err := core.database.GetByNameOrEmail(partial.Name, partial.Email)
-	if err != nil {
-		return nil, fmt.Errorf("error getting user in database: %w", err)
+		return nil, err
 	}
 
 	equals, err := argon2id.ComparePasswordAndHash(partial.Password, user.Password)
@@ -540,13 +531,8 @@ func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSessi
 	return &session, nil
 }
 
-func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
-	sessionUUID, err := uuid.Parse(sessionID)
-	if err != nil {
-		return nil, ErrInvalidID
-	}
-
-	exist, err := core.database.ExistSession(sessionUUID)
+func (core *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error) {
+	exist, err := core.database.ExistSession(sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if session exist in database: %w", err)
 	}
@@ -555,18 +541,12 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 		return nil, ErrUserSessionDoesNotExist
 	}
 
-	currentSession, err := core.database.GetSession(sessionUUID)
+	session, err := core.database.GetSession(sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting session from database: %w", err)
 	}
 
-	if currentSession.DeletedAt.Before(time.Now()) {
-		return nil, ErrUserSessionDoesNotExist
-	}
-
-	currentSession.DeletedAt = time.Now()
-
-	exist, err = core.existByID(currentSession.UserID)
+	exist, err = core.existByID(session.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
 	}
@@ -575,9 +555,26 @@ func (core *User) RefreshSession(sessionID string) (*model.UserSession, error) {
 		return nil, ErrUserSessionDoesNotExist
 	}
 
-	err = core.database.UpdateSession(*currentSession)
-	if err != nil {
-		return nil, fmt.Errorf("error updating session in database: %w", err)
+	if session.DeletedAt.Before(time.Now()) {
+		return nil, ErrUserSessionDeleted
+	}
+
+	return session, nil
+}
+
+func (core *User) ReplaceSession(sessionID uuid.UUID) (*model.UserSession, error) {
+	currentSession, err := core.GetSession(sessionID)
+	if err != nil && !errors.Is(err, ErrUserSessionDeleted) {
+		return nil, err
+	}
+
+	if currentSession.DeletedAt.IsZero() {
+		currentSession.DeletedAt = time.Now()
+
+		err = core.database.UpdateSession(*currentSession)
+		if err != nil {
+			return nil, fmt.Errorf("error updating session in database: %w", err)
+		}
 	}
 
 	newSession := model.UserSession{
