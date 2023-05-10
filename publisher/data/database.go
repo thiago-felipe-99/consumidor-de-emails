@@ -378,6 +378,62 @@ func newAttachmenteDatabase(client *mongodb.Client) *Attachment {
 	}
 }
 
+type EmailList struct {
+	lists *mongo[model.EmailList]
+}
+
+func (database *EmailList) Create(emailList model.EmailList) error {
+	return database.lists.create(emailList)
+}
+
+func (database *EmailList) Exist(listID uuid.UUID) (bool, error) {
+	filter := bson.D{{Key: "_id", Value: listID}}
+
+	return database.lists.exist(filter)
+}
+
+func (database *EmailList) ExistByName(name string) (bool, error) {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	return database.lists.exist(filter)
+}
+
+func (database *EmailList) Get(listID uuid.UUID) (*model.EmailList, error) {
+	filter := bson.D{{Key: "_id", Value: listID}}
+
+	return database.lists.get(filter)
+}
+
+func (database *EmailList) GetByName(name string) (*model.EmailList, error) {
+	filter := bson.D{{Key: "name", Value: name}}
+
+	return database.lists.get(filter)
+}
+
+func (database *EmailList) GetAll() ([]model.EmailList, error) {
+	return database.lists.getAll()
+}
+
+func (database *EmailList) Update(list model.EmailList) error {
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "emails", Value: list.Emails},
+			{Key: "email_alias", Value: list.EmailAlias},
+			{Key: "description", Value: list.Description},
+			{Key: "deleted_at", Value: list.DeletedAt},
+			{Key: "deleted_by", Value: list.DeletedBy},
+		}},
+	}
+
+	return database.lists.update(list.ID, update)
+}
+
+func newEmailListDatabase(vlient *mongodb.Client) *EmailList {
+	return &EmailList{
+		createMongoDatabase[model.EmailList](vlient, "email_lists", "lists"),
+	}
+}
+
 func NewMongoClient(uri string) (*mongodb.Client, error) {
 	connection, err := mongodb.Connect(context.Background(), options.Client().ApplyURI(uri))
 	if err != nil {
@@ -397,6 +453,7 @@ type Databases struct {
 	*Queue
 	*Template
 	*Attachment
+	*EmailList
 }
 
 func NewDatabases(client *mongodb.Client) *Databases {
@@ -405,5 +462,6 @@ func NewDatabases(client *mongodb.Client) *Databases {
 		Queue:      newQueueDatabase(client),
 		Template:   newTemplateDatabase(client),
 		Attachment: newAttachmenteDatabase(client),
+		EmailList:  newEmailListDatabase(client),
 	}
 }
