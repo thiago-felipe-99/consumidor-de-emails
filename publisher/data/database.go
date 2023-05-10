@@ -387,25 +387,37 @@ func (database *EmailList) Create(emailList model.EmailList) error {
 }
 
 func (database *EmailList) Exist(listID uuid.UUID) (bool, error) {
-	filter := bson.D{{Key: "_id", Value: listID}}
+	filter := bson.D{
+		{Key: "_id", Value: listID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
 	return database.lists.exist(filter)
 }
 
 func (database *EmailList) ExistByName(name string) (bool, error) {
-	filter := bson.D{{Key: "name", Value: name}}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
 	return database.lists.exist(filter)
 }
 
 func (database *EmailList) Get(listID uuid.UUID) (*model.EmailList, error) {
-	filter := bson.D{{Key: "_id", Value: listID}}
+	filter := bson.D{
+		{Key: "_id", Value: listID},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
 	return database.lists.get(filter)
 }
 
 func (database *EmailList) GetByName(name string) (*model.EmailList, error) {
-	filter := bson.D{{Key: "name", Value: name}}
+	filter := bson.D{
+		{Key: "name", Value: name},
+		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
+	}
 
 	return database.lists.get(filter)
 }

@@ -8,9 +8,9 @@ import (
 )
 
 type UserPartial struct {
-	Name     string `config:"name"     json:"name"            validate:"required"`
-	Email    string `config:"email"    json:"email"           validate:"required,email"`
-	Password string `config:"password" json:"password"        validate:"required"`
+	Name     string `config:"name"     json:"name"     validate:"required"`
+	Email    string `config:"email"    json:"email"    validate:"required,email"`
+	Password string `config:"password" json:"password" validate:"required"`
 }
 
 type User struct {
@@ -90,25 +90,27 @@ type Email struct {
 }
 
 type EmailListPartial struct {
-	Emails      []string `json:"emails"          validate:"required,min=1,dive,email"`
-	Name        string   `json:"name"            validate:"required"`
-	Description string   `json:"description"     validate:"required"`
+	Emails      []string `json:"emails"      validate:"required,min=1,dive,email"`
+	Name        string   `json:"name"        validate:"required"`
+	EmailAlias  string   `json:"emailAlias"  validate:"required,email"`
+	Description string   `json:"description" validate:"required"`
 }
 
 type EmailList struct {
-	ID          uuid.UUID `json:"id"                  bson:"_id"`
-	Emails      []string  `json:"emails"              bson:"emails"`
-	Name        string    `json:"name"                bson:"name"`
-	Description string    `json:"description"         bson:"description"`
-	CreatedAt   time.Time `json:"createdAt"           bson:"created_at"`
-	CreatedBy   uuid.UUID `json:"createdBy"           bson:"created_by"`
-	DeletedAt   time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
-	DeletedBy   uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
+	ID          uuid.UUID            `json:"id"                  bson:"_id"`
+	Emails      map[uuid.UUID]string `json:"emails"              bson:"emails"`
+	Name        string               `json:"name"                bson:"name"`
+	EmailAlias  string               `json:"emailAlias"          bson:"email_alias"`
+	Description string               `json:"description"         bson:"description"`
+	CreatedAt   time.Time            `json:"createdAt"           bson:"created_at"`
+	CreatedBy   uuid.UUID            `json:"createdBy"           bson:"created_by"`
+	DeletedAt   time.Time            `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy   uuid.UUID            `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type TemplatePartial struct {
-	Name     string `json:"name"            validate:"required"`
-	Template string `json:"template"        validate:"required"`
+	Name     string `json:"name"     validate:"required"`
+	Template string `json:"template" validate:"required"`
 }
 
 type Template struct {

@@ -31,6 +31,7 @@ var (
 	ErrAttachmentDoesNotExistOnMinio = errors.New("attachment does not exist on minio")
 	ErrMaxSizeAttachment             = errors.New("attachment has a max size")
 	ErrUploadAlreadyConfirmed        = errors.New("upload already confirmed")
+	ErrEmailListAlreadyExist         = errors.New("email list already exist")
 )
 
 const (
