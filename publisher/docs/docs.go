@@ -1820,6 +1820,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "minioName": {
+                    "type": "string"
+                },
                 "url": {
                     "type": "string"
                 }

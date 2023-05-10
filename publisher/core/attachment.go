@@ -96,9 +96,10 @@ func (core *Attachment) createUploadURL(
 	}
 
 	attachmentURL := model.AttachmentURL{
-		ID:       attachmentID,
-		URL:      url.String(),
-		FormData: formData,
+		ID:        attachmentID,
+		MinioName: path,
+		URL:       url.String(),
+		FormData:  formData,
 	}
 
 	return &attachmentURL, nil
@@ -248,6 +249,24 @@ func (core *Attachment) ConfirmUpload(attachmentID uuid.UUID, userID uuid.UUID) 
 	}
 
 	return nil
+}
+
+func (core *Attachment) Uploaded(userID uuid.UUID, minioName string) (bool, error) {
+	exist, err := core.database.ExistByName(userID, minioName)
+	if err != nil {
+		return false, err
+	}
+
+	if !exist {
+		return false, nil
+	}
+
+	attachment, err := core.database.GetByMinioName(minioName)
+	if err != nil {
+		return false, err
+	}
+
+	return attachment.ConfirmedUpload, nil
 }
 
 func newAttachment(

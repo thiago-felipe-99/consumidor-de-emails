@@ -350,6 +350,15 @@ func (database *Attachment) Exist(id uuid.UUID, userID uuid.UUID) (bool, error) 
 	return database.attachments.exist(filter)
 }
 
+func (database *Attachment) ExistByName(id uuid.UUID, minioName string) (bool, error) {
+	filter := bson.D{
+		{Key: "user_id", Value: id},
+		{Key: "minio_name", Value: minioName},
+	}
+
+	return database.attachments.exist(filter)
+}
+
 func (database *Attachment) Get(id uuid.UUID, userID uuid.UUID) (*model.Attachment, error) {
 	filter := bson.D{
 		{Key: "_id", Value: id},

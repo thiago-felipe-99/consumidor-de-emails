@@ -13,10 +13,11 @@ import (
 )
 
 type Queue struct {
-	template  *Template
-	rabbit    *rabbit.Rabbit
-	database  *data.Queue
-	validator *validator.Validate
+	template   *Template
+	attachment *Attachment
+	rabbit     *rabbit.Rabbit
+	database   *data.Queue
+	validator  *validator.Validate
 }
 
 func (core *Queue) Exist(name string) (bool, error) {
@@ -167,7 +168,17 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uu
 	}
 
 	// add logic to get emails from mail list
-	// add logic to verify templates
+
+	for _, attachment := range partial.Attachments {
+		uploaded, err := core.attachment.Uploaded(userID, attachment)
+		if err != nil {
+			return fmt.Errorf("error checking if attachment exist: %w", err)
+		}
+
+		if !uploaded {
+			return ErrAttachmentDoesNotExist
+		}
+	}
 
 	err = core.rabbit.SendMessage(context.Background(), queue, partial)
 	if err != nil {
@@ -197,14 +208,16 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uu
 
 func newQueue(
 	template *Template,
+	attachment *Attachment,
 	rabbit *rabbit.Rabbit,
 	database *data.Queue,
 	validate *validator.Validate,
 ) *Queue {
 	return &Queue{
-		template:  template,
-		rabbit:    rabbit,
-		database:  database,
-		validator: validate,
+		template:   template,
+		attachment: attachment,
+		rabbit:     rabbit,
+		database:   database,
+		validator:  validate,
 	}
 }

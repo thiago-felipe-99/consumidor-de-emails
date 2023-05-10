@@ -178,6 +178,7 @@ func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
 		{core.ErrQueueDoesNotExist, fiber.StatusNotFound},
 		{core.ErrMissingFieldTemplates, fiber.StatusBadRequest},
 		{core.ErrTemplateDoesNotExist, fiber.StatusBadRequest},
+		{core.ErrAttachmentDoesNotExist, fiber.StatusBadRequest},
 	}
 
 	unexpectMessageError := "error sending email"

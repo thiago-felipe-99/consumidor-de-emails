@@ -46,6 +46,8 @@ definitions:
         type: object
       id:
         type: string
+      minioName:
+        type: string
       url:
         type: string
     type: object

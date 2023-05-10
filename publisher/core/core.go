@@ -98,17 +98,18 @@ func NewCores(
 	maxEntrySize int,
 ) *Cores {
 	template := newTemplate(databases.Template, minio, bukcetTemplate, validate)
+	attachment := newAttachment(
+		minio,
+		bukcetAttachment,
+		databases.Attachment,
+		validate,
+		maxEntrySize,
+	)
 
 	return &Cores{
-		User:     newUser(databases.User, validate, sessionDuration),
-		Template: template,
-		Queue:    newQueue(template, rabbit, databases.Queue, validate),
-		Attachment: newAttachment(
-			minio,
-			bukcetAttachment,
-			databases.Attachment,
-			validate,
-			maxEntrySize,
-		),
+		User:       newUser(databases.User, validate, sessionDuration),
+		Template:   template,
+		Queue:      newQueue(template, attachment, rabbit, databases.Queue, validate),
+		Attachment: attachment,
 	}
 }
