@@ -88,7 +88,6 @@ func createMongoDatabase[T any](client *mongodb.Client, database, collection str
 type User struct {
 	users    *mongo[model.User]
 	sessions *mongo[model.UserSession]
-	roles    *mongo[model.Role]
 }
 
 func (database *User) Create(user model.User) error {
@@ -149,7 +148,6 @@ func (database *User) Update(user model.User) error {
 			{Key: "deleted_by", Value: user.DeletedBy},
 			{Key: "is_admin", Value: user.IsAdmin},
 			{Key: "protected", Value: user.IsProtected},
-			{Key: "roles", Value: user.Roles},
 		}},
 	}
 
@@ -195,28 +193,10 @@ func (database *User) UpdateSession(session model.UserSession) error {
 	return database.sessions.update(session.ID, update)
 }
 
-func (database *User) CreateRole(role model.Role) error {
-	return database.roles.create(role)
-}
-
-func (database *User) GetRole(name string) (*model.Role, error) {
-	filter := bson.D{
-		{Key: "name", Value: name},
-		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
-	}
-
-	return database.roles.get(filter)
-}
-
-func (database *User) GetAllRoles() ([]model.Role, error) {
-	return database.roles.getAll()
-}
-
 func newUserDatabase(client *mongodb.Client) *User {
 	return &User{
 		createMongoDatabase[model.User](client, "users", "users"),
 		createMongoDatabase[model.UserSession](client, "users", "sessions"),
-		createMongoDatabase[model.Role](client, "users", "roles"),
 	}
 }
 

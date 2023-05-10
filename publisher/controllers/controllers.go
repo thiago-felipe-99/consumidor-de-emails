@@ -202,13 +202,6 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Delete("/user/admin/:userID/user", user.isAdmin, user.deleteUserAdmin)
 	app.Get("/user/all", user.isAdmin, user.getAll)
 
-	app.Get("/user/role", user.getRoles)
-	app.Post("/user/role", user.isAdmin, user.createRole)
-	app.Delete("/user/role", user.deleteRolesByCurrentUser)
-	app.Put("/user/role/:userID", user.hasRoles, user.addRoles)
-	app.Delete("/user/role/:userID", user.hasRolesAdmin, user.deleteRolesByRolesAdmin)
-	app.Delete("/user/role/:userID/admin", user.isAdmin, user.deleteRolesByAdmin)
-
 	app.Get("/email/queue", queue.getAll)
 	app.Post("/email/queue", user.isAdmin, queue.create)
 	app.Delete("/email/queue/:name", user.isAdmin, queue.delete)

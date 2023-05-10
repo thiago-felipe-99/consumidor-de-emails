@@ -20,8 +20,6 @@ var (
 	ErrUserSessionDeleted            = errors.New("user session deleted")
 	ErrUserIsNotAdmin                = errors.New("user is not admin")
 	ErrUserIsProtected               = errors.New("user is protected")
-	ErrRoleAlreadyExist              = errors.New("role already exist")
-	ErrRoleDoesNotExist              = errors.New("role does not exist")
 	ErrQueueAlreadyExist             = errors.New("queue already exist")
 	ErrQueueDoesNotExist             = errors.New("queue does not exist")
 	ErrBodyValidate                  = errors.New("unable to parse body")

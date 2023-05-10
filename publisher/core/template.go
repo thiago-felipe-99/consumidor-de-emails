@@ -81,7 +81,6 @@ func (core *Template) Create(partial model.TemplatePartial, userID uuid.UUID) er
 		Name:      partial.Name,
 		Template:  partial.Template,
 		Fields:    core.getFields(partial.Template),
-		Roles:     []string{},
 		CreatedAt: time.Now(),
 		CreatedBy: userID,
 		DeletedAt: time.Time{},
