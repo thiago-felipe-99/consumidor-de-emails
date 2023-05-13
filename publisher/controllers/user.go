@@ -7,7 +7,6 @@ import (
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
@@ -30,7 +29,7 @@ func (controller *User) getTranslator(handler *fiber.Ctx) ut.Translator { //noli
 }
 
 func (controller *User) isAdmin(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -144,7 +143,7 @@ func (controller *User) refreshSession(handler *fiber.Ctx) error {
 		Secure:   true,
 	}
 
-	sessionID, err := uuid.Parse(sessionIDRaw)
+	sessionID, err := model.ParseID(sessionIDRaw)
 	if err != nil {
 		return handler.Status(fiber.StatusUnauthorized).
 			JSON(sent{core.ErrUserSessionDoesNotExist.Error()})
@@ -203,7 +202,7 @@ func (controller *User) refreshSession(handler *fiber.Ctx) error {
 //	@Router			/user/admin/{userID} [post]
 //	@Description	Create a user admin.
 func (controller *User) newAdmin(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
+	userID, err := model.ParseID(handler.Params("userID"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
 			JSON(sent{"was sent a invalid user ID"})
@@ -243,7 +242,7 @@ func (controller *User) newAdmin(handler *fiber.Ctx) error {
 //	@Router			/user/admin/{userID} [delete]
 //	@Description	Remove the admin role from the user.
 func (controller *User) removeAdminRole(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
+	userID, err := model.ParseID(handler.Params("userID"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
 			JSON(sent{"was sent a invalid user ID"})
@@ -287,7 +286,7 @@ func (controller *User) removeAdminRole(handler *fiber.Ctx) error {
 //	@Router			/user [post]
 //	@Description	Create a user in application.
 func (controller *User) create(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -335,7 +334,7 @@ func (controller *User) create(handler *fiber.Ctx) error {
 //	@Router			/user [get]
 //	@Description	Get current user informations.
 func (controller *User) get(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -382,7 +381,7 @@ func (controller *User) get(handler *fiber.Ctx) error {
 //	@Router			/user/admin/{userID}/user [get]
 //	@Description	Get user by admin.
 func (controller *User) getByAdmin(handler *fiber.Ctx) error {
-	userID, err := uuid.Parse(handler.Params("userID"))
+	userID, err := model.ParseID(handler.Params("userID"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
 			JSON(sent{"was sent a invalid user ID"})
@@ -466,7 +465,7 @@ func (controller *User) getAll(handler *fiber.Ctx) error {
 //	@Router			/user [put]
 //	@Description	Update user informatios.
 func (controller *User) update(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -513,7 +512,7 @@ func (controller *User) update(handler *fiber.Ctx) error {
 //	@Router			/user [delete]
 //	@Description	Delete current user.
 func (controller *User) delete(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -559,7 +558,7 @@ func (controller *User) delete(handler *fiber.Ctx) error {
 //	@Router			/user/admin/{userID}/user [delete]
 //	@Description	Delete user by admin.
 func (controller *User) deleteUserAdmin(handler *fiber.Ctx) error {
-	adminID, ok := handler.Locals("userID").(uuid.UUID)
+	adminID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -567,7 +566,7 @@ func (controller *User) deleteUserAdmin(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	userID, err := uuid.Parse(handler.Params("userID"))
+	userID, err := model.ParseID(handler.Params("userID"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
 			JSON(sent{"was sent a invalid user ID"})

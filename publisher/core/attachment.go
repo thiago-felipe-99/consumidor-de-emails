@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
@@ -64,7 +63,7 @@ func (core *Attachment) confirmUploads() {
 }
 
 func (core *Attachment) createUploadURL(
-	attachmentID uuid.UUID,
+	attachmentID model.ID,
 	path string,
 	size int,
 ) (*model.AttachmentURL, error) {
@@ -107,7 +106,7 @@ func (core *Attachment) createUploadURL(
 
 func (core *Attachment) Create(
 	partial model.AttachmentPartial,
-	userID uuid.UUID,
+	userID model.ID,
 ) (*model.AttachmentURL, error) {
 	err := validate(core.validator, partial)
 	if err != nil {
@@ -122,7 +121,7 @@ func (core *Attachment) Create(
 	nowString := now.Format("2006-01-02_15-04-05.000")
 
 	attachment := model.Attachment{
-		ID:              uuid.New(),
+		ID:              model.NewID(),
 		UserID:          userID,
 		CreatedAt:       now,
 		Name:            partial.Name,
@@ -140,7 +139,7 @@ func (core *Attachment) Create(
 	return core.createUploadURL(attachment.ID, attachment.MinioName, attachment.Size)
 }
 
-func (core *Attachment) get(attachmentID uuid.UUID, userID uuid.UUID) (*model.Attachment, error) {
+func (core *Attachment) get(attachmentID model.ID, userID model.ID) (*model.Attachment, error) {
 	exist, err := core.database.Exist(attachmentID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if attachment exist in database: %w", err)
@@ -159,8 +158,8 @@ func (core *Attachment) get(attachmentID uuid.UUID, userID uuid.UUID) (*model.At
 }
 
 func (core *Attachment) RefreshUploadURL(
-	attachmentID uuid.UUID,
-	userID uuid.UUID,
+	attachmentID model.ID,
+	userID model.ID,
 ) (*model.AttachmentURL, error) {
 	attachment, err := core.get(attachmentID, userID)
 	if err != nil {
@@ -175,8 +174,8 @@ func (core *Attachment) RefreshUploadURL(
 }
 
 func (core *Attachment) Get(
-	attachmentID uuid.UUID,
-	userID uuid.UUID,
+	attachmentID model.ID,
+	userID model.ID,
 ) (*model.AttachmentURL, error) {
 	attachment, err := core.get(attachmentID, userID)
 	if err != nil {
@@ -207,7 +206,7 @@ func (core *Attachment) Get(
 	return &attachmentURL, nil
 }
 
-func (core *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
+func (core *Attachment) GetAttachments(userID model.ID) ([]model.Attachment, error) {
 	attachments, err := core.database.GetAttachments(userID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting attachments from database: %w", err)
@@ -216,7 +215,7 @@ func (core *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, er
 	return attachments, nil
 }
 
-func (core *Attachment) ConfirmUpload(attachmentID uuid.UUID, userID uuid.UUID) error {
+func (core *Attachment) ConfirmUpload(attachmentID model.ID, userID model.ID) error {
 	attachment, err := core.get(attachmentID, userID)
 	if err != nil {
 		return err
@@ -251,7 +250,7 @@ func (core *Attachment) ConfirmUpload(attachmentID uuid.UUID, userID uuid.UUID) 
 	return nil
 }
 
-func (core *Attachment) Uploaded(userID uuid.UUID, minioName string) (bool, error) {
+func (core *Attachment) Uploaded(userID model.ID, minioName string) (bool, error) {
 	exist, err := core.database.ExistByName(userID, minioName)
 	if err != nil {
 		return false, err

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
@@ -15,7 +14,7 @@ type EmailList struct {
 	validator *validator.Validate
 }
 
-func (core *EmailList) Create(userID uuid.UUID, partial model.EmailListPartial) error {
+func (core *EmailList) Create(userID model.ID, partial model.EmailListPartial) error {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return err
@@ -31,19 +30,19 @@ func (core *EmailList) Create(userID uuid.UUID, partial model.EmailListPartial) 
 	}
 
 	list := model.EmailList{
-		ID:          uuid.New(),
-		Emails:      make(map[uuid.UUID]string, len(partial.Emails)),
+		ID:          model.NewID(),
+		Emails:      make(map[model.ID]string, len(partial.Emails)),
 		Name:        partial.Name,
 		EmailAlias:  partial.EmailAlias,
 		Description: partial.Description,
 		CreatedAt:   time.Now(),
 		CreatedBy:   userID,
 		DeletedAt:   time.Time{},
-		DeletedBy:   uuid.UUID{},
+		DeletedBy:   model.ID{},
 	}
 
 	for _, email := range partial.Emails {
-		list.Emails[uuid.New()] = email
+		list.Emails[model.NewID()] = email
 	}
 
 	err = core.database.Create(list)

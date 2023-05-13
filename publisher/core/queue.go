@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 	"github.com/thiago-felipe-99/mail/rabbit"
@@ -29,21 +28,21 @@ func (core *Queue) Exist(name string) (bool, error) {
 	return exist, nil
 }
 
-func (core *Queue) Create(partial model.QueuePartial, userID uuid.UUID) error {
+func (core *Queue) Create(partial model.QueuePartial, userID model.ID) error {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return err
 	}
 
 	queue := model.Queue{
-		ID:         uuid.New(),
+		ID:         model.NewID(),
 		Name:       partial.Name,
 		DLX:        partial.Name + "-dlx",
 		MaxRetries: partial.MaxRetries,
 		CreatedAt:  time.Now(),
 		CreatedBy:  userID,
 		DeletedAt:  time.Time{},
-		DeletedBy:  uuid.UUID{},
+		DeletedBy:  model.ID{},
 	}
 
 	queueExist, err := core.Exist(queue.Name)
@@ -100,7 +99,7 @@ func (core *Queue) GetAll() ([]model.Queue, error) {
 	return queues, nil
 }
 
-func (core *Queue) Delete(name string, userID uuid.UUID) error {
+func (core *Queue) Delete(name string, userID model.ID) error {
 	if len(name) == 0 {
 		return ErrInvalidName
 	}
@@ -126,7 +125,7 @@ func (core *Queue) Delete(name string, userID uuid.UUID) error {
 	return nil
 }
 
-func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uuid.UUID) error {
+func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID model.ID) error {
 	if len(queue) == 0 {
 		return ErrInvalidName
 	}
@@ -186,7 +185,7 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID uu
 	}
 
 	email := model.Email{
-		ID:             uuid.New(),
+		ID:             model.NewID(),
 		UserID:         userID,
 		EmailLists:     partial.EmailLists,
 		Receivers:      partial.Receivers,

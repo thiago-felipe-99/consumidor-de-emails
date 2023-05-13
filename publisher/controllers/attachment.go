@@ -5,7 +5,6 @@ import (
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
@@ -41,7 +40,7 @@ func (controller *Attachment) getTranslator(handler *fiber.Ctx) ut.Translator { 
 //	@Router			/email/attachment [post]
 //	@Description	Create a upload attachment url.
 func (controller *Attachment) create(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -86,7 +85,7 @@ func (controller *Attachment) create(handler *fiber.Ctx) error {
 //	@Router			/email/attachment/{id} [get]
 //	@Description	Get a download attachment url.
 func (controller *Attachment) get(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -94,7 +93,7 @@ func (controller *Attachment) get(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	attachmentID, err := uuid.Parse(handler.Params("id"))
+	attachmentID, err := model.ParseID(handler.Params("id"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
 			JSON(sent{"was sent a invalid attachment ID"})
@@ -125,7 +124,7 @@ func (controller *Attachment) get(handler *fiber.Ctx) error {
 //	@Router			/email/attachment [get]
 //	@Description	Get all user attachments.
 func (controller *Attachment) getAttachments(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -159,7 +158,7 @@ func (controller *Attachment) getAttachments(handler *fiber.Ctx) error {
 //	@Router			/email/attachment/{id}/confirm [post]
 //	@Description	Confirm upload.
 func (controller *Attachment) confirm(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -167,7 +166,7 @@ func (controller *Attachment) confirm(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	attachmentID, err := uuid.Parse(handler.Params("id"))
+	attachmentID, err := model.ParseID(handler.Params("id"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
 			JSON(sent{"was sent a invalid attachment ID"})
@@ -207,7 +206,7 @@ func (controller *Attachment) confirm(handler *fiber.Ctx) error {
 //	@Router			/email/attachment/{id} [post]
 //	@Description	Refresh a upload attachment url.
 func (controller *Attachment) refresh(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -215,7 +214,7 @@ func (controller *Attachment) refresh(handler *fiber.Ctx) error {
 			JSON(sent{"error refreshing session"})
 	}
 
-	attachmentID, err := uuid.Parse(handler.Params("id"))
+	attachmentID, err := model.ParseID(handler.Params("id"))
 	if err != nil {
 		return handler.Status(fiber.StatusBadRequest).
 			JSON(sent{"was sent a invalid attachment ID"})

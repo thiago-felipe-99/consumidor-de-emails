@@ -5,7 +5,6 @@ import (
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
@@ -42,7 +41,7 @@ func (controller *Template) getTranslator(handler *fiber.Ctx) ut.Translator { //
 //	@Router			/email/template [post]
 //	@Description	Create a email template.
 func (controller *Template) create(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -138,7 +137,7 @@ func (controller *Template) get(handler *fiber.Ctx) error {
 //	@Router			/email/template [get]
 //	@Description	Get all user templates.
 func (controller *Template) getByUser(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -219,7 +218,7 @@ func (controller *Template) update(handler *fiber.Ctx) error {
 //	@Router			/email/template/{name} [delete]
 //	@Description	Delete a email template.
 func (controller *Template) delete(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 

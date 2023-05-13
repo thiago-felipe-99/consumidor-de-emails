@@ -2,10 +2,27 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type ID uuid.UUID
+
+func (id ID) String() string {
+	return uuid.UUID(id).String()
+}
+
+func NewID() ID {
+	return ID(uuid.New())
+}
+
+func ParseID(id string) (ID, error) {
+	uuid, err := uuid.Parse(id)
+
+	return ID(uuid), fmt.Errorf("error parsing ID: %w", err)
+}
 
 type UserPartial struct {
 	Name     string `config:"name"     json:"name"     validate:"required"`
@@ -14,14 +31,14 @@ type UserPartial struct {
 }
 
 type User struct {
-	ID          uuid.UUID `json:"id"                    bson:"_id"`
+	ID          ID        `json:"id"                    bson:"_id"`
 	Name        string    `json:"name"                  bson:"name"`
 	Email       string    `json:"email"                 bson:"email"`
 	Password    string    `json:"password,omitempty"    bson:"password"`
 	CreatedAt   time.Time `json:"createdAt"             bson:"created_at"`
-	CreatedBy   uuid.UUID `json:"createdBy"             bson:"created_by"`
+	CreatedBy   ID        `json:"createdBy"             bson:"created_by"`
 	DeletedAt   time.Time `json:"deletedAt,omitempty"   bson:"deleted_at"`
-	DeletedBy   uuid.UUID `json:"deletedBy,omitempty"   bson:"deleted_by"`
+	DeletedBy   ID        `json:"deletedBy,omitempty"   bson:"deleted_by"`
 	IsAdmin     bool      `json:"isAdmin,omitempty"     bson:"is_admin"`
 	IsProtected bool      `json:"isProtected,omitempty" bson:"is_protected"`
 }
@@ -33,8 +50,8 @@ type UserSessionPartial struct {
 }
 
 type UserSession struct {
-	ID        uuid.UUID `json:"id"                  bson:"_id"`
-	UserID    uuid.UUID `json:"userId"              bson:"user_id"`
+	ID        ID        `json:"id"                  bson:"_id"`
+	UserID    ID        `json:"userId"              bson:"user_id"`
 	CreateaAt time.Time `json:"createdAt"           bson:"created_at"`
 	Expires   time.Time `json:"expires"             bson:"expires"`
 	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
@@ -46,14 +63,14 @@ type QueuePartial struct {
 }
 
 type Queue struct {
-	ID         uuid.UUID `json:"id"                  bson:"_id"`
+	ID         ID        `json:"id"                  bson:"_id"`
 	Name       string    `json:"name"                bson:"name"`
 	DLX        string    `json:"dlx"                 bson:"dlx"`
 	MaxRetries int64     `json:"maxRetries"          bson:"max_retries"`
 	CreatedAt  time.Time `json:"createdAt"           bson:"created_at"`
-	CreatedBy  uuid.UUID `json:"createdBy"           bson:"created_by"`
+	CreatedBy  ID        `json:"createdBy"           bson:"created_by"`
 	DeletedAt  time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
-	DeletedBy  uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
+	DeletedBy  ID        `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type Receiver struct {
@@ -77,8 +94,8 @@ type EmailPartial struct {
 }
 
 type Email struct {
-	ID             uuid.UUID     `json:"id"                       bson:"_id"`
-	UserID         uuid.UUID     `json:"userId"                   bson:"user_id"`
+	ID             ID            `json:"id"                       bson:"_id"`
+	UserID         ID            `json:"userId"                   bson:"user_id"`
 	EmailLists     []string      `json:"emailLists,omitempty"     bson:"email_lists"`
 	Receivers      []Receiver    `json:"receivers,omitempty"      bson:"receivers"`
 	BlindReceivers []Receiver    `json:"blindReceivers,omitempty" bson:"blind_receivers"`
@@ -97,15 +114,15 @@ type EmailListPartial struct {
 }
 
 type EmailList struct {
-	ID          uuid.UUID            `json:"id"                  bson:"_id"`
-	Emails      map[uuid.UUID]string `json:"emails"              bson:"emails"`
-	Name        string               `json:"name"                bson:"name"`
-	EmailAlias  string               `json:"emailAlias"          bson:"email_alias"`
-	Description string               `json:"description"         bson:"description"`
-	CreatedAt   time.Time            `json:"createdAt"           bson:"created_at"`
-	CreatedBy   uuid.UUID            `json:"createdBy"           bson:"created_by"`
-	DeletedAt   time.Time            `json:"deletedAt,omitempty" bson:"deleted_at"`
-	DeletedBy   uuid.UUID            `json:"deletedBy,omitempty" bson:"deleted_by"`
+	ID          ID            `json:"id"                  bson:"_id"`
+	Emails      map[ID]string `json:"emails"              bson:"emails"`
+	Name        string        `json:"name"                bson:"name"`
+	EmailAlias  string        `json:"emailAlias"          bson:"email_alias"`
+	Description string        `json:"description"         bson:"description"`
+	CreatedAt   time.Time     `json:"createdAt"           bson:"created_at"`
+	CreatedBy   ID            `json:"createdBy"           bson:"created_by"`
+	DeletedAt   time.Time     `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy   ID            `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type TemplatePartial struct {
@@ -114,14 +131,14 @@ type TemplatePartial struct {
 }
 
 type Template struct {
-	ID        uuid.UUID `json:"id"                  bson:"_id"`
+	ID        ID        `json:"id"                  bson:"_id"`
 	Name      string    `json:"name"                bson:"name"`
 	Template  string    `json:"template"            bson:"template"`
 	Fields    []string  `json:"fields,omitempty"    bson:"fields"`
 	CreatedAt time.Time `json:"createdAt"           bson:"created_at"`
-	CreatedBy uuid.UUID `json:"createdBy"           bson:"created_by"`
+	CreatedBy ID        `json:"createdBy"           bson:"created_by"`
 	DeletedAt time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
-	DeletedBy uuid.UUID `json:"deletedBy,omitempty" bson:"deleted_by"`
+	DeletedBy ID        `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type AttachmentPartial struct {
@@ -131,8 +148,8 @@ type AttachmentPartial struct {
 }
 
 type Attachment struct {
-	ID              uuid.UUID `json:"id"              bson:"_id"`
-	UserID          uuid.UUID `json:"userId"          bson:"user_id"`
+	ID              ID        `json:"id"              bson:"_id"`
+	UserID          ID        `json:"userId"          bson:"user_id"`
 	CreatedAt       time.Time `json:"createdAt"       bson:"created_at"`
 	Name            string    `json:"name"            bson:"name"`
 	ContentType     string    `json:"contentType"     bson:"content_type"`
@@ -142,7 +159,7 @@ type Attachment struct {
 }
 
 type AttachmentURL struct {
-	ID        uuid.UUID         `json:"id"`
+	ID        ID                `json:"id"`
 	MinioName string            `json:"minioName"`
 	URL       string            `json:"url"`
 	FormData  map[string]string `json:"formData,omitempty"`

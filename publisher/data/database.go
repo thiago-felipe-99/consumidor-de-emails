@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 	"go.mongodb.org/mongo-driver/bson"
 	mongodb "go.mongodb.org/mongo-driver/mongo"
@@ -72,7 +71,7 @@ func (database *mongo[T]) getAll() ([]T, error) {
 	return database.getMultiples(bson.D{})
 }
 
-func (database *mongo[T]) update(dataID uuid.UUID, update bson.D) error {
+func (database *mongo[T]) update(dataID model.ID, update bson.D) error {
 	_, err := database.collection.UpdateByID(context.Background(), dataID, update)
 	if err != nil {
 		return fmt.Errorf("error getting data from database: %w", err)
@@ -94,7 +93,7 @@ func (database *User) Create(user model.User) error {
 	return database.users.create(user)
 }
 
-func (database *User) ExistByID(userID uuid.UUID) (bool, error) {
+func (database *User) ExistByID(userID model.ID) (bool, error) {
 	filter := bson.D{
 		{Key: "_id", Value: userID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
@@ -115,7 +114,7 @@ func (database *User) ExistByNameOrEmail(name, email string) (bool, error) {
 	return database.users.exist(filter)
 }
 
-func (database *User) GetByID(userID uuid.UUID) (*model.User, error) {
+func (database *User) GetByID(userID model.ID) (*model.User, error) {
 	filter := bson.D{
 		{Key: "_id", Value: userID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
@@ -158,7 +157,7 @@ func (database *User) SaveSession(session model.UserSession) error {
 	return database.sessions.create(session)
 }
 
-func (database *User) ExistSession(sessionID uuid.UUID) (bool, error) {
+func (database *User) ExistSession(sessionID model.ID) (bool, error) {
 	filter := bson.D{
 		{Key: "_id", Value: sessionID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$gt", Value: time.Now()}}},
@@ -167,7 +166,7 @@ func (database *User) ExistSession(sessionID uuid.UUID) (bool, error) {
 	return database.sessions.exist(filter)
 }
 
-func (database *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error) {
+func (database *User) GetSession(sessionID model.ID) (*model.UserSession, error) {
 	filter := bson.D{
 		{Key: "_id", Value: sessionID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$gt", Value: time.Now()}}},
@@ -294,7 +293,7 @@ func (database *Template) Get(name string) (*model.Template, error) {
 	return database.templates.get(filter)
 }
 
-func (database *Template) GetByUser(userID uuid.UUID) ([]model.Template, error) {
+func (database *Template) GetByUser(userID model.ID) ([]model.Template, error) {
 	filter := bson.D{
 		{Key: "created_by", Value: userID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
@@ -321,7 +320,7 @@ func (database *Attachment) Create(attachment model.Attachment) error {
 	return database.attachments.create(attachment)
 }
 
-func (database *Attachment) Exist(id uuid.UUID, userID uuid.UUID) (bool, error) {
+func (database *Attachment) Exist(id model.ID, userID model.ID) (bool, error) {
 	filter := bson.D{
 		{Key: "_id", Value: id},
 		{Key: "user_id", Value: userID},
@@ -330,7 +329,7 @@ func (database *Attachment) Exist(id uuid.UUID, userID uuid.UUID) (bool, error) 
 	return database.attachments.exist(filter)
 }
 
-func (database *Attachment) ExistByName(id uuid.UUID, minioName string) (bool, error) {
+func (database *Attachment) ExistByName(id model.ID, minioName string) (bool, error) {
 	filter := bson.D{
 		{Key: "user_id", Value: id},
 		{Key: "minio_name", Value: minioName},
@@ -339,7 +338,7 @@ func (database *Attachment) ExistByName(id uuid.UUID, minioName string) (bool, e
 	return database.attachments.exist(filter)
 }
 
-func (database *Attachment) Get(id uuid.UUID, userID uuid.UUID) (*model.Attachment, error) {
+func (database *Attachment) Get(id model.ID, userID model.ID) (*model.Attachment, error) {
 	filter := bson.D{
 		{Key: "_id", Value: id},
 		{Key: "user_id", Value: userID},
@@ -356,7 +355,7 @@ func (database *Attachment) GetByMinioName(minioName string) (*model.Attachment,
 	return database.attachments.get(filter)
 }
 
-func (database *Attachment) GetAttachments(userID uuid.UUID) ([]model.Attachment, error) {
+func (database *Attachment) GetAttachments(userID model.ID) ([]model.Attachment, error) {
 	filter := bson.D{{Key: "user_id", Value: userID}}
 
 	return database.attachments.getMultiples(filter)
@@ -386,7 +385,7 @@ func (database *EmailList) Create(emailList model.EmailList) error {
 	return database.lists.create(emailList)
 }
 
-func (database *EmailList) Exist(listID uuid.UUID) (bool, error) {
+func (database *EmailList) Exist(listID model.ID) (bool, error) {
 	filter := bson.D{
 		{Key: "_id", Value: listID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
@@ -404,7 +403,7 @@ func (database *EmailList) ExistByName(name string) (bool, error) {
 	return database.lists.exist(filter)
 }
 
-func (database *EmailList) Get(listID uuid.UUID) (*model.EmailList, error) {
+func (database *EmailList) Get(listID model.ID) (*model.EmailList, error) {
 	filter := bson.D{
 		{Key: "_id", Value: listID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},

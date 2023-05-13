@@ -7,7 +7,6 @@ import (
 
 	"github.com/alexedwards/argon2id"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
@@ -19,7 +18,7 @@ type User struct {
 	durationSession time.Duration
 }
 
-func (core *User) existByID(userID uuid.UUID) (bool, error) {
+func (core *User) existByID(userID model.ID) (bool, error) {
 	exist, err := core.database.ExistByID(userID)
 	if err != nil {
 		return false, fmt.Errorf("error checking if user exist in database: %w", err)
@@ -37,7 +36,7 @@ func (core *User) ExistByNameOrEmail(name, email string) (bool, error) {
 	return exist, nil
 }
 
-func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {
+func (core *User) Create(partial model.UserPartial, adminID model.ID) error {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return err
@@ -58,7 +57,7 @@ func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {
 	}
 
 	user := model.User{
-		ID:        uuid.New(),
+		ID:        model.NewID(),
 		Name:      partial.Name,
 		Email:     partial.Email,
 		Password:  hash,
@@ -66,7 +65,7 @@ func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {
 		CreatedBy: adminID,
 		IsAdmin:   false,
 		DeletedAt: time.Time{},
-		DeletedBy: uuid.UUID{},
+		DeletedBy: model.ID{},
 	}
 
 	err = core.database.Create(user)
@@ -77,7 +76,7 @@ func (core *User) Create(partial model.UserPartial, adminID uuid.UUID) error {
 	return nil
 }
 
-func (core *User) GetByID(userID uuid.UUID) (*model.User, error) {
+func (core *User) GetByID(userID model.ID) (*model.User, error) {
 	exist, err := core.existByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if user exist in database: %w", err)
@@ -122,7 +121,7 @@ func (core *User) GetByNameOrEmail(name, email string) (*model.User, error) {
 	return user, nil
 }
 
-func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
+func (core *User) Update(userID model.ID, partial model.UserPartial) error {
 	err := validate(core.validator, partial)
 	if err != nil {
 		return err
@@ -148,7 +147,7 @@ func (core *User) Update(userID uuid.UUID, partial model.UserPartial) error {
 	return nil
 }
 
-func (core *User) Delete(userID uuid.UUID, deleteByID uuid.UUID) error {
+func (core *User) Delete(userID model.ID, deleteByID model.ID) error {
 	user, err := core.GetByID(userID)
 	if err != nil {
 		return err
@@ -169,7 +168,7 @@ func (core *User) Delete(userID uuid.UUID, deleteByID uuid.UUID) error {
 	return nil
 }
 
-func (core *User) IsAdmin(userID uuid.UUID) (bool, error) {
+func (core *User) IsAdmin(userID model.ID) (bool, error) {
 	user, err := core.GetByID(userID)
 	if err != nil {
 		return false, err
@@ -178,7 +177,7 @@ func (core *User) IsAdmin(userID uuid.UUID) (bool, error) {
 	return user.IsAdmin, nil
 }
 
-func (core *User) NewAdmin(userID uuid.UUID) error {
+func (core *User) NewAdmin(userID model.ID) error {
 	user, err := core.GetByID(userID)
 	if err != nil {
 		return err
@@ -194,7 +193,7 @@ func (core *User) NewAdmin(userID uuid.UUID) error {
 	return nil
 }
 
-func (core *User) RemoveAdmin(userID uuid.UUID) error {
+func (core *User) RemoveAdmin(userID model.ID) error {
 	user, err := core.GetByID(userID)
 	if err != nil {
 		return err
@@ -218,7 +217,7 @@ func (core *User) RemoveAdmin(userID uuid.UUID) error {
 	return nil
 }
 
-func (core *User) Protected(userID uuid.UUID) error {
+func (core *User) Protected(userID model.ID) error {
 	user, err := core.GetByID(userID)
 	if err != nil {
 		return err
@@ -256,7 +255,7 @@ func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSessi
 	}
 
 	session := model.UserSession{
-		ID:        uuid.New(),
+		ID:        model.NewID(),
 		UserID:    user.ID,
 		CreateaAt: time.Now(),
 		Expires:   time.Now().Add(core.durationSession),
@@ -271,7 +270,7 @@ func (core *User) NewSession(partial model.UserSessionPartial) (*model.UserSessi
 	return &session, nil
 }
 
-func (core *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error) {
+func (core *User) GetSession(sessionID model.ID) (*model.UserSession, error) {
 	exist, err := core.database.ExistSession(sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("error checking if session exist in database: %w", err)
@@ -302,7 +301,7 @@ func (core *User) GetSession(sessionID uuid.UUID) (*model.UserSession, error) {
 	return session, nil
 }
 
-func (core *User) ReplaceSession(sessionID uuid.UUID) (*model.UserSession, error) {
+func (core *User) ReplaceSession(sessionID model.ID) (*model.UserSession, error) {
 	currentSession, err := core.GetSession(sessionID)
 	if err != nil && !errors.Is(err, ErrUserSessionDeleted) {
 		return nil, err
@@ -318,7 +317,7 @@ func (core *User) ReplaceSession(sessionID uuid.UUID) (*model.UserSession, error
 	}
 
 	newSession := model.UserSession{
-		ID:        uuid.New(),
+		ID:        model.NewID(),
 		UserID:    currentSession.UserID,
 		CreateaAt: time.Now(),
 		Expires:   time.Now().Add(core.durationSession),

@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/thiago-felipe-99/mail/publisher/controllers"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	_ "github.com/thiago-felipe-99/mail/publisher/docs"
+	"github.com/thiago-felipe-99/mail/publisher/model"
 	"github.com/thiago-felipe-99/mail/rabbit"
 )
 
@@ -125,7 +125,7 @@ func main() {
 	}
 
 	if !exist {
-		err := cores.User.Create(configs.Admin, uuid.UUID{})
+		err := cores.User.Create(configs.Admin, model.ID{})
 		if err != nil {
 			log.Printf("[ERROR] - Error creating first user: %s", err)
 

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
@@ -57,7 +56,7 @@ func (core *Template) Exist(name string) (bool, error) {
 	return exist, nil
 }
 
-func (core *Template) Create(partial model.TemplatePartial, userID uuid.UUID) error {
+func (core *Template) Create(partial model.TemplatePartial, userID model.ID) error {
 	err := validate(core.validate, partial)
 	if err != nil {
 		return err
@@ -77,14 +76,14 @@ func (core *Template) Create(partial model.TemplatePartial, userID uuid.UUID) er
 	}
 
 	template := model.Template{
-		ID:        uuid.New(),
+		ID:        model.NewID(),
 		Name:      partial.Name,
 		Template:  partial.Template,
 		Fields:    core.getFields(partial.Template),
 		CreatedAt: time.Now(),
 		CreatedBy: userID,
 		DeletedAt: time.Time{},
-		DeletedBy: uuid.UUID{},
+		DeletedBy: model.ID{},
 	}
 
 	templateReader := strings.NewReader(template.Template)
@@ -151,7 +150,7 @@ func (core *Template) GetFields(name string) ([]string, error) {
 	return template.Fields, nil
 }
 
-func (core *Template) GetByUser(userID uuid.UUID) ([]model.Template, error) {
+func (core *Template) GetByUser(userID model.ID) ([]model.Template, error) {
 	templates, err := core.database.GetByUser(userID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user templates from databas: %w", err)
@@ -202,7 +201,7 @@ func (core *Template) Update(name string, partial model.TemplatePartial) error {
 	return nil
 }
 
-func (core *Template) Delete(name string, userID uuid.UUID) error {
+func (core *Template) Delete(name string, userID model.ID) error {
 	if len(name) == 0 {
 		return ErrInvalidName
 	}

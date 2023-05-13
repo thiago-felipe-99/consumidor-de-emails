@@ -5,7 +5,6 @@ import (
 
 	ut "github.com/go-playground/universal-translator"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/thiago-felipe-99/mail/publisher/core"
 	"github.com/thiago-felipe-99/mail/publisher/model"
 )
@@ -43,7 +42,7 @@ func (controller *Queue) getTranslator(handler *fiber.Ctx) ut.Translator { //nol
 //	@Router			/email/queue [post]
 //	@Description	Create a RabbitMQ queue with DLX.
 func (controller *Queue) create(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -114,7 +113,7 @@ func (controller *Queue) getAll(handler *fiber.Ctx) error {
 //	@Router			/email/queue/{name} [delete]
 //	@Description	Delete a queue with DLX.
 func (controller *Queue) delete(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
@@ -157,7 +156,7 @@ func (controller *Queue) delete(handler *fiber.Ctx) error {
 //	@Router			/email/queue/{name}/send [post]
 //	@Description	Sends an email to the RabbitMQ queue.
 func (controller *Queue) sendEmail(handler *fiber.Ctx) error {
-	userID, ok := handler.Locals("userID").(uuid.UUID)
+	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
 		log.Printf("[ERROR] - error getting user ID")
 
