@@ -116,21 +116,21 @@ func main() {
 		return
 	}
 
-	cache, err := newCache(configs)
+	cache, err := newCache(&configs.Cache, &configs.Minio)
 	if err != nil {
 		log.Printf("[ERROR] - Error creating the files cache: %s", err)
 
 		return
 	}
 
-	template, err := newTemplate(configs)
+	template, err := newCache(&configs.Template, &configs.Minio, "text/markdown")
 	if err != nil {
 		log.Printf("[ERROR] - Error creating the files cache: %s", err)
 
 		return
 	}
 
-	template.setAll()
+	template.getAllFromMinio()
 
 	queue := make(chan rabbit.Message)
 

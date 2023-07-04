@@ -102,6 +102,8 @@ func defaultConfigurations() configurations {
 		},
 		Template: cacheConfig{
 			Shards:       64,
+			LifeWindow:   0,
+			CleanWindow:  0,
 			AvgEntries:   10,
 			AvgEntrySize: 1,
 			MaxEntrySize: 2,

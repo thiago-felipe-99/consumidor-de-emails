@@ -56,7 +56,7 @@ type sendStatus struct {
 
 type send struct {
 	*cache
-	*templateCache
+	templateCache *cache
 	*sender
 	*metrics
 	*smtp
@@ -66,7 +66,7 @@ type send struct {
 
 func newSend(
 	cache *cache,
-	templateCache *templateCache,
+	templateCache *cache,
 	sender *sender,
 	smtp *smtp,
 	metrics *metrics,
@@ -104,7 +104,7 @@ func proccessQueue(queue []rabbit.Message) ([]email, []email) {
 	return ready, failed
 }
 
-func getTemplateHTML(template template, cache *templateCache) (string, error) {
+func getTemplateHTML(template template, cache *cache) (string, error) {
 	markdown, err := cache.get(template.Name)
 	if err != nil {
 		return "", fmt.Errorf("error getting template from cache: %w", err)
@@ -149,7 +149,7 @@ func emailFailed(index int, ready, failed []email) ([]email, []email) {
 	return ready[:len(ready)-1], failed
 }
 
-func proccessEmailsTemplate(cache *templateCache, ready, failed []email) ([]email, []email) {
+func proccessEmailsTemplate(cache *cache, ready, failed []email) ([]email, []email) {
 	for index := len(ready) - 1; index >= 0; index-- {
 		if ready[index].Template.Name == "" {
 			continue
@@ -192,7 +192,7 @@ func createMessageMail(cache *cache, sender *sender, email email) (*mail.Msg, in
 	}
 
 	for _, attachment := range email.Attachments {
-		file, err := cache.getFile(attachment)
+		file, err := cache.get(attachment)
 		if err != nil {
 			return nil, 0, fmt.Errorf("error getting attachment from cache: %w", err)
 		}
