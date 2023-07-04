@@ -82,6 +82,29 @@ definitions:
       userId:
         type: string
     type: object
+  model.EmailList:
+    properties:
+      createdAt:
+        type: string
+      createdBy:
+        type: string
+      deletedAt:
+        type: string
+      deletedBy:
+        type: string
+      description:
+        type: string
+      emailAlias:
+        type: string
+      emails:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   model.EmailListPartial:
     properties:
       description:
@@ -382,6 +405,30 @@ paths:
       tags:
       - attachment
   /email/list:
+    get:
+      consumes:
+      - application/json
+      description: Get all user email list.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: email list
+          schema:
+            items:
+              $ref: '#/definitions/model.EmailList'
+            type: array
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get all user email list
+      tags:
+      - emailList
     post:
       consumes:
       - application/json
@@ -417,6 +464,39 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Creating email list
+      tags:
+      - emailList
+  /email/list/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Get a user email list.
+      parameters:
+      - description: email list name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: email list
+          schema:
+            $ref: '#/definitions/model.EmailList'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: email list not found
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Get a user email list
       tags:
       - emailList
   /email/queue:

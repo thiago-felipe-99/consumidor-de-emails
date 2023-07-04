@@ -32,6 +32,7 @@ var (
 	ErrMaxSizeAttachment             = errors.New("attachment has a max size")
 	ErrUploadAlreadyConfirmed        = errors.New("upload already confirmed")
 	ErrEmailListAlreadyExist         = errors.New("email list already exist")
+	ErrEmailListDoesNotExist         = errors.New("email list does not exist")
 )
 
 const (

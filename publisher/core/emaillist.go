@@ -31,7 +31,7 @@ func (core *EmailList) Create(userID model.ID, partial model.EmailListPartial) e
 
 	list := model.EmailList{
 		ID:          model.NewID(),
-		Emails:      make(map[model.ID]string, len(partial.Emails)),
+		Emails:      partial.Emails,
 		Name:        partial.Name,
 		EmailAlias:  partial.EmailAlias,
 		Description: partial.Description,
@@ -41,16 +41,39 @@ func (core *EmailList) Create(userID model.ID, partial model.EmailListPartial) e
 		DeletedBy:   model.ID{},
 	}
 
-	for _, email := range partial.Emails {
-		list.Emails[model.NewID()] = email
-	}
-
 	err = core.database.Create(list)
 	if err != nil {
 		return fmt.Errorf("error creating email list in database: %w", err)
 	}
 
 	return nil
+}
+
+func (core *EmailList) GetAll(userID model.ID) ([]model.EmailList, error) {
+	emailList, err := core.database.GetAllUser(userID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting email list: %w", err)
+	}
+
+	return emailList, nil
+}
+
+func (core *EmailList) Get(name string, userID model.ID) (*model.EmailList, error) {
+	exist, err := core.database.ExistByName(name, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error checking if email list exist in database: %w", err)
+	}
+
+	if !exist {
+		return nil, ErrEmailListDoesNotExist
+	}
+
+	emailList, err := core.database.GetByName(name, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting email list: %w", err)
+	}
+
+	return emailList, nil
 }
 
 func newEmailList(

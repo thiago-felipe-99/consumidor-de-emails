@@ -73,3 +73,75 @@ func (controller *EmailList) create(handler *fiber.Ctx) error {
 		handler,
 	)
 }
+
+// Get a user email list
+//
+//	@Summary		Get a user email list
+//	@Tags			emailList
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	model.EmailList	"email list"
+//	@Failure		401		{object}	sent			"user session has expired"
+//	@Failure		404		{object}	sent			"email list not found"
+//	@Failure		500		{object}	sent			"internal server error"
+//	@Param			name	path		string			true	"email list name"
+//	@Router			/email/list/{name} [get]
+//	@Description	Get a user email list.
+func (controller *EmailList) get(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(model.ID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() (*model.EmailList, error) { return controller.core.Get(handler.Params("name"), userID) }
+
+	expectErrors := []expectError{{core.ErrEmailListDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error getting user email list"
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Get all user email list
+//
+//	@Summary		Get all user email list
+//	@Tags			emailList
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		model.EmailList	"email list"
+//	@Failure		401	{object}	sent			"user session has expired"
+//	@Failure		500	{object}	sent			"internal server error"
+//	@Router			/email/list [get]
+//	@Description	Get all user email list.
+func (controller *EmailList) getAll(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(model.ID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() ([]model.EmailList, error) { return controller.core.GetAll(userID) }
+
+	expectErrors := []expectError{}
+
+	unexpectMessageError := "error getting user email list"
+
+	return callingCoreWithReturn(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		controller.getTranslator(handler),
+		handler,
+	)
+}

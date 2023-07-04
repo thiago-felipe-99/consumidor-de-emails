@@ -404,18 +404,19 @@ func (database *EmailList) ExistByName(name string, userID model.ID) (bool, erro
 	return database.lists.exist(filter)
 }
 
-func (database *EmailList) Get(listID model.ID) (*model.EmailList, error) {
+func (database *EmailList) GetAllUser(userID model.ID) ([]model.EmailList, error) {
 	filter := bson.D{
-		{Key: "_id", Value: listID},
+		{Key: "created_by", Value: userID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 
-	return database.lists.get(filter)
+	return database.lists.getMultiples(filter)
 }
 
-func (database *EmailList) GetByName(name string) (*model.EmailList, error) {
+func (database *EmailList) GetByName(name string, userID model.ID) (*model.EmailList, error) {
 	filter := bson.D{
 		{Key: "name", Value: name},
+		{Key: "created_by", Value: userID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 

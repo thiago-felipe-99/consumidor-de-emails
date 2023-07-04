@@ -271,6 +271,42 @@ const docTemplate = `{
             }
         },
         "/email/list": {
+            "get": {
+                "description": "Get all user email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Get all user email list",
+                "responses": {
+                    "200": {
+                        "description": "email list",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.EmailList"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Create a email list to user.",
                 "consumes": [
@@ -315,6 +351,56 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "email list already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/list/{name}": {
+            "get": {
+                "description": "Get a user email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Get a user email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "email list",
+                        "schema": {
+                            "$ref": "#/definitions/model.EmailList"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list not found",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
@@ -1535,6 +1621,41 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.TemplateData"
                 },
                 "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.EmailList": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "type": "string"
+                },
+                "deletedBy": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "emailAlias": {
+                    "type": "string"
+                },
+                "emails": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }
