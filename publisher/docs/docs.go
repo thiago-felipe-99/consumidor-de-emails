@@ -270,6 +270,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/email/list": {
+            "post": {
+                "description": "Create a email list to user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Creating email list",
+                "parameters": [
+                    {
+                        "description": "email list params",
+                        "name": "emailList",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.EmailListPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "create email list successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid email list param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "email list already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
         "/email/queue": {
             "get": {
                 "description": "Get all RabbitMQ queues.",
@@ -1477,6 +1535,33 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.TemplateData"
                 },
                 "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.EmailListPartial": {
+            "type": "object",
+            "required": [
+                "description",
+                "emailAlias",
+                "emails",
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "emailAlias": {
+                    "type": "string"
+                },
+                "emails": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
                     "type": "string"
                 }
             }

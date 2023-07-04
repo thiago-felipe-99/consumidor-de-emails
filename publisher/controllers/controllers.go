@@ -135,7 +135,7 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 		Format:     "${time} [INFO] - Finished request | ${ip} | ${status} | ${latency} | ${method} | ${path} | ${bytesSent} | ${bytesReceived} | ${error}\n",
 		TimeFormat: "2006/01/02 15:04:05",
 	}))
-	app.Use(recover.New())
+	app.Use(recover.New(recover.Config{EnableStackTrace: true}))
 	app.Use(prometheus.Middleware)
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",
@@ -173,6 +173,12 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 		languages:  languages,
 	}
 
+	emailList := EmailList{
+		core:       cores.EmailList,
+		translator: translator,
+		languages:  languages,
+	}
+
 	template := Template{
 		core:       cores.Template,
 		translator: translator,
@@ -206,6 +212,8 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Post("/email/queue", user.isAdmin, queue.create)
 	app.Delete("/email/queue/:name", user.isAdmin, queue.delete)
 	app.Post("/email/queue/:name/send", queue.sendEmail)
+
+	app.Post("/email/list", emailList.create)
 
 	app.Get("/email/template", template.getByUser)
 	app.Post("/email/template", template.create)

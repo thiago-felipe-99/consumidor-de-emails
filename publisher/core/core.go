@@ -82,6 +82,7 @@ func validate(validate *validator.Validate, data any) error {
 type Cores struct {
 	*User
 	*Queue
+	*EmailList
 	*Template
 	*Attachment
 }
@@ -107,8 +108,9 @@ func NewCores(
 
 	return &Cores{
 		User:       newUser(databases.User, validate, sessionDuration),
-		Template:   template,
 		Queue:      newQueue(template, attachment, rabbit, databases.Queue, validate),
+		EmailList:  newEmailList(databases.EmailList, validate),
+		Template:   template,
 		Attachment: attachment,
 	}
 }

@@ -82,6 +82,25 @@ definitions:
       userId:
         type: string
     type: object
+  model.EmailListPartial:
+    properties:
+      description:
+        type: string
+      emailAlias:
+        type: string
+      emails:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      name:
+        type: string
+    required:
+    - description
+    - emailAlias
+    - emails
+    - name
+    type: object
   model.Queue:
     properties:
       createdAt:
@@ -362,6 +381,44 @@ paths:
       summary: Confirm upload
       tags:
       - attachment
+  /email/list:
+    post:
+      consumes:
+      - application/json
+      description: Create a email list to user.
+      parameters:
+      - description: email list params
+        in: body
+        name: emailList
+        required: true
+        schema:
+          $ref: '#/definitions/model.EmailListPartial'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: create email list successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid email list param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "409":
+          description: email list already exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Creating email list
+      tags:
+      - emailList
   /email/queue:
     get:
       consumes:

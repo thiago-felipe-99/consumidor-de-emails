@@ -116,7 +116,10 @@ func (controller *User) newSession(handler *fiber.Ctx) error {
 	}
 
 	handler.Cookie(cookie)
-	handler.Set("session", session.ID.String())
+
+	if session != nil {
+		handler.Set("session", session.ID.String())
+	}
 
 	return err
 }

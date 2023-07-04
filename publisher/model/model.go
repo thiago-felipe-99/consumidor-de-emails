@@ -2,6 +2,7 @@
 package model
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -14,14 +15,32 @@ func (id ID) String() string {
 	return uuid.UUID(id).String()
 }
 
+func (id ID) MarshalKey() (string, error) {
+	return hex.EncodeToString(id[:]), nil
+}
+
+func (id *ID) UnmarshalKey(key string) error {
+	idUUID, err := uuid.Parse(key)
+	if err != nil {
+		return fmt.Errorf("error parsing ID: %w", err)
+	}
+
+	*id = ID(idUUID)
+
+	return nil
+}
+
 func NewID() ID {
 	return ID(uuid.New())
 }
 
 func ParseID(id string) (ID, error) {
-	uuid, err := uuid.Parse(id)
+	idUUID, err := uuid.Parse(id)
+	if err != nil {
+		return ID(uuid.UUID{}), fmt.Errorf("error parsing ID: %w", err)
+	}
 
-	return ID(uuid), fmt.Errorf("error parsing ID: %w", err)
+	return ID(idUUID), nil
 }
 
 type UserPartial struct {

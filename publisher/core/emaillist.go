@@ -20,7 +20,7 @@ func (core *EmailList) Create(userID model.ID, partial model.EmailListPartial) e
 		return err
 	}
 
-	exist, err := core.database.ExistByName(partial.Name)
+	exist, err := core.database.ExistByName(partial.Name, userID)
 	if err != nil {
 		return fmt.Errorf("error checking if email list exist in database: %w", err)
 	}
@@ -51,4 +51,14 @@ func (core *EmailList) Create(userID model.ID, partial model.EmailListPartial) e
 	}
 
 	return nil
+}
+
+func newEmailList(
+	database *data.EmailList,
+	validate *validator.Validate,
+) *EmailList {
+	return &EmailList{
+		database:  database,
+		validator: validate,
+	}
 }

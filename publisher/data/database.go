@@ -394,9 +394,10 @@ func (database *EmailList) Exist(listID model.ID) (bool, error) {
 	return database.lists.exist(filter)
 }
 
-func (database *EmailList) ExistByName(name string) (bool, error) {
+func (database *EmailList) ExistByName(name string, userID model.ID) (bool, error) {
 	filter := bson.D{
 		{Key: "name", Value: name},
+		{Key: "created_by", Value: userID},
 		{Key: "deleted_at", Value: bson.D{{Key: "$eq", Value: time.Time{}}}},
 	}
 
