@@ -142,6 +142,10 @@ type EmailListInfo struct {
 	Description string `json:"description" validate:"required"`
 }
 
+type EmailListEmails struct {
+	Emails []string `json:"emails" validate:"required,min=1,dive,email"`
+}
+
 type EmailList struct {
 	ID ID `json:"id"                  bson:"_id"`
 	// Email uses map[id] to have the possibility to remove by ID without revealing which email will be removed

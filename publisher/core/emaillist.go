@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -138,6 +139,33 @@ func (core *EmailList) Delete(name string, userID model.ID, deletedBy model.ID) 
 	err = core.database.Update(*emailList)
 	if err != nil {
 		return fmt.Errorf("error deleting email list: %w", err)
+	}
+
+	return nil
+}
+
+func (core *EmailList) AddEmails(name string, userID model.ID, emails model.EmailListEmails) error {
+	err := validate(core.validator, emails)
+	if err != nil {
+		return err
+	}
+
+	emailList, err := core.Get(name, userID)
+	if err != nil {
+		return err
+	}
+
+	emailsAlreadyExist := maps.Values(emailList.Emails)
+
+	for _, email := range emails.Emails {
+		if !slices.Contains(emailsAlreadyExist, email) {
+			emailList.Emails[model.NewID()] = email
+		}
+	}
+
+	err = core.database.Update(*emailList)
+	if err != nil {
+		return fmt.Errorf("error adding new emails email list: %w", err)
 	}
 
 	return nil
