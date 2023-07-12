@@ -14,6 +14,7 @@ import (
 type Queue struct {
 	template   *Template
 	attachment *Attachment
+	emailList  *EmailList
 	rabbit     *rabbit.Rabbit
 	database   *data.Queue
 	validator  *validator.Validate
@@ -166,7 +167,27 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID mo
 		}
 	}
 
-	// add logic to get emails from mail list
+	for _, list := range partial.EmailLists {
+		emailList, err := core.emailList.Get(list, userID)
+		if err != nil {
+			return err
+		}
+
+		partial.Receivers = append(partial.Receivers, model.Receiver{
+			Name:  emailList.Name,
+			Email: emailList.EmailAlias,
+		})
+
+		blindReceiver := make([]model.Receiver, 0, len(emailList.Emails))
+		for _, email := range emailList.Emails {
+			blindReceiver = append(blindReceiver, model.Receiver{
+				Name:  emailList.Name,
+				Email: email,
+			})
+		}
+
+		partial.BlindReceivers = append(partial.BlindReceivers, blindReceiver...)
+	}
 
 	for _, attachment := range partial.Attachments {
 		uploaded, err := core.attachment.Uploaded(userID, attachment)
@@ -208,6 +229,7 @@ func (core *Queue) SendEmail(queue string, partial model.EmailPartial, userID mo
 func newQueue(
 	template *Template,
 	attachment *Attachment,
+	emailList *EmailList,
 	rabbit *rabbit.Rabbit,
 	database *data.Queue,
 	validate *validator.Validate,
@@ -215,6 +237,7 @@ func newQueue(
 	return &Queue{
 		template:   template,
 		attachment: attachment,
+		emailList:  emailList,
 		rabbit:     rabbit,
 		database:   database,
 		validator:  validate,
