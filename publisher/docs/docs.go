@@ -1647,8 +1647,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "emails": {
-                    "type": "array",
-                    "items": {
+                    "description": "Email uses map[id] to have the possibility to remove by ID without revealing which email will be removed",
+                    "type": "object",
+                    "additionalProperties": {
                         "type": "string"
                     }
                 },

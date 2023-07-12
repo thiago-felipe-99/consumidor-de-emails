@@ -97,9 +97,11 @@ definitions:
       emailAlias:
         type: string
       emails:
-        items:
+        additionalProperties:
           type: string
-        type: array
+        description: Email uses map[id] to have the possibility to remove by ID without
+          revealing which email will be removed
+        type: object
       id:
         type: string
       name:

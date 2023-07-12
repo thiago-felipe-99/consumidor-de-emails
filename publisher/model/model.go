@@ -2,7 +2,7 @@
 package model
 
 import (
-	"encoding/json"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -15,8 +15,23 @@ func (id ID) String() string {
 	return uuid.UUID(id).String()
 }
 
-func (id ID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(id.String()) //nolint: wrapcheck
+func (id ID) MarshalText() ([]byte, error) {
+	return []byte(id.String()), nil
+}
+
+func (id ID) MarshalKey() (string, error) {
+	return hex.EncodeToString(id[:]), nil
+}
+
+func (id *ID) UnmarshalKey(data string) error {
+	idUUID, err := uuid.Parse(data)
+	if err != nil {
+		return fmt.Errorf("error unmarshal ID as key: %w", err)
+	}
+
+	*id = ID(idUUID)
+
+	return nil
 }
 
 func NewID() ID {
@@ -122,15 +137,16 @@ type EmailListPartial struct {
 }
 
 type EmailList struct {
-	ID          ID        `json:"id"                  bson:"_id"`
-	Emails      []string  `json:"emails"              bson:"emails"`
-	Name        string    `json:"name"                bson:"name"`
-	EmailAlias  string    `json:"emailAlias"          bson:"email_alias"`
-	Description string    `json:"description"         bson:"description"`
-	CreatedAt   time.Time `json:"createdAt"           bson:"created_at"`
-	CreatedBy   ID        `json:"createdBy"           bson:"created_by"`
-	DeletedAt   time.Time `json:"deletedAt,omitempty" bson:"deleted_at"`
-	DeletedBy   ID        `json:"deletedBy,omitempty" bson:"deleted_by"`
+	ID ID `json:"id"                  bson:"_id"`
+	// Email uses map[id] to have the possibility to remove by ID without revealing which email will be removed
+	Emails      map[ID]string `json:"emails"              bson:"emails"`
+	Name        string        `json:"name"                bson:"name"`
+	EmailAlias  string        `json:"emailAlias"          bson:"email_alias"`
+	Description string        `json:"description"         bson:"description"`
+	CreatedAt   time.Time     `json:"createdAt"           bson:"created_at"`
+	CreatedBy   ID            `json:"createdBy"           bson:"created_by"`
+	DeletedAt   time.Time     `json:"deletedAt,omitempty" bson:"deleted_at"`
+	DeletedBy   ID            `json:"deletedBy,omitempty" bson:"deleted_by"`
 }
 
 type TemplatePartial struct {

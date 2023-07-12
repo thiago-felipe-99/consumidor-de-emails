@@ -7,11 +7,24 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/thiago-felipe-99/mail/publisher/data"
 	"github.com/thiago-felipe-99/mail/publisher/model"
+	"golang.org/x/exp/slices"
 )
 
 type EmailList struct {
 	database  *data.EmailList
 	validator *validator.Validate
+}
+
+func uniq[T comparable](data []T) []T {
+	uniqs := make([]T, 0, len(data))
+
+	for _, element := range data {
+		if !slices.Contains(uniqs, element) {
+			uniqs = append(uniqs, element)
+		}
+	}
+
+	return uniqs
 }
 
 func (core *EmailList) Create(userID model.ID, partial model.EmailListPartial) error {
@@ -29,9 +42,16 @@ func (core *EmailList) Create(userID model.ID, partial model.EmailListPartial) e
 		return ErrEmailListAlreadyExist
 	}
 
+	uniqEmails := uniq(partial.Emails)
+
+	emails := make(map[model.ID]string, len(uniqEmails))
+	for _, email := range uniqEmails {
+		emails[model.NewID()] = email
+	}
+
 	list := model.EmailList{
 		ID:          model.NewID(),
-		Emails:      partial.Emails,
+		Emails:      emails,
 		Name:        partial.Name,
 		EmailAlias:  partial.EmailAlias,
 		Description: partial.Description,
