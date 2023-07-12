@@ -1,0 +1,2183 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is an api that publishes emails in RabbitMQ.",
+        "title": "Publisher Emails",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/email/attachment": {
+            "get": {
+                "description": "Get all user attachments.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Get user attachments",
+                "responses": {
+                    "200": {
+                        "description": "all attachments",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Attachment"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a upload attachment url.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Creating attachment",
+                "parameters": [
+                    {
+                        "description": "attachment params",
+                        "name": "attachment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "create attachment successfully",
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentURL"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid attachment param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/attachment/{id}": {
+            "get": {
+                "description": "Get a download attachment url.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Get attachment url",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "attachment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "attachment url",
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentURL"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid attachment ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "attachment does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Refresh a upload attachment url.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Refresh attachment url",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "attachment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "attachment url",
+                        "schema": {
+                            "$ref": "#/definitions/model.AttachmentURL"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid attachment ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "attachment does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/attachment/{id}/confirm": {
+            "post": {
+                "description": "Confirm upload.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachment"
+                ],
+                "summary": "Confirm upload",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "attachment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "upload confimed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid attachment ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "attachment does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/list": {
+            "get": {
+                "description": "Get all user email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Get all user email list",
+                "responses": {
+                    "200": {
+                        "description": "email list",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.EmailList"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a email list to user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Creating email list",
+                "parameters": [
+                    {
+                        "description": "email list params",
+                        "name": "emailList",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.EmailListPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "create email list successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid email list param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "email list already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/list/{name}": {
+            "get": {
+                "description": "Get a user email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Get a user email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "email list",
+                        "schema": {
+                            "$ref": "#/definitions/model.EmailList"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list not found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update information for an email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Update info email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "email list info",
+                        "name": "info",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.EmailListInfo"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "update email list successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid email list param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "email list already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Delete email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "delete email list successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/list/{name}/add": {
+            "post": {
+                "description": "Add emails to email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Add emails to email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "emails",
+                        "name": "emails",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.EmailListEmails"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "update email list successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid email param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/list/{name}/remove": {
+            "delete": {
+                "description": "Remove emails to email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Remove emails to email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "emails",
+                        "name": "emails",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.EmailListEmails"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "update email list successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid email param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/list/{user_id}/{name}/{email_id}": {
+            "delete": {
+                "description": "Remove emails to email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Remove email to email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id from emailist",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "email id from emailist",
+                        "name": "email_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "remove email successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/queue": {
+            "get": {
+                "description": "Get all RabbitMQ queues.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Get queues",
+                "responses": {
+                    "200": {
+                        "description": "all queues",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Queue"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a RabbitMQ queue with DLX.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Creating queue",
+                "parameters": [
+                    {
+                        "description": "queue params",
+                        "name": "queue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.QueuePartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "create queue successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid queue param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "queue already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/queue/{name}": {
+            "delete": {
+                "description": "Delete a queue with DLX.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Delete queues",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "queue name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "queue deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "queue does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/queue/{name}/send": {
+            "post": {
+                "description": "Sends an email to the RabbitMQ queue.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "queue"
+                ],
+                "summary": "Sends email",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "queue name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "email",
+                        "name": "queue",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Email"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "email sent successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid email param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "queue does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/template": {
+            "get": {
+                "description": "Get all user templates.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Get user template",
+                "responses": {
+                    "200": {
+                        "description": "all user templates",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Template"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a email template.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Creating template",
+                "parameters": [
+                    {
+                        "description": "template params",
+                        "name": "template",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TemplatePartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "create template successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid template param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "template name already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/template/all": {
+            "get": {
+                "description": "Get all email templates.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Get templates",
+                "responses": {
+                    "200": {
+                        "description": "all templates",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.Template"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/template/{name}": {
+            "get": {
+                "description": "Get a email template.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Get template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "template name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "all templates",
+                        "schema": {
+                            "$ref": "#/definitions/model.Template"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "template does not exist",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/controllers.sent"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update a email template.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Update template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "template name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "template params",
+                        "name": "template",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.TemplatePartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "template updated",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid template param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "template does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a email template.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "template"
+                ],
+                "summary": "Delete template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "template name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "template deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "template does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user": {
+            "get": {
+                "description": "Get current user informations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get user",
+                "responses": {
+                    "200": {
+                        "description": "user informations",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update user informatios.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Update user",
+                "parameters": [
+                    {
+                        "description": "user params",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user updated",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid user param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a user in application.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Create user",
+                "parameters": [
+                    {
+                        "description": "user params",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "user created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid user param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "409": {
+                        "description": "user already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete current user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Delete user",
+                "responses": {
+                    "200": {
+                        "description": "user deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is protected",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/admin/{userID}": {
+            "post": {
+                "description": "Create a user admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Create admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be promoted to admin",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "admin created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid user ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Remove the admin role from the user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Remove admin",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be removed from admin role",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "admin role removed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "was sent a invalid user ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/admin/{userID}/user": {
+            "get": {
+                "description": "Get user by admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user informations",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete user by admin.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Delete user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "user id to be deleted",
+                        "name": "userID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is protected",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/all": {
+            "get": {
+                "description": "Get all users informations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Get all users",
+                "responses": {
+                    "200": {
+                        "description": "user informations",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "403": {
+                        "description": "current user is not admin",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/session": {
+            "put": {
+                "description": "Refresh a user session and set in the response cookie.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Refresh session",
+                "responses": {
+                    "200": {
+                        "description": "user session refreshed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a user session and set in the response cookie.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Create session",
+                "parameters": [
+                    {
+                        "description": "user params",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserSessionPartial"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "session created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "400": {
+                        "description": "an invalid user param was sent",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "user does not exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "controllers.sent": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Attachment": {
+            "type": "object",
+            "properties": {
+                "confirmedUpload": {
+                    "type": "boolean"
+                },
+                "contentType": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "minioName": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.AttachmentPartial": {
+            "type": "object",
+            "required": [
+                "contentType",
+                "name",
+                "size"
+            ],
+            "properties": {
+                "contentType": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "model.AttachmentURL": {
+            "type": "object",
+            "properties": {
+                "formData": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "minioName": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Email": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "blindReceivers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Receiver"
+                    }
+                },
+                "emailLists": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "receivers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Receiver"
+                    }
+                },
+                "sentAt": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "template": {
+                    "$ref": "#/definitions/model.TemplateData"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.EmailList": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "type": "string"
+                },
+                "deletedBy": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "emailAlias": {
+                    "type": "string"
+                },
+                "emails": {
+                    "description": "Email uses map[id] to have the possibility to remove by ID without revealing which email will be removed",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.EmailListEmails": {
+            "type": "object",
+            "required": [
+                "emails"
+            ],
+            "properties": {
+                "emails": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "model.EmailListInfo": {
+            "type": "object",
+            "required": [
+                "description",
+                "emailAlias",
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "emailAlias": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.EmailListPartial": {
+            "type": "object",
+            "required": [
+                "description",
+                "emailAlias",
+                "emails",
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "emailAlias": {
+                    "type": "string"
+                },
+                "emails": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Queue": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "type": "string"
+                },
+                "deletedBy": {
+                    "type": "string"
+                },
+                "dlx": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "maxRetries": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.QueuePartial": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "maxRetries": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Receiver": {
+            "type": "object",
+            "required": [
+                "email",
+                "name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Template": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "createdBy": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "type": "string"
+                },
+                "deletedBy": {
+                    "type": "string"
+                },
+                "fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TemplateData": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.TemplatePartial": {
+            "type": "object",
+            "required": [
+                "name",
+                "template"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "template": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserPartial": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserSessionPartial": {
+            "type": "object",
+            "required": [
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

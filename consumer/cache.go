@@ -15,7 +15,7 @@ import (
 
 var (
 	errMaxEntrySize       = errors.New("entry is to big")
-	errInvalidContentType = errors.New("obeject has a invalid Content Type: %s")
+	errInvalidContentType = errors.New("obeject has a invalid Content Type")
 	errSmallBuffer        = errors.New("unable to get all template")
 )
 
@@ -27,18 +27,22 @@ type cache struct {
 	validContentTypes []string
 }
 
-func newCache(configs *configurations) (*cache, error) {
+func newCache(
+	configs *cacheConfig,
+	minioConfig *minioConfig,
+	validContentType ...string,
+) (*cache, error) {
 	const megabyte = 1000 * 1000
 
 	dataConfig := bigcache.Config{
-		Shards:             configs.Cache.Shards,
-		LifeWindow:         time.Duration(configs.Cache.LifeWindow) * time.Minute,
-		CleanWindow:        time.Duration(configs.Cache.CleanWindow) * time.Minute,
-		MaxEntriesInWindow: configs.Cache.AvgEntries,
-		MaxEntrySize:       configs.Cache.AvgEntrySize * megabyte,
-		HardMaxCacheSize:   configs.Cache.MaxSize,
-		StatsEnabled:       configs.Cache.Statics,
-		Verbose:            configs.Cache.Verbose,
+		Shards:             configs.Shards,
+		LifeWindow:         time.Duration(configs.LifeWindow) * time.Minute,
+		CleanWindow:        time.Duration(configs.CleanWindow) * time.Minute,
+		MaxEntriesInWindow: configs.AvgEntries,
+		MaxEntrySize:       configs.AvgEntrySize * megabyte,
+		HardMaxCacheSize:   configs.MaxSize,
+		StatsEnabled:       configs.Statics,
+		Verbose:            configs.Verbose,
 	}
 
 	data, err := bigcache.New(context.Background(), dataConfig)
@@ -46,11 +50,11 @@ func newCache(configs *configurations) (*cache, error) {
 		return nil, fmt.Errorf("erro creating BigCache: %w", err)
 	}
 
-	host := fmt.Sprintf("%s:%d", configs.Minio.Host, configs.Minio.Port)
+	host := fmt.Sprintf("%s:%d", minioConfig.Host, minioConfig.Port)
 	minioOptions := &minio.Options{
 		Creds: credentials.NewStaticV4(
-			configs.Minio.AccessKey,
-			configs.Minio.SecretKey,
+			minioConfig.AccessKey,
+			minioConfig.SecretKey,
 			"",
 		),
 	}
@@ -62,10 +66,10 @@ func newCache(configs *configurations) (*cache, error) {
 
 	return &cache{
 		data:              data,
-		bucket:            configs.Cache.Bucket,
+		bucket:            configs.Bucket,
 		minio:             minio,
-		maxEntrySize:      int64(configs.Cache.MaxEntrySize) * megabyte,
-		validContentTypes: nil,
+		maxEntrySize:      int64(configs.MaxEntrySize) * megabyte,
+		validContentTypes: validContentType,
 	}, nil
 }
 
@@ -100,7 +104,7 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 	}
 
 	if !validContentType(objectInfo.ContentType, cache.validContentTypes) {
-		return nil, errInvalidContentType
+		return nil, fmt.Errorf("%w, %s", errInvalidContentType, objectInfo.ContentType)
 	}
 
 	if objectInfo.Size > cache.maxEntrySize {
@@ -124,70 +128,8 @@ func (cache *cache) getFileFromMinio(name string) ([]byte, error) {
 	return file, nil
 }
 
-func (cache *cache) getFile(name string) ([]byte, error) {
-	file, err := cache.data.Get(name)
-	if err != nil {
-		if errors.Is(err, bigcache.ErrEntryNotFound) {
-			return cache.getFileFromMinio(name)
-		}
-
-		return nil, fmt.Errorf("error getting file from minio: %w", err)
-	}
-
-	return file, nil
-}
-
-type templateCache struct {
-	cache
-}
-
-func newTemplate(configs *configurations) (*templateCache, error) {
-	const megabyte = 1000 * 1000
-
-	dataConfig := bigcache.Config{
-		Shards:             configs.Template.Shards,
-		LifeWindow:         0,
-		CleanWindow:        0,
-		MaxEntriesInWindow: configs.Template.AvgEntries,
-		MaxEntrySize:       configs.Template.AvgEntrySize * megabyte,
-		HardMaxCacheSize:   configs.Template.MaxSize,
-		StatsEnabled:       configs.Template.Statics,
-		Verbose:            configs.Template.Verbose,
-	}
-
-	data, err := bigcache.New(context.Background(), dataConfig)
-	if err != nil {
-		return nil, fmt.Errorf("erro creating BigCache: %w", err)
-	}
-
-	host := fmt.Sprintf("%s:%d", configs.Minio.Host, configs.Minio.Port)
-	minioOptions := &minio.Options{
-		Creds: credentials.NewStaticV4(
-			configs.Minio.AccessKey,
-			configs.Minio.SecretKey,
-			"",
-		),
-	}
-
-	minio, err := minio.New(host, minioOptions)
-	if err != nil {
-		return nil, fmt.Errorf("error creating Minio client: %w", err)
-	}
-
-	template := &templateCache{
-		cache: cache{
-			data:              data,
-			bucket:            configs.Template.Bucket,
-			minio:             minio,
-			maxEntrySize:      int64(configs.Template.MaxEntrySize) * megabyte,
-			validContentTypes: []string{"text/markdown"},
-		},
-	}
-
-	return template, nil
-}
-
-func (template *templateCache) setAll() {
+// getAllFromMinio get all files from minio bucket and put in the cache.
+func (cache *cache) getAllFromMinio() {
 	options := minio.ListObjectsOptions{
 		WithVersions: false,
 		WithMetadata: true,
@@ -197,14 +139,14 @@ func (template *templateCache) setAll() {
 
 	templatesQuantity := 0
 
-	for info := range template.cache.minio.ListObjects(context.Background(), template.bucket, options) {
+	for info := range cache.minio.ListObjects(context.Background(), cache.bucket, options) {
 		if info.Err != nil {
 			log.Printf("[ERROR] - Error getting '%s' template info: %s", info.Key, info.Err)
 
 			continue
 		}
 
-		_, err := template.cache.getFileFromMinio(info.Key)
+		_, err := cache.getFileFromMinio(info.Key)
 		if err != nil {
 			log.Printf("[ERROR] - Error setting '%s' template: %s", info.Key, err)
 		} else {
@@ -215,6 +157,15 @@ func (template *templateCache) setAll() {
 	log.Printf("[INFO] - %d templates on cache", templatesQuantity)
 }
 
-func (template *templateCache) get(name string) ([]byte, error) {
-	return template.cache.getFile(name)
+func (cache *cache) get(name string) ([]byte, error) {
+	file, err := cache.data.Get(name)
+	if err != nil {
+		if errors.Is(err, bigcache.ErrEntryNotFound) {
+			return cache.getFileFromMinio(name)
+		}
+
+		return nil, fmt.Errorf("error getting file from minio: %w", err)
+	}
+
+	return file, nil
 }
