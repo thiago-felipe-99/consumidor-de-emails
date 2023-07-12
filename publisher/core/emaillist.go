@@ -171,6 +171,39 @@ func (core *EmailList) AddEmails(name string, userID model.ID, emails model.Emai
 	return nil
 }
 
+func (core *EmailList) RemoveEmails(
+	name string,
+	userID model.ID,
+	emails model.EmailListEmails,
+) error {
+	err := validate(core.validator, emails)
+	if err != nil {
+		return err
+	}
+
+	emailList, err := core.Get(name, userID)
+	if err != nil {
+		return err
+	}
+
+	for _, email := range emailList.Emails {
+		del := func(k model.ID, v string) bool {
+			return email == v
+		}
+
+		if slices.Contains(emails.Emails, email) {
+			maps.DeleteFunc(emailList.Emails, del)
+		}
+	}
+
+	err = core.database.Update(*emailList)
+	if err != nil {
+		return fmt.Errorf("error adding new emails email list: %w", err)
+	}
+
+	return nil
+}
+
 func newEmailList(
 	database *data.EmailList,
 	validate *validator.Validate,

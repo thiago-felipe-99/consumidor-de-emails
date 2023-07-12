@@ -645,6 +645,49 @@ paths:
       summary: Add emails to email list
       tags:
       - emailList
+  /email/list/{name}/remove:
+    delete:
+      consumes:
+      - application/json
+      description: Remove emails to email list.
+      parameters:
+      - description: email list name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: emails
+        in: body
+        name: emails
+        required: true
+        schema:
+          $ref: '#/definitions/model.EmailListEmails'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: update email list successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid email param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: email list does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Remove emails to email list
+      tags:
+      - emailList
   /email/queue:
     get:
       consumes:
