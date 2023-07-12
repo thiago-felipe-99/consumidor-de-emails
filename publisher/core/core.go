@@ -106,11 +106,12 @@ func NewCores(
 		validate,
 		maxEntrySize,
 	)
+	emailList := newEmailList(databases.EmailList, validate)
 
 	return &Cores{
 		User:       newUser(databases.User, validate, sessionDuration),
-		Queue:      newQueue(template, attachment, rabbit, databases.Queue, validate),
-		EmailList:  newEmailList(databases.EmailList, validate),
+		Queue:      newQueue(template, attachment, emailList, rabbit, databases.Queue, validate),
+		EmailList:  emailList,
 		Template:   template,
 		Attachment: attachment,
 	}
