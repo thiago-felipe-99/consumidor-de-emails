@@ -107,6 +107,19 @@ definitions:
       name:
         type: string
     type: object
+  model.EmailListInfo:
+    properties:
+      description:
+        type: string
+      emailAlias:
+        type: string
+      name:
+        type: string
+    required:
+    - description
+    - emailAlias
+    - name
+    type: object
   model.EmailListPartial:
     properties:
       description:
@@ -499,6 +512,52 @@ paths:
           schema:
             $ref: '#/definitions/controllers.sent'
       summary: Get a user email list
+      tags:
+      - emailList
+    put:
+      consumes:
+      - application/json
+      description: Update information fot an email list.
+      parameters:
+      - description: email list name
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: email list info
+        in: body
+        name: emailList
+        required: true
+        schema:
+          $ref: '#/definitions/model.EmailListInfo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: update email list successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "400":
+          description: an invalid email list param was sent
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: email list does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "409":
+          description: email list already exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Update info email list
       tags:
       - emailList
   /email/queue:

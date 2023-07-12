@@ -136,6 +136,12 @@ type EmailListPartial struct {
 	Description string   `json:"description" validate:"required"`
 }
 
+type EmailListInfo struct {
+	Name        string `json:"name"        validate:"required"`
+	EmailAlias  string `json:"emailAlias"  validate:"required,email"`
+	Description string `json:"description" validate:"required"`
+}
+
 type EmailList struct {
 	ID ID `json:"id"                  bson:"_id"`
 	// Email uses map[id] to have the possibility to remove by ID without revealing which email will be removed

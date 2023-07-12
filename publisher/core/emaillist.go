@@ -96,6 +96,36 @@ func (core *EmailList) Get(name string, userID model.ID) (*model.EmailList, erro
 	return emailList, nil
 }
 
+func (core *EmailList) UpdateInfo(name string, userID model.ID, info model.EmailListInfo) error {
+	err := validate(core.validator, info)
+	if err != nil {
+		return err
+	}
+
+	emailList, err := core.Get(name, userID)
+	if err != nil {
+		return err
+	}
+
+	if emailList.Name != info.Name {
+		exist, err := core.database.ExistByName(info.Name, userID)
+		if err != nil {
+			return fmt.Errorf("error checking if email list exist in database: %w", err)
+		}
+
+		if exist {
+			return ErrEmailListAlreadyExist
+		}
+	}
+
+	err = core.database.UpdateInfo(emailList.ID, info)
+	if err != nil {
+		return fmt.Errorf("error updating email list info: %w", err)
+	}
+
+	return nil
+}
+
 func newEmailList(
 	database *data.EmailList,
 	validate *validator.Validate,

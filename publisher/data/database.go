@@ -441,6 +441,18 @@ func (database *EmailList) Update(list model.EmailList) error {
 	return database.lists.update(list.ID, update)
 }
 
+func (database *EmailList) UpdateInfo(listID model.ID, info model.EmailListInfo) error {
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "name", Value: info.Name},
+			{Key: "email_alias", Value: info.EmailAlias},
+			{Key: "description", Value: info.Description},
+		}},
+	}
+
+	return database.lists.update(listID, update)
+}
+
 func newEmailListDatabase(vlient *mongodb.Client) *EmailList {
 	return &EmailList{
 		createMongoDatabase[model.EmailList](vlient, "email_lists", "lists"),
