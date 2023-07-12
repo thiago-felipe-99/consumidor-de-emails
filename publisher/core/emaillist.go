@@ -126,6 +126,23 @@ func (core *EmailList) UpdateInfo(name string, userID model.ID, info model.Email
 	return nil
 }
 
+func (core *EmailList) Delete(name string, userID model.ID, deletedBy model.ID) error {
+	emailList, err := core.Get(name, userID)
+	if err != nil {
+		return err
+	}
+
+	emailList.DeletedAt = time.Now()
+	emailList.DeletedBy = deletedBy
+
+	err = core.database.Update(*emailList)
+	if err != nil {
+		return fmt.Errorf("error deleting email list: %w", err)
+	}
+
+	return nil
+}
+
 func newEmailList(
 	database *data.EmailList,
 	validate *validator.Validate,

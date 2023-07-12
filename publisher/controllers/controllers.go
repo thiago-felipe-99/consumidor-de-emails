@@ -217,6 +217,7 @@ func CreateHTTPServer(validate *validator.Validate, cores *core.Cores) (*fiber.A
 	app.Post("/email/list", emailList.create)
 	app.Get("/email/list/:name", emailList.get)
 	app.Put("/email/list/:name", emailList.updateInfo)
+	app.Delete("/email/list/:name", emailList.delete)
 
 	app.Get("/email/template", template.getByUser)
 	app.Post("/email/template", template.create)

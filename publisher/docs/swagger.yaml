@@ -482,6 +482,38 @@ paths:
       tags:
       - emailList
   /email/list/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an email list.
+      parameters:
+      - description: email list name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: delete email list successfully
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "401":
+          description: user session has expired
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "404":
+          description: email list does not exist
+          schema:
+            $ref: '#/definitions/controllers.sent'
+        "500":
+          description: internal server error
+          schema:
+            $ref: '#/definitions/controllers.sent'
+      summary: Delete email list
+      tags:
+      - emailList
     get:
       consumes:
       - application/json
@@ -517,7 +549,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update information fot an email list.
+      description: Update information for an email list.
       parameters:
       - description: email list name
         in: path

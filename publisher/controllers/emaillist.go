@@ -146,7 +146,7 @@ func (controller *EmailList) getAll(handler *fiber.Ctx) error {
 	)
 }
 
-// Update information fot an email list.
+// Update information for an email list.
 //
 //	@Summary		Update info email list
 //	@Tags			emailList
@@ -161,7 +161,7 @@ func (controller *EmailList) getAll(handler *fiber.Ctx) error {
 //	@Param			name		path		string				true	"email list name"
 //	@Param			emailList	body		model.EmailListInfo	true	"email list info"
 //	@Router			/email/list/{name} [put]
-//	@Description	Update information fot an email list.
+//	@Description	Update information for an email list.
 func (controller *EmailList) updateInfo(handler *fiber.Ctx) error {
 	userID, ok := handler.Locals("userID").(model.ID)
 	if !ok {
@@ -188,6 +188,46 @@ func (controller *EmailList) updateInfo(handler *fiber.Ctx) error {
 	unexpectMessageError := "error updating email list"
 
 	okay := okay{"email list updated", fiber.StatusOK}
+
+	return callingCore(
+		funcCore,
+		expectErrors,
+		unexpectMessageError,
+		okay,
+		controller.getTranslator(handler),
+		handler,
+	)
+}
+
+// Delete an email list.
+//
+//	@Summary		Delete email list
+//	@Tags			emailList
+//	@Accept			json
+//	@Produce		json
+//	@Success		200		{object}	sent	"delete email list successfully"
+//	@Failure		401		{object}	sent	"user session has expired"
+//	@Failure		404		{object}	sent	"email list does not exist"
+//	@Failure		500		{object}	sent	"internal server error"
+//	@Param			name	path		string	true	"email list name"
+//	@Router			/email/list/{name} [delete]
+//	@Description	Delete an email list.
+func (controller *EmailList) delete(handler *fiber.Ctx) error {
+	userID, ok := handler.Locals("userID").(model.ID)
+	if !ok {
+		log.Printf("[ERROR] - error getting user ID")
+
+		return handler.Status(fiber.StatusInternalServerError).
+			JSON(sent{"error refreshing session"})
+	}
+
+	funcCore := func() error { return controller.core.Delete(handler.Params("name"), userID, userID) }
+
+	expectErrors := []expectError{{core.ErrEmailListDoesNotExist, fiber.StatusNotFound}}
+
+	unexpectMessageError := "error deleting email list"
+
+	okay := okay{"email list deleted", fiber.StatusOK}
 
 	return callingCore(
 		funcCore,

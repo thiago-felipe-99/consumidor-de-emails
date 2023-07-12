@@ -407,7 +407,7 @@
                 }
             },
             "put": {
-                "description": "Update information fot an email list.",
+                "description": "Update information for an email list.",
                 "consumes": [
                     "application/json"
                 ],
@@ -463,6 +463,54 @@
                     },
                     "409": {
                         "description": "email list already exist",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete an email list.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emailList"
+                ],
+                "summary": "Delete email list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "email list name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "delete email list successfully",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "401": {
+                        "description": "user session has expired",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.sent"
+                        }
+                    },
+                    "404": {
+                        "description": "email list does not exist",
                         "schema": {
                             "$ref": "#/definitions/controllers.sent"
                         }
